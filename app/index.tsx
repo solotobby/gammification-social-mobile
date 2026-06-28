@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useRef, useState } from 'react';
 import {
@@ -11,18 +12,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Paginator } from '../components/onboarding/Paginator';
-import { OnboardingSlideView } from '../components/onboarding/OnboardingSlideView';
-import { GradientButton } from '../components/ui/GradientButton';
-import { onboardingSlides } from '../data/onboarding';
-import { useTheme } from '../theme/ThemeProvider';
+import { Paginator } from '../src/components/onboarding/Paginator';
+import { OnboardingSlideView } from '../src/components/onboarding/OnboardingSlideView';
+import { GradientButton } from '../src/components/ui/GradientButton';
+import { Logo } from '../src/components/ui/Logo';
+import { onboardingSlides } from '../src/data/onboarding';
+import { useTheme } from '../src/theme/ThemeProvider';
 
-type Props = {
-  onDone: () => void;
-};
-
-export function WelcomeScreen({ onDone }: Props) {
-  const { colors, brand, spacing, typography } = useTheme();
+export default function WelcomeScreen() {
+  const { colors, spacing } = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -47,9 +46,9 @@ export function WelcomeScreen({ onDone }: Props) {
     if (index < lastIndex) {
       listRef.current?.scrollToIndex({ index: index + 1, animated: true });
     } else {
-      onDone();
+      router.push('/sign-up');
     }
-  }, [index, lastIndex, onDone]);
+  }, [index, lastIndex, router]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -68,22 +67,12 @@ export function WelcomeScreen({ onDone }: Props) {
           { paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.xl },
         ]}
       >
-        <View style={styles.brandRow}>
-          <LinearGradient
-            colors={[brand.violetBright, brand.violet]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.brandMark}
-          >
-            <Text style={styles.brandMarkText}>P</Text>
-          </LinearGradient>
-          <Text style={[styles.brandName, { color: colors.text }]}>Payhankey</Text>
-        </View>
+        <Logo width={150} />
 
         {!isLast && (
           <Pressable
             hitSlop={12}
-            onPress={onDone}
+            onPress={() => router.push('/sign-up')}
             accessibilityRole="button"
             accessibilityLabel="Skip onboarding"
           >
@@ -136,7 +125,7 @@ export function WelcomeScreen({ onDone }: Props) {
 
         <Pressable
           hitSlop={8}
-          onPress={onDone}
+          onPress={() => router.push('/sign-in')}
           accessibilityRole="button"
           accessibilityLabel="Log in to existing account"
         >
@@ -159,28 +148,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingBottom: 8,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  brandMark: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandMarkText: {
-    color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: '900',
-  },
-  brandName: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 0.2,
   },
   skip: {
     fontSize: 15,

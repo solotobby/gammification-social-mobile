@@ -1,23 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ThemeToggle } from '../components/ui/ThemeToggle';
-import { useTheme } from '../theme/ThemeProvider';
-
-type Props = {
-  onReplay: () => void;
-};
+import { ThemeToggle } from '../src/components/ui/ThemeToggle';
+import { useTheme } from '../src/theme/ThemeProvider';
 
 /**
  * Placeholder landing screen shown after onboarding. Its real purpose here is to
  * demonstrate that the whole app reacts to the active palette and lets you flip
  * between System / Light / Dark.
  */
-export function HomeScreen({ onReplay }: Props) {
+export default function HomeScreen() {
   const { colors, brand, radius, spacing, typography, isDark } = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (
@@ -87,7 +85,7 @@ export function HomeScreen({ onReplay }: Props) {
         </View>
 
         <Pressable
-          onPress={onReplay}
+          onPress={() => router.replace('/')}
           accessibilityRole="button"
           style={[
             styles.replay,

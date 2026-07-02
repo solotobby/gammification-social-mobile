@@ -18,7 +18,9 @@ function ThemedStack() {
           contentStyle: { backgroundColor: colors.background },
           animation: 'slide_from_right',
         }}
-      />
+      >
+        <Stack.Screen name="compose" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      </Stack>
     </>
   );
 }

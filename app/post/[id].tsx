@@ -214,6 +214,10 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     paddingHorizontal: 16,
+    // Kill the platform's default vertical padding so the placeholder sits
+    // centered like typed text (it otherwise sags toward the bottom).
+    paddingVertical: 0,
+    textAlignVertical: 'center',
     fontSize: 14,
     fontWeight: '500',
     borderWidth: StyleSheet.hairlineWidth,

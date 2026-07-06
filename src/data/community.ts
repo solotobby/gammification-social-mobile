@@ -85,6 +85,30 @@ export const members: Member[] = [
 
 export const trendingMembers = members.slice(0, 5);
 
+/** Resolve a member by handle ("me" or the current user's handle → self). */
+export function findMember(handle: string): Member | undefined {
+  if (handle === 'me' || handle === currentUser.handle) return currentUser;
+  return members.find((m) => m.handle === handle);
+}
+
+// Who the current user follows — shared so follow buttons stay in sync
+// across Explore rows, trending lists, and the profile screen (dummy).
+const followedIds = new Set<string>();
+
+export function isFollowing(memberId: string): boolean {
+  return followedIds.has(memberId);
+}
+
+/** Toggle follow state; returns the new state. */
+export function toggleFollow(memberId: string): boolean {
+  if (followedIds.has(memberId)) {
+    followedIds.delete(memberId);
+    return false;
+  }
+  followedIds.add(memberId);
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Topics
 // ---------------------------------------------------------------------------
@@ -213,6 +237,11 @@ export const loadedPosts: Post[] = [];
 /** Look up a post across the seed feed and any generated pages. */
 export function findPost(id: string): Post | undefined {
   return feedPosts.find((p) => p.id === id) ?? loadedPosts.find((p) => p.id === id);
+}
+
+/** All of a member's posts across the seed feed and generated pages. */
+export function postsByMember(memberId: string): Post[] {
+  return [...feedPosts, ...loadedPosts].filter((p) => p.author.id === memberId);
 }
 
 let nextId = 100;

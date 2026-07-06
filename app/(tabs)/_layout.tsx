@@ -4,9 +4,9 @@ import React from 'react';
 import { TabBar } from '../../src/components/navigation/TabBar';
 
 /**
- * Main app shell after auth: Home (feed), Explore, Earnings, Profile, plus the
- * raised center Compose action rendered by the custom TabBar. Order here must
- * match the render order in TabBar.
+ * Main app shell after auth: Home (feed), Explore, Reels, Earnings, Profile,
+ * plus the compose FAB rendered by the custom TabBar. Order here must match
+ * the render order in TabBar.
  */
 export default function TabsLayout() {
   return (
@@ -20,6 +20,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" />
       <Tabs.Screen name="explore" />
+      <Tabs.Screen name="reels" />
       <Tabs.Screen name="earnings" />
       <Tabs.Screen name="profile" />
     </Tabs>

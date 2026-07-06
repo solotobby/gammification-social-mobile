@@ -6,7 +6,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
-import { InviteCard } from '../../src/components/referral/InviteCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
@@ -57,11 +56,19 @@ export default function ProfileScreen() {
           gap: spacing.xl,
         }}
       >
-        {/* Identity card */}
-        <View
-          style={[
+        {/* Identity card — tap through to the full profile (posts + stats) */}
+        <Pressable
+          onPress={() => router.push(`/member/${currentUser.handle}`)}
+          accessibilityRole="button"
+          accessibilityLabel="View my profile"
+          style={({ pressed }) => [
             styles.identityCard,
-            { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radius.lg,
+              opacity: pressed ? 0.9 : 1,
+            },
           ]}
         >
           <LinearGradient
@@ -101,10 +108,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
-        </View>
-
-        {/* Referral invite (moved here from Home — includes the referral code) */}
-        <InviteCard />
+        </Pressable>
 
         {/* Appearance */}
         <View

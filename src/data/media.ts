@@ -1,7 +1,7 @@
 /**
- * Dummy media pool for posts and stories. Images come from picsum.photos
- * (seeded so they stay stable) and videos from Google's public sample bucket,
- * which also hosts a poster frame for each clip.
+ * Dummy media pool for posts, stories, and reels. Images come from
+ * picsum.photos (seeded so they stay stable) and videos from public sample
+ * hosts that serve plain MP4 with range + CORS support.
  */
 
 export type MediaItem = {
@@ -17,23 +17,21 @@ export function sampleImage(seed: string, w = 900, h = 675): string {
   return `https://picsum.photos/seed/${seed}/${w}/${h}`;
 }
 
-const VIDEO_BUCKET = 'https://storage.googleapis.com/gtv-videos-bucket/sample';
-
 /**
- * Public sample clips. Posters come from picsum — the bucket's own poster
- * JPGs are served with a content type browsers refuse to render (ORB).
+ * Public sample clips — short MP4s that reliably stream (Google's old
+ * gtv-videos-bucket now 403s). Posters come from picsum.
  */
 export const sampleVideos = [
-  'ForBiggerBlazes',
-  'ForBiggerFun',
-  'ForBiggerEscapes',
-  'ForBiggerJoyrides',
-  'ForBiggerMeltdowns',
-].map((name, index) => ({
+  'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_5MB.mp4',
+  'https://test-videos.co.uk/vids/jellyfish/mp4/h264/720/Jellyfish_720_10s_5MB.mp4',
+  'https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_5MB.mp4',
+  'https://media.w3.org/2010/05/sintel/trailer.mp4',
+  'https://media.w3.org/2010/05/bunny/trailer.mp4',
+].map((uri, index) => ({
   id: `sv${index + 1}`,
   type: 'video' as const,
-  uri: `${VIDEO_BUCKET}/${name}.mp4`,
-  poster: sampleImage(`poster-${name}`),
+  uri,
+  poster: sampleImage(`poster-clip-${index + 1}`),
 }));
 
 let mediaId = 0;

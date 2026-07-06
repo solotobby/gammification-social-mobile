@@ -148,6 +148,13 @@ export function addStory(
   return story;
 }
 
+/** Delete one of the current user's own stories. Returns how many remain. */
+export function deleteStory(itemId: string): number {
+  const at = myStories.findIndex((s) => s.id === itemId);
+  if (at >= 0) myStories.splice(at, 1);
+  return myStories.length;
+}
+
 /** Mark a member's story group as seen (dims its ring on the rail). */
 export function markStoriesSeen(memberId: string): void {
   const group = memberStories.find((g) => g.member.id === memberId);

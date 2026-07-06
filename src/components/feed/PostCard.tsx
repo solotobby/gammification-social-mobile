@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -21,6 +22,7 @@ type Props = {
  */
 export function PostCard({ post, onOpen, bare }: Props) {
   const { colors, radius } = useTheme();
+  const router = useRouter();
   const [liked, setLiked] = useState(false);
 
   const likeCount = post.likes + (liked ? 1 : 0);
@@ -28,18 +30,27 @@ export function PostCard({ post, onOpen, bare }: Props) {
   const content = (
     <>
       <View style={styles.headerRow}>
-        <Avatar name={post.author.name} tint={post.author.tint} size={42} />
-        <View style={styles.headerText}>
-          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {post.author.name.split(" ")[0]}
-          </Text>
-          <Text
-            style={[styles.meta, { color: colors.textMuted }]}
-            numberOfLines={1}
-          >
-            @{post.author.handle} · {post.timeAgo}
-          </Text>
-        </View>
+        {/* Author → their profile */}
+        <Pressable
+          onPress={() => router.push(`/member/${post.author.handle}`)}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${post.author.name}'s profile`}
+          style={styles.authorTap}
+        >
+          <Avatar name={post.author.name} tint={post.author.tint} size={42} />
+          <View style={styles.headerText}>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              {post.author.name.split(" ")[0]}
+            </Text>
+            <Text
+              style={[styles.meta, { color: colors.textMuted }]}
+              numberOfLines={1}
+            >
+              @{post.author.handle} · {post.timeAgo}
+            </Text>
+          </View>
+        </Pressable>
         <View
           style={[
             styles.earnedPill,
@@ -169,6 +180,12 @@ const styles = StyleSheet.create({
   },
   bare: { gap: 12 },
   headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  authorTap: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,

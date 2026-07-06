@@ -8,7 +8,7 @@ import { StoryContent } from '../../src/components/stories/StoryContent';
 import { StoryViewersSheet } from '../../src/components/stories/StoryViewersSheet';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { currentUser } from '../../src/data/community';
-import { findStoryGroup, getStoryGroups, markStoriesSeen } from '../../src/data/stories';
+import { deleteStory, findStoryGroup, getStoryGroups, markStoriesSeen } from '../../src/data/stories';
 
 /**
  * Full-screen story viewer: segmented progress bars auto-advance through a
@@ -25,14 +25,19 @@ export default function StoryViewerScreen() {
 
   const [index, setIndex] = useState(0);
   const [showViewers, setShowViewers] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  // Bump to re-render after deleting an item from the in-memory store.
+  const [, setVersion] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
 
   const item = group?.items[index];
+  const paused = showViewers || confirmDelete;
 
   // Replacing /story/a with /story/b reuses this screen — restart at item 0.
   useEffect(() => {
     setIndex(0);
     setShowViewers(false);
+    setConfirmDelete(false);
     if (memberId) markStoriesSeen(memberId);
   }, [memberId]);
 
@@ -60,9 +65,21 @@ export default function StoryViewerScreen() {
     }
   };
 
-  // Drive the current segment; pause while the viewers sheet is open.
+  const onDelete = () => {
+    if (!item) return;
+    const remaining = deleteStory(item.id);
+    setConfirmDelete(false);
+    if (remaining === 0) {
+      router.back();
+      return;
+    }
+    if (index >= remaining) setIndex(remaining - 1);
+    setVersion((v) => v + 1);
+  };
+
+  // Drive the current segment; pause while the viewers sheet / confirm is open.
   useEffect(() => {
-    if (!item || showViewers) return;
+    if (!item || paused) return;
     progress.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: 1,
@@ -73,7 +90,7 @@ export default function StoryViewerScreen() {
       if (finished) advance();
     });
     return () => animation.stop();
-  }, [item, showViewers, progress, advance]);
+  }, [item, paused, progress, advance]);
 
   if (!group || !item) {
     return (
@@ -95,7 +112,7 @@ export default function StoryViewerScreen() {
 
   return (
     <View style={styles.root}>
-      <StoryContent item={item} active={!showViewers} />
+      <StoryContent item={item} active={!paused} />
 
       {/* Tap zones: left third rewinds, the rest advances */}
       <View style={StyleSheet.absoluteFill}>
@@ -134,6 +151,17 @@ export default function StoryViewerScreen() {
           </Text>
           <Text style={styles.headerTime}>{item.timeAgo}</Text>
         </View>
+        {isMine ? (
+          <Pressable
+            onPress={() => setConfirmDelete(true)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Delete this story"
+            style={styles.closeBtn}
+          >
+            <Ionicons name="trash-outline" size={21} color="#FFFFFF" />
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={() => router.back()}
           hitSlop={10}
@@ -160,6 +188,36 @@ export default function StoryViewerScreen() {
       ) : null}
 
       {showViewers ? <StoryViewersSheet item={item} onClose={() => setShowViewers(false)} /> : null}
+
+      {/* Delete confirmation (inline — Alert buttons don't work on web) */}
+      {confirmDelete ? (
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete this story?</Text>
+            <Text style={styles.confirmBody}>
+              It will be removed for everyone. This can't be undone.
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                onPress={() => setConfirmDelete(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Keep story"
+                style={[styles.confirmBtn, styles.confirmCancel]}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={onDelete}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm delete story"
+                style={[styles.confirmBtn, styles.confirmDelete]}
+              >
+                <Text style={styles.confirmDeleteText}>Delete</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -216,6 +274,39 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   viewsText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  confirmBackdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 28,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#1C1C22',
+    borderRadius: 20,
+    padding: 22,
+    gap: 8,
+  },
+  confirmTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
+  confirmBody: { color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 20, fontWeight: '500' },
+  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  confirmBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmCancel: { backgroundColor: 'rgba(255,255,255,0.12)' },
+  confirmCancelText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  confirmDelete: { backgroundColor: '#EF4444' },
+  confirmDeleteText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   missing: { flex: 1, alignItems: 'center', gap: 16, paddingHorizontal: 24 },
   missingText: { color: 'rgba(255,255,255,0.8)', fontSize: 15, fontWeight: '600' },
   missingBtn: {

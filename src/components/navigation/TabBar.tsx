@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Entypo } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
@@ -33,13 +33,15 @@ type TabBarProps = {
 const TAB_META: Record<string, { label: string; icon: string; iconActive: string }> = {
   home: { label: 'Home', icon: 'home-outline', iconActive: 'home' },
   explore: { label: 'Explore', icon: 'compass-outline', iconActive: 'compass' },
+  reels: { label: 'Reels', icon: 'film-outline', iconActive: 'film' },
   earnings: { label: 'Earnings', icon: 'stats-chart-outline', iconActive: 'stats-chart' },
   profile: { label: 'Profile', icon: 'person-outline', iconActive: 'person' },
 };
 
 /**
- * Floating pill tab bar with a raised gradient Compose button in the middle.
+ * Floating pill tab bar plus a compose FAB anchored bottom-right above it.
  * Compose is not a tab — it pushes the /compose modal on the root stack.
+ * The FAB hides on Reels, where the full-bleed player owns the screen.
  */
 export function TabBar({ state, navigation }: TabBarProps) {
   const { colors, brand, isDark } = useTheme();
@@ -81,11 +83,31 @@ export function TabBar({ state, navigation }: TabBarProps) {
     );
   };
 
+  const onHome = state.routes[state.index]?.name === 'home';
+
   return (
     <View
       pointerEvents="box-none"
       style={[styles.wrap, { paddingBottom: insets.bottom + 10 }]}
     >
+      {onHome ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create a post"
+          onPress={() => router.push('/compose')}
+          style={styles.fab}
+        >
+          <LinearGradient
+            colors={[brand.violetBright, brand.violet]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.fabButton, { shadowColor: brand.violet }]}
+          >
+            <Entypo name="plus" size={32} color="#FFFFFF" />
+          </LinearGradient>
+        </Pressable>
+      ) : null}
+
       <View
         style={[
           styles.bar,
@@ -98,25 +120,9 @@ export function TabBar({ state, navigation }: TabBarProps) {
       >
         {renderTab('home', 0)}
         {renderTab('explore', 1)}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Create a post"
-          onPress={() => router.push('/compose')}
-          style={styles.composeSlot}
-        >
-          <LinearGradient
-            colors={[brand.violetBright, brand.violet]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.composeButton, { shadowColor: brand.violet }]}
-          >
-            <Ionicons name="add" size={30} color="#FFFFFF" />
-          </LinearGradient>
-        </Pressable>
-
-        {renderTab('earnings', 2)}
-        {renderTab('profile', 3)}
+        {renderTab('reels', 2)}
+        {renderTab('earnings', 3)}
+        {renderTab('profile', 4)}
       </View>
     </View>
   );
@@ -149,12 +155,13 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   label: { fontSize: 11, fontWeight: '700' },
-  composeSlot: {
-    width: 72,
-    alignItems: 'center',
-    marginTop: -26,
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: "180%",
+    marginBottom: 14,
   },
-  composeButton: {
+  fabButton: {
     width: 58,
     height: 58,
     borderRadius: 29,

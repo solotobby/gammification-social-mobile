@@ -20,6 +20,11 @@ function ThemedStack() {
         }}
       >
         <Stack.Screen name="compose" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="story/create" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen
+          name="story/[member]"
+          options={{ animation: 'fade', contentStyle: { backgroundColor: '#000000' } }}
+        />
       </Stack>
     </>
   );

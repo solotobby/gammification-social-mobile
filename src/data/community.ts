@@ -4,6 +4,10 @@
  * composing a post / adding a comment feels real during the UI-only phase.
  */
 
+import { image, video, type MediaItem } from './media';
+
+export type { MediaItem } from './media';
+
 export type MemberTint = 'violet' | 'mint' | 'gold' | 'pink';
 
 export type Member = {
@@ -35,6 +39,8 @@ export type Post = {
   views: number;
   comments: Comment[];
   hashtags?: string[];
+  /** Attached images/videos, rendered as a grid + carousel viewer. */
+  media?: MediaItem[];
 };
 
 export type Topic = {
@@ -105,9 +111,35 @@ export const feedPosts: Post[] = [
     likes: 1,
     views: 14,
     hashtags: ['GrowthMindset'],
+    media: [image('fashion-lagos')],
     comments: [
       { id: 'c1', author: members[0], body: 'Well said! Style really is a language.', timeAgo: '20m' },
     ],
+  },
+  {
+    id: 'p5',
+    author: members[4],
+    timeAgo: '1h',
+    body: 'Behind the scenes of our latest shoot — the energy on set was unreal! 🎬 Full drop coming this weekend, stay locked in.',
+    earned: 0.09,
+    likes: 5,
+    views: 63,
+    hashtags: ['NaijaCreators'],
+    media: [video(0)],
+    comments: [
+      { id: 'c5', author: members[6], body: 'That set looks amazing 🔥', timeAgo: '40m' },
+    ],
+  },
+  {
+    id: 'p6',
+    author: members[5],
+    timeAgo: '2h',
+    body: 'Weekend market run in three frames. Which one should I print? 📸',
+    earned: 0.05,
+    likes: 4,
+    views: 38,
+    media: [image('market-one'), image('market-two'), image('market-three')],
+    comments: [],
   },
   {
     id: 'p2',
@@ -128,6 +160,7 @@ export const feedPosts: Post[] = [
     likes: 3,
     views: 42,
     hashtags: ['NaijaCreators'],
+    media: [image('wedding-asoebi'), image('wedding-hall')],
     comments: [
       { id: 'c2', author: members[4], body: 'C. Definitely C. 😂', timeAgo: '3h' },
       { id: 'c3', author: members[5], body: 'Attend with a plan and a photographer.', timeAgo: '2h' },
@@ -142,16 +175,50 @@ export const feedPosts: Post[] = [
     likes: 8,
     views: 77,
     hashtags: ['SideHustle', 'PayhankeyWins'],
+    media: [image('workspace-desk'), video(1), image('city-night')],
     comments: [
       { id: 'c4', author: members[3], body: 'Congrats! What time do you usually post?', timeAgo: '5h' },
     ],
   },
+  {
+    id: 'p7',
+    author: members[6],
+    timeAgo: '8h',
+    body: 'Recap of the creators meetup — met so many of you in person! Swipe through, the last clips are pure chaos 😂',
+    earned: 0.18,
+    likes: 12,
+    views: 120,
+    hashtags: ['PayhankeyWins'],
+    media: [
+      image('meetup-crowd'),
+      image('meetup-stage'),
+      video(2),
+      image('meetup-food'),
+      image('meetup-group'),
+      video(3),
+    ],
+    comments: [
+      { id: 'c6', author: members[1], body: 'It was so good to finally meet everyone!', timeAgo: '7h' },
+      { id: 'c7', author: members[2], body: 'Next one in Abuja please 🙏', timeAgo: '6h' },
+    ],
+  },
 ];
+
+/**
+ * Posts loaded after the seed page (infinite scroll). Kept in a registry so
+ * `findPost` / `addComment` can resolve them when the detail screen opens.
+ */
+export const loadedPosts: Post[] = [];
+
+/** Look up a post across the seed feed and any generated pages. */
+export function findPost(id: string): Post | undefined {
+  return feedPosts.find((p) => p.id === id) ?? loadedPosts.find((p) => p.id === id);
+}
 
 let nextId = 100;
 
 /** Prepend a new post from the current user (dummy, in-memory only). */
-export function addPost(body: string): Post {
+export function addPost(body: string, media?: MediaItem[]): Post {
   const post: Post = {
     id: `p${nextId++}`,
     author: currentUser,
@@ -161,6 +228,7 @@ export function addPost(body: string): Post {
     likes: 0,
     views: 0,
     comments: [],
+    media: media?.length ? media : undefined,
   };
   feedPosts.unshift(post);
   return post;
@@ -168,7 +236,7 @@ export function addPost(body: string): Post {
 
 /** Append a comment from the current user to a post (dummy, in-memory only). */
 export function addComment(postId: string, body: string): Comment | undefined {
-  const post = feedPosts.find((p) => p.id === postId);
+  const post = findPost(postId);
   if (!post) return undefined;
   const comment: Comment = {
     id: `c${nextId++}`,

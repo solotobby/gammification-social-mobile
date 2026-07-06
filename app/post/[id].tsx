@@ -17,7 +17,7 @@ import { PostCard } from '../../src/components/feed/PostCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
-import { addComment, currentUser, feedPosts } from '../../src/data/community';
+import { addComment, currentUser, findPost } from '../../src/data/community';
 import { useTheme } from '../../src/theme/ThemeProvider';
 
 /** Post detail — the full post with its comment thread and a comment box. */
@@ -27,7 +27,7 @@ export default function PostDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const post = feedPosts.find((p) => p.id === id);
+  const post = findPost(id);
   const [draft, setDraft] = useState('');
   // Bump to re-render after mutating the in-memory comment list.
   const [, setVersion] = useState(0);

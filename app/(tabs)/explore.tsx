@@ -1,61 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MemberRow } from '../../src/components/members/MemberRow';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
-import { Avatar } from '../../src/components/ui/Avatar';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
 import { TextField } from '../../src/components/ui/TextField';
-import { members, trendingTopics, type Member } from '../../src/data/community';
+import { members, trendingTopics } from '../../src/data/community';
 import { useTheme } from '../../src/theme/ThemeProvider';
-
-/** Row used for both search results and the trending members list. */
-function MemberRow({ member }: { member: Member }) {
-  const { colors, radius } = useTheme();
-  const [following, setFollowing] = useState(false);
-
-  return (
-    <View
-      style={[
-        styles.memberRow,
-        { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
-      ]}
-    >
-      <Avatar name={member.name} tint={member.tint} size={44} />
-      <View style={styles.memberText}>
-        <Text style={[styles.memberName, { color: colors.text }]} numberOfLines={1}>
-          {member.name}
-        </Text>
-        <Text style={[styles.memberMeta, { color: colors.textMuted }]} numberOfLines={1}>
-          @{member.handle} · {member.followers} followers
-        </Text>
-      </View>
-      <Pressable
-        onPress={() => setFollowing((f) => !f)}
-        accessibilityRole="button"
-        accessibilityLabel={following ? `Unfollow ${member.name}` : `Follow ${member.name}`}
-        style={[
-          styles.followBtn,
-          following
-            ? { backgroundColor: colors.surfaceAlt, borderColor: colors.border }
-            : { backgroundColor: colors.brand, borderColor: colors.brand },
-        ]}
-      >
-        <Text
-          style={[
-            styles.followText,
-            { color: following ? colors.textSecondary : colors.onBrand },
-          ]}
-        >
-          {following ? 'Following' : 'Follow'}
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
 
 /**
  * Explore tab — the web "Search People" plus the dashboard's trending rails,
@@ -164,25 +119,6 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   title: { fontSize: 26, fontWeight: '800' },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  memberText: { flex: 1, gap: 2 },
-  memberName: { fontSize: 15, fontWeight: '800' },
-  memberMeta: { fontSize: 13, fontWeight: '500' },
-  followBtn: {
-    paddingHorizontal: 14,
-    height: 36,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  followText: { fontSize: 13, fontWeight: '800' },
   topicWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   topicChip: {
     flexDirection: 'row',

@@ -6,8 +6,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
+import { InviteCard } from '../../src/components/referral/InviteCard';
 import { Avatar } from '../../src/components/ui/Avatar';
-import { CopyField } from '../../src/components/ui/CopyField';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
 import { ThemeToggle } from '../../src/components/ui/ThemeToggle';
@@ -103,7 +103,8 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <CopyField label="Referral code" value={referral.code} icon="gift-outline" emphasized />
+        {/* Referral invite (moved here from Home — includes the referral code) */}
+        <InviteCard />
 
         {/* Appearance */}
         <View

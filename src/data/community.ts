@@ -202,6 +202,188 @@ export const earnings = {
 };
 
 // ---------------------------------------------------------------------------
+// Wallet + transactions
+// ---------------------------------------------------------------------------
+
+export type Transaction = {
+  id: string;
+  reference: string;
+  description: string;
+  /** Amount in ₦. */
+  amount: number;
+  date: string;
+  kind: 'payout' | 'referral';
+  status: 'paid' | 'pending';
+};
+
+/**
+ * Wallet snapshot. Withdrawals stay gated until bank info exists and the
+ * account is Creator/Influencer tier — both false for the dummy Basic user.
+ */
+export const wallet = {
+  balance: 3855,
+  /** This month's engagement still awaiting validation (matches `earnings.estimated`). */
+  pendingValidation: 2355,
+  hasBankInfo: false,
+  canWithdraw: false,
+};
+
+export const transactions: Transaction[] = [
+  { id: 'tx1', reference: 'PHK-2026-0630-8241', description: 'June engagement payout', amount: 1500, date: 'Jun 30, 2026', kind: 'payout', status: 'paid' },
+  { id: 'tx2', reference: 'PHK-2026-0612-5527', description: 'Referral bonus — Alan Dan', amount: 855, date: 'Jun 12, 2026', kind: 'referral', status: 'paid' },
+  { id: 'tx3', reference: 'PHK-2026-0531-1189', description: 'May engagement payout', amount: 1500, date: 'May 31, 2026', kind: 'payout', status: 'paid' },
+];
+
+// ---------------------------------------------------------------------------
+// Top earners (web "Top Earners" — monthly leaderboard)
+// ---------------------------------------------------------------------------
+
+export type TopEarner = { member: Member; earned: number };
+
+/** ₦ earned per member for each month in `earnings.months`. */
+export const topEarners: Record<string, TopEarner[]> = {
+  May: [
+    { member: members[1], earned: 9450 },
+    { member: members[0], earned: 8120 },
+    { member: members[4], earned: 5230 },
+    { member: members[2], earned: 3110 },
+    { member: members[6], earned: 1980 },
+  ],
+  June: [
+    { member: members[0], earned: 10500 },
+    { member: members[4], earned: 7420 },
+    { member: members[1], earned: 6800 },
+    { member: members[3], earned: 4150 },
+    { member: members[5], earned: 2640 },
+  ],
+  July: [
+    { member: members[0], earned: 8400 },
+    { member: members[1], earned: 7150 },
+    { member: members[2], earned: 5600 },
+    { member: members[4], earned: 4930 },
+    { member: members[3], earned: 3210 },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Referred users
+// ---------------------------------------------------------------------------
+
+export type ReferredUser = {
+  id: string;
+  name: string;
+  handle: string;
+  tint: MemberTint;
+  joined: string;
+  /** What this referral has earned the current user so far, in ₦. */
+  earnedForYou: number;
+};
+
+export const referredUsers: ReferredUser[] = [
+  { id: 'r1', name: 'Alan Dan', handle: 'alandan', tint: 'mint', joined: 'Jun 12, 2026', earnedForYou: 855 },
+];
+
+// ---------------------------------------------------------------------------
+// Blog
+// ---------------------------------------------------------------------------
+
+export type BlogPost = {
+  id: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  readMinutes: number;
+  date: string;
+};
+
+export const blogPosts: BlogPost[] = [
+  {
+    id: 'b1',
+    title: '5 posting habits of top Payhankey earners',
+    excerpt:
+      'We asked the leaderboard regulars how they stay consistent. Their answers come down to timing, replies, and one underrated trick.',
+    category: 'Growth',
+    readMinutes: 4,
+    date: 'Jun 24, 2026',
+  },
+  {
+    id: 'b2',
+    title: 'How engagement validation actually works',
+    excerpt:
+      'Every like, comment, and view is checked before it pays. Here is what counts, what gets filtered, and why validation runs at month end.',
+    category: 'Product',
+    readMinutes: 3,
+    date: 'Jun 10, 2026',
+  },
+  {
+    id: 'b3',
+    title: 'From Basic to Creator: when upgrading pays for itself',
+    excerpt:
+      'Creator costs ₦1,800 a month and unlocks withdrawals. We did the math on the engagement level where it becomes a no-brainer.',
+    category: 'Monetization',
+    readMinutes: 5,
+    date: 'May 28, 2026',
+  },
+  {
+    id: 'b4',
+    title: 'Referrals 101: grow your circle, grow your payout',
+    excerpt:
+      'Your referral link is a second income stream. How invites turn into bonuses, and how to share yours without spamming.',
+    category: 'Community',
+    readMinutes: 4,
+    date: 'May 15, 2026',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Account tiers
+// ---------------------------------------------------------------------------
+
+export type Tier = {
+  name: 'Basic' | 'Creator' | 'Influencer';
+  /** Monthly price in ₦. */
+  price: number;
+  tagline: string;
+  benefits: string[];
+  /** Benefits this tier does NOT include (rendered muted). */
+  locked?: string[];
+  popular?: boolean;
+};
+
+export const tiers: Tier[] = [
+  {
+    name: 'Basic',
+    price: 0,
+    tagline: 'Start posting and earning',
+    benefits: ['Post & engage on the feed', 'Earn on validated engagement', 'Referral bonuses'],
+    locked: ['Account monetization', 'Can make withdrawals'],
+  },
+  {
+    name: 'Creator',
+    price: 1800,
+    tagline: 'Unlock monetization',
+    benefits: [
+      'Everything in Basic',
+      'Account monetization',
+      'Can make withdrawals',
+      'Creator badge on your profile',
+    ],
+    popular: true,
+  },
+  {
+    name: 'Influencer',
+    price: 7500,
+    tagline: 'Maximum reach and priority payouts',
+    benefits: [
+      'Everything in Creator',
+      'Priority payout processing',
+      'Boosted reach on every post',
+      'Influencer badge on your profile',
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Notifications
 // ---------------------------------------------------------------------------
 

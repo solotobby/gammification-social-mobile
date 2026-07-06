@@ -87,7 +87,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Earnings pulse */}
-        <Pressable
+        {/* <Pressable
           onPress={() => router.push('/earnings')}
           accessibilityRole="button"
           accessibilityLabel="Open earnings"
@@ -110,7 +110,7 @@ export default function HomeScreen() {
             </View>
             <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.85)" />
           </LinearGradient>
-        </Pressable>
+        </Pressable> */}
 
         {/* Composer trigger */}
         <Pressable
@@ -126,7 +126,7 @@ export default function HomeScreen() {
             },
           ]}
         >
-          <Avatar name={currentUser.name} tint={currentUser.tint} size={38} />
+          {/* <Avatar name={currentUser.name} tint={currentUser.tint} size={38} /> */}
           <Text style={[styles.composerHint, { color: colors.textMuted }]} numberOfLines={1}>
             Say something amazing — every post can earn
           </Text>
@@ -136,7 +136,7 @@ export default function HomeScreen() {
         </Pressable>
 
         {/* Referral invite */}
-        <View
+        {/* <View
           style={[
             styles.inviteCard,
             {
@@ -160,10 +160,10 @@ export default function HomeScreen() {
             </View>
           </View>
           <CopyField label="Your referral link" value={referral.link} icon="link-outline" />
-        </View>
+        </View> */}
 
         {/* Trending topics */}
-        <View style={{ gap: spacing.md }}>
+        {/* <View style={{ gap: spacing.md }}>
           <SectionHeader
             title="Trending topics"
             icon="flame"
@@ -189,10 +189,10 @@ export default function HomeScreen() {
               </View>
             ))}
           </ScrollView>
-        </View>
+        </View> */}
 
         {/* Trending members rail */}
-        <View style={{ gap: spacing.md }}>
+        {/* <View style={{ gap: spacing.md }}>
           <SectionHeader
             title="Trending members"
             icon="people"
@@ -221,11 +221,11 @@ export default function HomeScreen() {
               </View>
             ))}
           </ScrollView>
-        </View>
+        </View> */}
 
         {/* Feed */}
         <View style={{ gap: spacing.md }}>
-          <SectionHeader title="Your feed" icon="sparkles" />
+          {/* <SectionHeader title="Your feed" icon="sparkles" /> */}
           {posts.map((post) => (
             <PostCard key={post.id} post={post} onOpen={openPost} />
           ))}

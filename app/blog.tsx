@@ -1,0 +1,151 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { BackButton } from '../src/components/ui/BackButton';
+import { ScreenBackground } from '../src/components/ui/ScreenBackground';
+import { blogPosts } from '../src/data/community';
+import { useTheme } from '../src/theme/ThemeProvider';
+
+/**
+ * Blog — tips & product stories as a card list. The newest story gets the
+ * featured gradient treatment; detail screens arrive with the API.
+ */
+export default function BlogScreen() {
+  const { colors, brand, radius, spacing } = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const [featured, ...rest] = blogPosts;
+
+  return (
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <ScreenBackground />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingTop: insets.top + spacing.lg,
+          paddingBottom: insets.bottom + spacing.xl,
+          paddingHorizontal: spacing.xl,
+          gap: spacing.xl,
+        }}
+      >
+        <View style={styles.headerRow}>
+          <BackButton onPress={() => router.back()} />
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Blog</Text>
+          <View style={{ width: 44 }} />
+        </View>
+
+        {/* Featured story */}
+        <LinearGradient
+          colors={[brand.violetBright, brand.violet, brand.indigo]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.featured, { borderRadius: radius.lg, shadowColor: brand.violet }]}
+        >
+          <View style={styles.featuredPill}>
+            <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+            <Text style={styles.featuredPillText}>Latest · {featured.category}</Text>
+          </View>
+          <Text style={styles.featuredTitle}>{featured.title}</Text>
+          <Text style={styles.featuredExcerpt}>{featured.excerpt}</Text>
+          <Text style={styles.featuredMeta}>
+            {featured.date} · {featured.readMinutes} min read
+          </Text>
+        </LinearGradient>
+
+        {/* The rest */}
+        <View style={{ gap: spacing.md }}>
+          {rest.map((post) => (
+            <View
+              key={post.id}
+              style={[
+                styles.card,
+                { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
+              ]}
+            >
+              <View style={[styles.categoryPill, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[styles.categoryText, { color: colors.brand }]}>
+                  {post.category}
+                </Text>
+              </View>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>{post.title}</Text>
+              <Text style={[styles.cardExcerpt, { color: colors.textSecondary }]}>
+                {post.excerpt}
+              </Text>
+              <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
+                {post.date} · {post.readMinutes} min read
+              </Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTitle: { fontSize: 18, fontWeight: '800' },
+  featured: {
+    padding: 22,
+    gap: 10,
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
+  featuredPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+  },
+  featuredPillText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  featuredTitle: { color: '#FFFFFF', fontSize: 21, lineHeight: 27, fontWeight: '800' },
+  featuredExcerpt: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '500',
+  },
+  featuredMeta: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: '600' },
+  card: {
+    padding: 18,
+    gap: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  categoryPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  categoryText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  cardTitle: { fontSize: 17, lineHeight: 22, fontWeight: '800' },
+  cardExcerpt: { fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  cardMeta: { fontSize: 12, fontWeight: '600' },
+});

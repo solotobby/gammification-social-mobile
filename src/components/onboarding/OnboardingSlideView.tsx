@@ -135,15 +135,15 @@ export function OnboardingSlideView({ slide, index, scrollX }: Props) {
           </View>
           <View>
             <Text style={[styles.chipLabel, { color: colors.textMuted }]}>
-              Received
+              Earned today
             </Text>
             <Text style={[styles.chipValue, { color: colors.text }]}>
-              + $2,500
+              + $18.40
             </Text>
           </View>
         </Animated.View>
 
-        {/* Floating chip — payment sent */}
+        {/* Floating chip — new engagement */}
         <Animated.View
           style={[
             styles.chip,
@@ -159,14 +159,14 @@ export function OnboardingSlideView({ slide, index, scrollX }: Props) {
           <View
             style={[styles.chipDot, { backgroundColor: slide.accent }]}
           >
-            <Ionicons name="checkmark" size={14} color={colors.onBrand} />
+            <Ionicons name="heart" size={14} color={colors.onBrand} />
           </View>
           <View>
             <Text style={[styles.chipLabel, { color: colors.textMuted }]}>
-              Payment
+              New like
             </Text>
             <Text style={[styles.chipValue, { color: colors.text }]}>
-              Sent
+              + $0.12
             </Text>
           </View>
         </Animated.View>

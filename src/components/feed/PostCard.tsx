@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { useTheme } from '../../theme/ThemeProvider';
-import { Avatar } from '../ui/Avatar';
-import type { Post } from '../../data/community';
+import { useTheme } from "../../theme/ThemeProvider";
+import { Avatar } from "../ui/Avatar";
+import type { Post } from "../../data/community";
 
 type Props = {
   post: Post;
@@ -30,16 +30,22 @@ export function PostCard({ post, onOpen, bare }: Props) {
         <Avatar name={post.author.name} tint={post.author.tint} size={42} />
         <View style={styles.headerText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {post.author.name}
+            {post.author.name.split(" ")[0]}
           </Text>
-          <Text style={[styles.meta, { color: colors.textMuted }]} numberOfLines={1}>
+          <Text
+            style={[styles.meta, { color: colors.textMuted }]}
+            numberOfLines={1}
+          >
             @{post.author.handle} · {post.timeAgo}
           </Text>
         </View>
         <View
           style={[
             styles.earnedPill,
-            { backgroundColor: `${colors.mint}1A`, borderColor: `${colors.mint}40` },
+            {
+              backgroundColor: `${colors.mint}1A`,
+              borderColor: `${colors.mint}40`,
+            },
           ]}
         >
           <Ionicons name="trending-up" size={12} color={colors.mint} />
@@ -66,15 +72,20 @@ export function PostCard({ post, onOpen, bare }: Props) {
           onPress={() => setLiked((l) => !l)}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={liked ? 'Unlike' : 'Like'}
+          accessibilityLabel={liked ? "Unlike" : "Like"}
           style={styles.action}
         >
           <Ionicons
-            name={liked ? 'heart' : 'heart-outline'}
+            name={liked ? "heart" : "heart-outline"}
             size={19}
             color={liked ? colors.pink : colors.textMuted}
           />
-          <Text style={[styles.actionText, { color: liked ? colors.pink : colors.textMuted }]}>
+          <Text
+            style={[
+              styles.actionText,
+              { color: liked ? colors.pink : colors.textMuted },
+            ]}
+          >
             {likeCount}
           </Text>
         </Pressable>
@@ -86,7 +97,11 @@ export function PostCard({ post, onOpen, bare }: Props) {
           accessibilityLabel="Comments"
           style={styles.action}
         >
-          <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
+          <Ionicons
+            name="chatbubble-outline"
+            size={18}
+            color={colors.textMuted}
+          />
           <Text style={[styles.actionText, { color: colors.textMuted }]}>
             {post.comments.length}
           </Text>
@@ -94,11 +109,22 @@ export function PostCard({ post, onOpen, bare }: Props) {
 
         <View style={styles.action}>
           <Ionicons name="eye-outline" size={19} color={colors.textMuted} />
-          <Text style={[styles.actionText, { color: colors.textMuted }]}>{post.views}</Text>
+          <Text style={[styles.actionText, { color: colors.textMuted }]}>
+            {post.views}
+          </Text>
         </View>
 
-        <Pressable hitSlop={8} accessibilityRole="button" accessibilityLabel="Share" style={styles.action}>
-          <Ionicons name="share-social-outline" size={18} color={colors.textMuted} />
+        <Pressable
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Share"
+          style={styles.action}
+        >
+          <Ionicons
+            name="share-social-outline"
+            size={18}
+            color={colors.textMuted}
+          />
         </Pressable>
       </View>
     </>
@@ -137,39 +163,39 @@ const styles = StyleSheet.create({
   },
   bare: { gap: 12 },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   headerText: { flex: 1, gap: 1 },
-  name: { fontSize: 15, fontWeight: '800' },
-  meta: { fontSize: 13, fontWeight: '500' },
+  name: { fontSize: 15, fontWeight: "800" },
+  meta: { fontSize: 13, fontWeight: "500" },
   earnedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
   },
-  earnedText: { fontSize: 12, fontWeight: '800' },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  tag: { fontSize: 14, fontWeight: '700' },
+  earnedText: { fontSize: 12, fontWeight: "800" },
+  body: { fontSize: 15, lineHeight: 22, fontWeight: "400" },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  tag: { fontSize: 14, fontWeight: "700" },
   actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 12,
     paddingRight: 6,
   },
   action: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     minWidth: 42,
   },
-  actionText: { fontSize: 13, fontWeight: '700' },
+  actionText: { fontSize: 13, fontWeight: "700" },
 });

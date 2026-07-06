@@ -25,15 +25,15 @@ type MenuItem = {
 // Account destinations mapped from the web sidebar. Routes land here as the
 // corresponding screens get built (see docs/APP_FLOW.md).
 const MENU: MenuItem[] = [
-  { icon: 'wallet-outline', label: 'Wallets', sub: 'Balance & withdrawals' },
-  { icon: 'card-outline', label: 'Bank information', sub: 'Payout account & currency' },
-  { icon: 'swap-horizontal-outline', label: 'Transactions', sub: 'Payout & earning history' },
-  { icon: 'trophy-outline', label: 'Top earners', sub: 'Monthly leaderboard' },
-  { icon: 'people-outline', label: 'My referrals', sub: `${referral.total} referral so far` },
-  { icon: 'arrow-up-circle-outline', label: 'Upgrade level', sub: 'Creator & Influencer plans' },
-  { icon: 'settings-outline', label: 'Settings', sub: 'Profile details & socials' },
-  { icon: 'newspaper-outline', label: 'Blog', sub: 'Tips & product stories' },
-  { icon: 'help-buoy-outline', label: 'How it works', sub: 'Earning explained' },
+  { icon: 'wallet-outline', label: 'Wallets', sub: 'Balance & withdrawals', route: '/wallet' },
+  { icon: 'card-outline', label: 'Bank information', sub: 'Payout account & currency', route: '/bank-info' },
+  { icon: 'swap-horizontal-outline', label: 'Transactions', sub: 'Payout & earning history', route: '/transactions' },
+  { icon: 'trophy-outline', label: 'Top earners', sub: 'Monthly leaderboard', route: '/top-earners' },
+  { icon: 'people-outline', label: 'My referrals', sub: `${referral.total} referral so far`, route: '/referrals' },
+  { icon: 'arrow-up-circle-outline', label: 'Upgrade level', sub: 'Creator & Influencer plans', route: '/upgrade' },
+  { icon: 'settings-outline', label: 'Settings', sub: 'Profile details & socials', route: '/settings' },
+  { icon: 'newspaper-outline', label: 'Blog', sub: 'Tips & product stories', route: '/blog' },
+  { icon: 'help-buoy-outline', label: 'How it works', sub: 'Earning explained', route: '/how-it-works' },
 ];
 
 /**

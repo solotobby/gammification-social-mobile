@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
+import { MediaGrid } from "./MediaGrid";
 import type { Post } from "../../data/community";
 
 type Props = {
@@ -55,7 +56,12 @@ export function PostCard({ post, onOpen, bare }: Props) {
         </View>
       </View>
 
-      <Text style={[styles.body, { color: colors.text }]}>{post.body}</Text>
+      {/* Feed cards clamp to 3 lines; the detail screen (bare) shows it all. */}
+      <Text style={[styles.body, { color: colors.text }]} numberOfLines={bare ? undefined : 3}>
+        {post.body}
+      </Text>
+
+      {post.media?.length ? <MediaGrid media={post.media} /> : null}
 
       {post.hashtags?.length ? (
         <View style={styles.tagRow}>

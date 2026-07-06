@@ -13,13 +13,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import * as ImagePicker from 'expo-image-picker';
+
+import { AttachmentStrip } from '../src/components/compose/AttachmentStrip';
 import { Avatar } from '../src/components/ui/Avatar';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
-import { addPost, currentUser, trendingTopics } from '../src/data/community';
+import { addPost, currentUser, trendingTopics, type MediaItem } from '../src/data/community';
 import { useTheme } from '../src/theme/ThemeProvider';
 
 const MAX_LENGTH = 160;
+const MAX_MEDIA = 6;
+
+let attachmentId = 0;
 
 /**
  * Compose modal — the dashboard's "Say something amazing" box as its own
@@ -30,14 +36,33 @@ export default function ComposeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [body, setBody] = useState('');
+  const [media, setMedia] = useState<MediaItem[]>([]);
 
   const remaining = MAX_LENGTH - body.length;
-  const canPost = body.trim().length > 0;
+  const canPost = body.trim().length > 0 || media.length > 0;
 
   const onPost = () => {
     if (!canPost) return;
-    addPost(body.trim());
+    addPost(body.trim(), media);
     router.back();
+  };
+
+  const pickMedia = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_MEDIA - media.length,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const picked: MediaItem[] = result.assets.map((asset) => ({
+      id: `att${++attachmentId}`,
+      type: asset.type === 'video' ? 'video' : 'image',
+      uri: asset.uri,
+      // No thumbnail generation in the dummy phase — the grid falls back to the uri.
+      poster: asset.type === 'video' ? asset.uri : undefined,
+    }));
+    setMedia((current) => [...current, ...picked].slice(0, MAX_MEDIA));
   };
 
   const addTag = (tag: string) => {
@@ -120,6 +145,14 @@ export default function ComposeScreen() {
                 // Suppress the browser's default focus ring on web.
                 Platform.OS === 'web' && ({ outlineStyle: 'none' } as object),
               ]}
+            />
+
+            {/* Attachments */}
+            <AttachmentStrip
+              media={media}
+              onRemove={(id) => setMedia((current) => current.filter((m) => m.id !== id))}
+              onAdd={pickMedia}
+              canAdd={media.length < MAX_MEDIA}
             />
           </View>
 

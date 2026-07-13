@@ -12,10 +12,18 @@ import { Avatar } from '../ui/Avatar';
  * Everything above the feed on Home: greeting row (profile, search,
  * notifications), the stories rail, and the composer trigger.
  */
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export function HomeHeader() {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
   const hasUnread = notifications.some((n) => n.unread);
+  const greeting = getGreeting();
 
   const iconButton = [
     styles.iconButton,
@@ -34,7 +42,7 @@ export function HomeHeader() {
           <Avatar name={currentUser.name} tint={currentUser.tint} size={46} />
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={[styles.hello, { color: colors.textMuted }]}>Welcome back</Text>
+          <Text style={[styles.hello, { color: colors.textMuted }]}>{greeting}</Text>
           <Text style={[styles.helloName, { color: colors.text }]}>
             {currentUser.name.split(' ')[0]} 👋
           </Text>
@@ -74,7 +82,7 @@ export function HomeHeader() {
         ]}
       >
         <Text style={[styles.composerHint, { color: colors.textMuted }]} numberOfLines={1}>
-          Say something amazing — every post can earn
+          Say something amazing every post can earn
         </Text>
         <View style={[styles.composerAction, { backgroundColor: colors.surfaceAlt }]}>
           <Ionicons name="create-outline" size={18} color={colors.brand} />

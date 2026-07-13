@@ -112,8 +112,8 @@ export function TabBar({ state, navigation }: TabBarProps) {
         style={[
           styles.bar,
           {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: colors.border,
+            backgroundColor: colors.surfaceAlt,
+            borderColor: `${colors.brand}33`,
             shadowColor: colors.shadow,
           },
         ]}
@@ -141,12 +141,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 68,
     borderRadius: 34,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     paddingHorizontal: 10,
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
+    shadowOpacity: 0.22,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 14,
   },
   tab: {
     flex: 1,

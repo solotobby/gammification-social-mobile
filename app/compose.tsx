@@ -134,7 +134,7 @@ export default function ComposeScreen() {
             <TextInput
               value={body}
               onChangeText={(text) => text.length <= MAX_LENGTH && setBody(text)}
-              placeholder="Say something amazing — every post can earn"
+              placeholder="Say something amazing every post can earn"
               placeholderTextColor={colors.textMuted}
               selectionColor={colors.brand}
               multiline
@@ -171,7 +171,7 @@ export default function ComposeScreen() {
           </View>
 
           {/* Hashtag suggestions */}
-          <View style={styles.tagRow}>
+          {/* <View style={styles.tagRow}>
             {trendingTopics.slice(0, 4).map((topic) => (
               <Pressable
                 key={topic.id}
@@ -190,7 +190,7 @@ export default function ComposeScreen() {
                 <Text style={[styles.tagText, { color: colors.brand }]}>#{topic.tag}</Text>
               </Pressable>
             ))}
-          </View>
+          </View> */}
 
           <View style={{ opacity: canPost ? 1 : 0.5 }}>
             <GradientButton label="Post" icon="paper-plane" onPress={onPost} />

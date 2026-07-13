@@ -11,13 +11,17 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.payhankey.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -33,6 +37,13 @@
           "photosPermission": "Payhankey needs access to your photos so you can attach them to posts and stories."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c8abb113-6ffa-47d8-87e7-4af4074deeda"
+      }
+    },
+    "owner": "payhankey-social"
   }
 }

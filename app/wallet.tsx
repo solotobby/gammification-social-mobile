@@ -33,8 +33,8 @@ export default function WalletScreen() {
     },
     {
       icon: 'arrow-up-circle-outline' as const,
-      label: 'Upgrade to Creator',
-      sub: 'Withdrawals need Creator or Influencer',
+      label: 'Upgrade',
+      sub: 'Only Creator or Influencer receives payout',
       route: '/upgrade',
       done: false,
     },
@@ -74,13 +74,13 @@ export default function WalletScreen() {
             </Text>
           </View>
 
-          <View
+          {/* <View
             style={[styles.withdrawBtn, { borderRadius: radius.pill }]}
             accessibilityLabel="Withdraw (locked)"
           >
             <Ionicons name="lock-closed" size={16} color={brand.violet} />
             <Text style={[styles.withdrawText, { color: brand.violet }]}>Withdraw</Text>
-          </View>
+          </View> */}
         </LinearGradient>
 
         {/* Withdrawal gate */}

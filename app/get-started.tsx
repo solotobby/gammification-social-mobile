@@ -10,11 +10,12 @@ import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { Logo } from '../src/components/ui/Logo';
 import { SelectField, type SelectOption } from '../src/components/ui/SelectField';
+import { useUpdateOnboarding } from '../src/hooks/useAuth';
+import { useMe } from '../src/hooks/useMe';
+import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 
-// Dummy data — replace with values from the API later.
-const REFERRAL_CODE = 'AKD-9F2K';
-const REFERRAL_LINK = 'https://payhankey.com/join/AKD-9F2K';
+const REFERRAL_BASE_URL = 'https://payhankey.com/join';
 
 const CURRENCIES: SelectOption[] = [
   { label: 'USD — US Dollar', value: 'USD' },
@@ -27,17 +28,15 @@ const CURRENCIES: SelectOption[] = [
   { label: 'CAD — Canadian Dollar', value: 'CAD' },
 ];
 
-const INTERESTS: SelectOption[] = [
-  { label: 'Comedy', value: 'comedy' },
-  { label: 'Music & Dance', value: 'music' },
-  { label: 'Lifestyle', value: 'lifestyle' },
-  { label: 'Tech', value: 'tech' },
-  { label: 'Fashion & Beauty', value: 'fashion' },
-  { label: 'Sports', value: 'sports' },
-  { label: 'Gaming', value: 'gaming' },
-  { label: 'Education', value: 'education' },
-  { label: 'Food', value: 'food' },
-  { label: 'Travel', value: 'travel' },
+const HEARD_FROM: SelectOption[] = [
+  { label: 'Facebook', value: 'facebook' },
+  { label: 'Instagram', value: 'instagram' },
+  { label: 'TikTok', value: 'tiktok' },
+  { label: 'X (Twitter)', value: 'x' },
+  { label: 'YouTube', value: 'youtube' },
+  { label: 'A friend or referral', value: 'friend' },
+  { label: 'Google search', value: 'google' },
+  { label: 'Other', value: 'other' },
 ];
 
 const TOTAL_STEPS = 3;
@@ -45,13 +44,31 @@ const TOTAL_STEPS = 3;
 export default function GetStartedScreen() {
   const { colors, brand, radius, spacing, typography } = useTheme();
   const router = useRouter();
+  const { data: me } = useMe();
+  const onboardMutation = useUpdateOnboarding();
+  const showApiError = useFeedbackStore((s) => s.showApiError);
 
   const [step, setStep] = useState(0);
   const [currency, setCurrency] = useState<string | null>(null);
-  const [interest, setInterest] = useState<string | null>(null);
+  const [heard, setHeard] = useState<string | null>(null);
 
-  const goNext = () =>
-    step < TOTAL_STEPS - 1 ? setStep(step + 1) : router.replace('/home');
+  const referralCode = me?.user.referral_code;
+  const referralLink = referralCode ? `${REFERRAL_BASE_URL}/${referralCode}` : undefined;
+
+  const isLastStep = step === TOTAL_STEPS - 1;
+
+  const finish = () => {
+    if (!heard || !currency) return;
+    onboardMutation.mutate(
+      { heard, currency },
+      {
+        onSuccess: () => router.replace('/home'),
+        onError: (error) => showApiError(error, 'Could not save your preferences.'),
+      },
+    );
+  };
+
+  const goNext = () => (isLastStep ? finish() : setStep(step + 1));
   const goPrev = () => step > 0 && setStep(step - 1);
 
   const hero: {
@@ -63,8 +80,8 @@ export default function GetStartedScreen() {
     { icon: 'trending-up-outline', gradient: [brand.mintBright, brand.mint] },
   ];
 
-  const ctaLabel = step === TOTAL_STEPS - 1 ? 'Get Started' : 'Continue';
-  const ctaIcon = step === TOTAL_STEPS - 1 ? 'checkmark' : 'arrow-forward';
+  const ctaLabel = isLastStep ? 'Get Started' : 'Continue';
+  const ctaIcon = isLastStep ? 'checkmark' : 'arrow-forward';
 
   return (
     <KeyboardAwareScreen>
@@ -111,10 +128,14 @@ export default function GetStartedScreen() {
               earn even more.
             </Text>
             <View style={[styles.referBlock, { gap: spacing.lg }]}>
-              <CopyField label="Your referral link" value={REFERRAL_LINK} icon="link-outline" />
+              <CopyField
+                label="Your referral link"
+                value={referralLink ?? 'Loading…'}
+                icon="link-outline"
+              />
               <CopyField
                 label="Your referral code"
-                value={REFERRAL_CODE}
+                value={referralCode ?? 'Loading…'}
                 icon="pricetag-outline"
                 emphasized
               />
@@ -141,12 +162,12 @@ export default function GetStartedScreen() {
                 onChange={setCurrency}
               />
               <SelectField
-                icon="sparkles-outline"
-                placeholder="Select your interest"
-                title="Your main interest"
-                value={interest}
-                options={INTERESTS}
-                onChange={setInterest}
+                icon="megaphone-outline"
+                placeholder="How did you hear about us?"
+                title="How did you hear about us?"
+                value={heard}
+                options={HEARD_FROM}
+                onChange={setHeard}
               />
             </View>
           </>
@@ -174,6 +195,8 @@ export default function GetStartedScreen() {
           label={ctaLabel}
           icon={ctaIcon}
           onPress={goNext}
+          loading={onboardMutation.isPending}
+          disabled={isLastStep && (!currency || !heard)}
           style={styles.cta}
         />
       </View>

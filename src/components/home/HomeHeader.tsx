@@ -4,6 +4,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { currentUser, notifications } from '../../data/community';
+import { useMe } from '../../hooks/useMe';
+import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { StoriesRail } from '../stories/StoriesRail';
 import { Avatar } from '../ui/Avatar';
@@ -25,6 +27,12 @@ export function HomeHeader() {
   const hasUnread = notifications.some((n) => n.unread);
   const greeting = getGreeting();
 
+  // Signed-in identity from /user/me; the session snapshot bridges the gap
+  // while the query loads, and the dummy user covers logged-out previews.
+  const { data: me } = useMe();
+  const sessionUser = useAuthStore((s) => s.user);
+  const displayName = me?.user.name ?? sessionUser?.name ?? currentUser.name;
+
   const iconButton = [
     styles.iconButton,
     { backgroundColor: colors.surface, borderColor: colors.border },
@@ -39,12 +47,12 @@ export function HomeHeader() {
           accessibilityRole="button"
           accessibilityLabel="Open profile"
         >
-          <Avatar name={currentUser.name} tint={currentUser.tint} size={46} />
+          <Avatar name={displayName} tint={currentUser.tint} size={46} />
         </Pressable>
         <View style={styles.headerText}>
           <Text style={[styles.hello, { color: colors.textMuted }]}>{greeting}</Text>
           <Text style={[styles.helloName, { color: colors.text }]}>
-            {currentUser.name.split(' ')[0]} 👋
+            {displayName.split(' ')[0]} 👋
           </Text>
         </View>
         <Pressable

@@ -1,22 +1,46 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { BackButton } from '../src/components/ui/BackButton';
+import { FieldError } from '../src/components/ui/FieldError';
 import { GhostButton } from '../src/components/ui/GhostButton';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { Logo } from '../src/components/ui/Logo';
 import { TextField } from '../src/components/ui/TextField';
+import { signInSchema, type SignInValues } from '../src/forms/auth';
+import { activateSession, useLogin } from '../src/hooks/useAuth';
 import { useTheme } from '../src/theme/ThemeProvider';
 
 export default function SignInScreen() {
   const { colors, typography, spacing } = useTheme();
   const router = useRouter();
+  const loginMutation = useLogin();
+  const showApiError = useFeedbackStore((s) => s.showApiError);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { control, handleSubmit, formState } = useForm<SignInValues>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: { email: '', password: '' },
+  });
+
   const passwordRef = useRef<TextInput>(null);
+
+  const onSubmit = handleSubmit((values) => {
+    loginMutation.mutate(values, {
+      onSuccess: ({ me, access_token }) => {
+        // Activating the session flips the router's auth guards: this screen
+        // is removed and onboarded users auto-land on the (tabs) shell. Users
+        // who never finished onboarding resume it instead.
+        void activateSession(access_token, me);
+        if (!me.user.is_onboarded) router.replace('/get-started');
+      },
+      onError: (error) => showApiError(error, 'Sign in failed. Please try again.'),
+    });
+  });
 
   return (
     <KeyboardAwareScreen>
@@ -35,33 +59,49 @@ export default function SignInScreen() {
       </View>
 
       <View style={[styles.form, { gap: spacing.md }]}>
-        <TextField
-          icon="mail-outline"
-          placeholder="Email address"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="email"
-          textContentType="emailAddress"
-          returnKeyType="next"
-          onSubmitEditing={() => passwordRef.current?.focus()}
-          submitBehavior="submit"
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <TextField
+              icon="mail-outline"
+              placeholder="Email address"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              submitBehavior="submit"
+            />
+          )}
         />
-        <TextField
-          ref={passwordRef}
-          icon="lock-closed-outline"
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secure
-          autoCapitalize="none"
-          autoComplete="current-password"
-          textContentType="password"
-          returnKeyType="done"
-          onSubmitEditing={() => router.replace('/home')}
+        <FieldError message={formState.errors.email?.message} />
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <TextField
+              ref={passwordRef}
+              icon="lock-closed-outline"
+              placeholder="Password"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              secure
+              autoCapitalize="none"
+              autoComplete="current-password"
+              textContentType="password"
+              returnKeyType="done"
+              onSubmitEditing={onSubmit}
+            />
+          )}
         />
+        <FieldError message={formState.errors.password?.message} />
 
         <Pressable
           hitSlop={8}
@@ -79,7 +119,8 @@ export default function SignInScreen() {
       <GradientButton
         label="Sign In"
         icon="log-in-outline"
-        onPress={() => router.replace('/home')}
+        onPress={onSubmit}
+        loading={loginMutation.isPending}
         style={styles.cta}
       />
 
@@ -130,6 +171,7 @@ const styles = StyleSheet.create({
   },
   cta: {
     width: '100%',
+    marginTop: 8,
   },
   footer: {
     marginTop: 24,

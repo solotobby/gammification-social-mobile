@@ -36,7 +36,8 @@
         {
           "photosPermission": "Payhankey needs access to your photos so you can attach them to posts and stories."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "router": {},

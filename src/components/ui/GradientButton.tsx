@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Pressable,
   StyleSheet,
@@ -18,12 +19,23 @@ type Props = {
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
   style?: StyleProp<ViewStyle>;
+  /** Shows a spinner and blocks presses while an async action runs. */
+  loading?: boolean;
+  disabled?: boolean;
 };
 
 /** Primary CTA — a brand-gradient pill with a press-scale animation. */
-export function GradientButton({ label, onPress, icon = 'arrow-forward', style }: Props) {
+export function GradientButton({
+  label,
+  onPress,
+  icon = 'arrow-forward',
+  style,
+  loading,
+  disabled,
+}: Props) {
   const { colors, brand, radius, typography } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
+  const blocked = loading || disabled;
 
   const animateTo = (to: number) =>
     Animated.spring(scale, {
@@ -36,11 +48,12 @@ export function GradientButton({ label, onPress, icon = 'arrow-forward', style }
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
       <Pressable
-        onPress={onPress}
-        onPressIn={() => animateTo(0.96)}
-        onPressOut={() => animateTo(1)}
+        onPress={blocked ? undefined : onPress}
+        onPressIn={blocked ? undefined : () => animateTo(0.96)}
+        onPressOut={blocked ? undefined : () => animateTo(1)}
         accessibilityRole="button"
         accessibilityLabel={label}
+        accessibilityState={{ disabled: !!blocked, busy: !!loading }}
       >
         <LinearGradient
           colors={[brand.violetBright, brand.violet]}
@@ -49,14 +62,21 @@ export function GradientButton({ label, onPress, icon = 'arrow-forward', style }
           style={[
             styles.button,
             { borderRadius: radius.pill, shadowColor: brand.violet },
+            blocked && styles.blocked,
           ]}
         >
-          <Text style={[typography.button, { color: colors.onBrand }]}>{label}</Text>
-          {icon ? (
-            <View style={styles.iconWrap}>
-              <Ionicons name={icon} size={18} color={colors.onBrand} />
-            </View>
-          ) : null}
+          {loading ? (
+            <ActivityIndicator color={colors.onBrand} />
+          ) : (
+            <>
+              <Text style={[typography.button, { color: colors.onBrand }]}>{label}</Text>
+              {icon ? (
+                <View style={styles.iconWrap}>
+                  <Ionicons name={icon} size={18} color={colors.onBrand} />
+                </View>
+              ) : null}
+            </>
+          )}
         </LinearGradient>
       </Pressable>
     </Animated.View>
@@ -80,5 +100,8 @@ const styles = StyleSheet.create({
     width: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  blocked: {
+    opacity: 0.6,
   },
 });

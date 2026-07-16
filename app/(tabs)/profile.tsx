@@ -11,6 +11,9 @@ import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
 import { ThemeToggle } from '../../src/components/ui/ThemeToggle';
 import { currentUser, referral } from '../../src/data/community';
+import { useLogout } from '../../src/hooks/useAuth';
+import { useMe } from '../../src/hooks/useMe';
+import { useAuthStore } from '../../src/stores/authStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
 
 type MenuItem = {
@@ -43,6 +46,20 @@ export default function ProfileScreen() {
   const { colors, brand, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const logout = useLogout();
+
+  // Real identity from the API; the session snapshot covers the moment before
+  // /user/me resolves, and the dummy user remains the last-ditch fallback.
+  const { data: me } = useMe();
+  const sessionUser = useAuthStore((s) => s.user);
+  const displayName = me?.user.name ?? sessionUser?.name ?? currentUser.name;
+  const displayUsername = me?.user.username ?? sessionUser?.username ?? currentUser.handle;
+  const level = me?.level ?? 'Basic';
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/');
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -79,11 +96,11 @@ export default function ProfileScreen() {
           />
           <View style={styles.identityBody}>
             <View style={[styles.avatarRing, { borderColor: colors.surface }]}>
-              <Avatar name={currentUser.name} tint={currentUser.tint} size={76} />
+              <Avatar name={displayName} tint={currentUser.tint} size={76} />
             </View>
-            <Text style={[styles.name, { color: colors.text }]}>{currentUser.name}</Text>
+            <Text style={[styles.name, { color: colors.text }]}>{displayName}</Text>
             <Text style={[styles.handle, { color: colors.textMuted }]}>
-              @{currentUser.handle} · Basic level
+              @{displayUsername} · {level} level
             </Text>
             <View style={styles.statsRow}>
               <View style={styles.stat}>
@@ -167,7 +184,7 @@ export default function ProfileScreen() {
 
         {/* Log out */}
         <Pressable
-          onPress={() => router.replace('/')}
+          onPress={handleLogout}
           accessibilityRole="button"
           accessibilityLabel="Log out"
           style={({ pressed }) => [

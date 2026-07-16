@@ -55,6 +55,8 @@ export type ThemeColors = {
   textMuted: string;
   /** Text/icon color rendered on top of the brand accent. */
   onBrand: string;
+  /** Errors and destructive actions. */
+  danger: string;
 
   /** Inactive pagination dot. */
   dotInactive: string;
@@ -86,6 +88,7 @@ export const lightColors: ThemeColors = {
   textSecondary: '#5A5578', // --ph-slate
   textMuted: '#8B86A6', // --ph-slate-light
   onBrand: '#FFFFFF',
+  danger: '#E11D48',
 
   dotInactive: 'rgba(90, 79, 220, 0.20)',
   shadow: '#2A2151',
@@ -114,6 +117,7 @@ export const darkColors: ThemeColors = {
   textSecondary: '#BCB6E0',
   textMuted: '#8B86A6', // --ph-slate-light reads well on dark too
   onBrand: '#FFFFFF',
+  danger: '#FB7185',
 
   dotInactive: 'rgba(255, 255, 255, 0.18)',
   shadow: '#000000',

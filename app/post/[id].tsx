@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,23 +14,41 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { tintFor, toPost } from '../../src/api/timeline';
 import { PostCard } from '../../src/components/feed/PostCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
-import { addComment, currentUser, findPost } from '../../src/data/community';
+import { addComment, findPost } from '../../src/data/community';
+import { useAddComment, usePost } from '../../src/hooks/useTimeline';
+import { useAuthStore } from '../../src/stores/authStore';
+import { NO_COMMENTS, useEngagementStore } from '../../src/stores/engagementStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
 
-/** Post detail — the full post with its comment thread and a comment box. */
+/**
+ * Post detail — the full post with its comment thread and a comment box.
+ * Timeline posts load through GET /timeline/post/{id} (the View endpoint, so
+ * opening the screen is what counts the view); posts from the dummy data
+ * (member profiles) still resolve in-memory. The API only returns comment
+ * counts, so the thread shows any comments the backend embeds plus the ones
+ * you wrote this session.
+ */
 export default function PostDetailScreen() {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const post = findPost(id);
+  const dummy = findPost(id);
+  const query = usePost(id, !dummy);
+  const post = dummy ?? (query.data ? toPost(query.data) : undefined);
+
+  const user = useAuthStore((s) => s.user);
+  const myComments = useEngagementStore((s) => s.myComments[id] ?? NO_COMMENTS);
+  const remoteAddComment = useAddComment();
+
   const [draft, setDraft] = useState('');
-  // Bump to re-render after mutating the in-memory comment list.
+  // Bump to re-render after mutating the in-memory comment list (dummy posts).
   const [, setVersion] = useState(0);
 
   if (!post) {
@@ -38,20 +57,38 @@ export default function PostDetailScreen() {
         <ScreenBackground />
         <View style={[styles.missing, { paddingTop: insets.top + spacing.xl }]}>
           <BackButton onPress={() => router.back()} />
-          <Text style={[styles.missingText, { color: colors.textMuted }]}>
-            This post is no longer available.
-          </Text>
+          {query.isLoading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={colors.brand} />
+              <Text style={[styles.missingText, { color: colors.textMuted }]}>
+                Loading post…
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.missingText, { color: colors.textMuted }]}>
+              This post is no longer available.
+            </Text>
+          )}
         </View>
       </View>
     );
   }
 
+  const comments = dummy ? post.comments : [...post.comments, ...myComments];
+  const commentCount = dummy
+    ? post.comments.length
+    : Math.max(post.commentCount ?? 0, comments.length);
+
   const onSend = () => {
     const body = draft.trim();
     if (!body) return;
-    addComment(post.id, body);
+    if (dummy) {
+      addComment(post.id, body);
+      setVersion((v) => v + 1);
+    } else {
+      remoteAddComment.mutate({ postId: post.id, body });
+    }
     setDraft('');
-    setVersion((v) => v + 1);
   };
 
   return (
@@ -87,18 +124,20 @@ export default function PostDetailScreen() {
 
           <View style={{ gap: spacing.md }}>
             <Text style={[styles.commentsTitle, { color: colors.text }]}>
-              Comments ({post.comments.length})
+              Comments ({commentCount})
             </Text>
 
-            {post.comments.length === 0 ? (
+            {comments.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <Ionicons name="chatbubbles-outline" size={26} color={colors.textMuted} />
                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                  Be the first to comment — comments earn for the author.
+                  {commentCount > 0
+                    ? 'Comments on this post will appear here soon.'
+                    : 'Be the first to comment — comments earn for the author.'}
                 </Text>
               </View>
             ) : (
-              post.comments.map((comment) => (
+              comments.map((comment) => (
                 <View
                   key={comment.id}
                   style={[
@@ -137,7 +176,7 @@ export default function PostDetailScreen() {
             },
           ]}
         >
-          <Avatar name={currentUser.name} tint={currentUser.tint} size={34} />
+          <Avatar name={user?.name ?? 'You'} tint={tintFor(user?.id ?? 'me')} size={34} />
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -199,6 +238,7 @@ const styles = StyleSheet.create({
   commentText: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
   missing: { paddingHorizontal: 24, gap: 24 },
   missingText: { fontSize: 15, fontWeight: '600' },
+  loadingWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   emptyWrap: { alignItems: 'center', gap: 8, paddingVertical: 26, paddingHorizontal: 24 },
   emptyText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   inputBar: {

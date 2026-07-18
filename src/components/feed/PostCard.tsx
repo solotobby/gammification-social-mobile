@@ -1,12 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { tintFor } from "../../api/timeline";
+import { useAddComment, useToggleLike } from "../../hooks/useTimeline";
+import { useAuthStore } from "../../stores/authStore";
+import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
 import { MediaGrid } from "./MediaGrid";
-import type { Post } from "../../data/community";
+import type { Comment, Post } from "../../data/community";
 
 type Props = {
   post: Post;
@@ -16,16 +20,121 @@ type Props = {
   bare?: boolean;
 };
 
+/** One comment row — shared by the card strip and kept small on purpose. */
+function CommentRow({ comment }: { comment: Comment }) {
+  const { colors, radius } = useTheme();
+  return (
+    <View
+      style={[
+        styles.commentRow,
+        { backgroundColor: colors.surfaceAlt, borderRadius: radius.md },
+      ]}
+    >
+      <Avatar name={comment.author.name} tint={comment.author.tint} size={28} />
+      <View style={styles.commentBody}>
+        <View style={styles.commentHeader}>
+          <Text style={[styles.commentName, { color: colors.text }]} numberOfLines={1}>
+            {comment.author.name}
+          </Text>
+          {comment.timeAgo ? (
+            <Text style={[styles.commentTime, { color: colors.textMuted }]}>
+              {comment.timeAgo}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={[styles.commentText, { color: colors.textSecondary }]}>
+          {comment.body}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Inline "write a comment" row under a feed post — submits through the
+ * comment API with an optimistic append (the comment shows immediately).
+ */
+export function CommentComposer({ postId, autoFocus }: { postId: string; autoFocus?: boolean }) {
+  const { colors } = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const addComment = useAddComment();
+  const [draft, setDraft] = useState("");
+
+  const canSend = draft.trim().length > 0;
+  const onSend = () => {
+    const body = draft.trim();
+    if (!body) return;
+    addComment.mutate({ postId, body });
+    setDraft("");
+  };
+
+  return (
+    <View style={styles.composerRow}>
+      <Avatar name={user?.name ?? "You"} tint={tintFor(user?.id ?? "me")} size={30} />
+      <TextInput
+        value={draft}
+        onChangeText={setDraft}
+        placeholder="Write a comment…"
+        placeholderTextColor={colors.textMuted}
+        selectionColor={colors.brand}
+        onSubmitEditing={onSend}
+        returnKeyType="send"
+        autoFocus={autoFocus}
+        style={[
+          styles.composerInput,
+          { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border },
+        ]}
+      />
+      <Pressable
+        onPress={onSend}
+        disabled={!canSend}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel="Send comment"
+        style={[
+          styles.composerSend,
+          { backgroundColor: canSend ? colors.brand : colors.surfaceAlt },
+        ]}
+      >
+        <Ionicons
+          name="arrow-up"
+          size={17}
+          color={canSend ? colors.onBrand : colors.textMuted}
+        />
+      </Pressable>
+    </View>
+  );
+}
+
 /**
  * A feed post: author row with earned badge, body, hashtags, and the
- * like / comment / views / share action row. Like state is local-only (dummy).
+ * like / comment / views / share action row. API posts (`post.remote`) like
+ * optimistically through the timeline API and grow a comment strip: any
+ * comments the backend embeds on the post, the ones you write this session,
+ * and an inline composer.
  */
 export function PostCard({ post, onOpen, bare }: Props) {
   const { colors, radius } = useTheme();
   const router = useRouter();
-  const [liked, setLiked] = useState(false);
 
-  const likeCount = post.likes + (liked ? 1 : 0);
+  // Dummy posts (member profiles) keep the local-only heart; API posts toggle
+  // through the optimistic mutation + engagement store.
+  const [localLiked, setLocalLiked] = useState(false);
+  const remoteLiked = useEngagementStore((s) => !!s.liked[post.id]);
+  const toggleLike = useToggleLike();
+  const liked = post.remote ? remoteLiked : localLiked;
+  const onLike = () => {
+    if (post.remote) toggleLike.mutate(post.id);
+    else setLocalLiked((l) => !l);
+  };
+
+  // Remote like counts are patched in the query cache by the mutation, so
+  // `post.likes` already reflects the optimistic toggle.
+  const likeCount = post.remote ? post.likes : post.likes + (liked ? 1 : 0);
+
+  const myComments = useEngagementStore((s) => s.myComments[post.id] ?? NO_COMMENTS);
+  const stripComments = bare ? NO_COMMENTS : [...post.comments, ...myComments];
+  const commentCount = post.commentCount ?? post.comments.length;
 
   const content = (
     <>
@@ -51,20 +160,22 @@ export function PostCard({ post, onOpen, bare }: Props) {
             </Text>
           </View>
         </Pressable>
-        <View
-          style={[
-            styles.earnedPill,
-            {
-              backgroundColor: `${colors.mint}1A`,
-              borderColor: `${colors.mint}40`,
-            },
-          ]}
-        >
-          <Ionicons name="trending-up" size={12} color={colors.mint} />
-          <Text style={[styles.earnedText, { color: colors.mint }]}>
-            ₦{post.earned.toFixed(2)}
-          </Text>
-        </View>
+        {post.earned != null ? (
+          <View
+            style={[
+              styles.earnedPill,
+              {
+                backgroundColor: `${colors.mint}1A`,
+                borderColor: `${colors.mint}40`,
+              },
+            ]}
+          >
+            <Ionicons name="trending-up" size={12} color={colors.mint} />
+            <Text style={[styles.earnedText, { color: colors.mint }]}>
+              ₦{post.earned.toFixed(2)}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Feed cards clamp to 3 lines; the detail screen (bare) shows it all. */}
@@ -86,7 +197,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
 
       <View style={[styles.actionRow, { borderTopColor: colors.border }]}>
         <Pressable
-          onPress={() => setLiked((l) => !l)}
+          onPress={onLike}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={liked ? "Unlike" : "Like"}
@@ -120,7 +231,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
             color={colors.textMuted}
           />
           <Text style={[styles.actionText, { color: colors.textMuted }]}>
-            {post.comments.length}
+            {commentCount}
           </Text>
         </Pressable>
 
@@ -144,6 +255,17 @@ export function PostCard({ post, onOpen, bare }: Props) {
           />
         </Pressable>
       </View>
+
+      {/* Comment strip + inline composer — API-backed feed cards only. The
+          detail screen (bare) renders the full thread + its own input bar. */}
+      {post.remote && !bare ? (
+        <View style={styles.commentStrip}>
+          {stripComments.map((comment) => (
+            <CommentRow key={comment.id} comment={comment} />
+          ))}
+          <CommentComposer postId={post.id} />
+        </View>
+      ) : null}
     </>
   );
 
@@ -221,4 +343,40 @@ const styles = StyleSheet.create({
     minWidth: 42,
   },
   actionText: { fontSize: 13, fontWeight: "700" },
+  commentStrip: { gap: 8 },
+  commentRow: {
+    flexDirection: "row",
+    gap: 10,
+    padding: 10,
+  },
+  commentBody: { flex: 1, gap: 2 },
+  commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  commentName: { flexShrink: 1, fontSize: 13, fontWeight: "800" },
+  commentTime: { fontSize: 11, fontWeight: "600" },
+  commentText: { fontSize: 13, lineHeight: 18, fontWeight: "400" },
+  composerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  composerInput: {
+    flex: 1,
+    height: 38,
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    // Kill the platform's default vertical padding so the placeholder sits
+    // centered like typed text (it otherwise sags toward the bottom).
+    paddingVertical: 0,
+    textAlignVertical: "center",
+    fontSize: 13,
+    fontWeight: "500",
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  composerSend: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

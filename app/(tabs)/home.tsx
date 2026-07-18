@@ -1,50 +1,56 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { toPost } from '../../src/api/timeline';
 import { PostCard } from '../../src/components/feed/PostCard';
 import { HomeHeader } from '../../src/components/home/HomeHeader';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
+import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
-import { feedPosts, type Post } from '../../src/data/community';
-import { FEED_MAX_PAGES, fetchFeedPage } from '../../src/data/feed';
+import { useFeed } from '../../src/hooks/useTimeline';
+import { type Post } from '../../src/data/community';
 import { useTheme } from '../../src/theme/ThemeProvider';
 
 /**
- * Home tab — stories rail, composer entry, and the infinite feed. Rendered
- * with a FlatList: the seed posts load first and older pages stream in as
- * you approach the bottom.
+ * Home tab — stories rail, composer entry, and the live timeline feed
+ * (GET /timeline/feed). Pages stream in as you approach the bottom;
+ * pull down to refresh.
  */
 export default function HomeScreen() {
   const { colors, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Seed feed snapshot + generated pages appended below it.
-  const [posts, setPosts] = useState<Post[]>(() => [...feedPosts]);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const pageRef = useRef(0);
-  const loadedRef = useRef<Post[]>([]);
-  const exhausted = pageRef.current >= FEED_MAX_PAGES;
-
-  // Re-snapshot the in-memory seed feed (new composed posts) when returning
-  // from Compose / Post detail, keeping already-loaded pages in place.
-  useFocusEffect(
-    useCallback(() => {
-      setPosts([...feedPosts, ...loadedRef.current]);
-    }, []),
+  const feed = useFeed();
+  const posts = useMemo(
+    () => feed.data?.pages.flatMap((page) => page.data.map(toPost)) ?? [],
+    [feed.data],
   );
 
-  const loadMore = useCallback(async () => {
-    if (loadingMore || pageRef.current >= FEED_MAX_PAGES) return;
-    setLoadingMore(true);
-    const page = await fetchFeedPage(pageRef.current + 1);
-    pageRef.current += 1;
-    loadedRef.current = [...loadedRef.current, ...page];
-    setPosts([...feedPosts, ...loadedRef.current]);
-    setLoadingMore(false);
-  }, [loadingMore]);
+  const loadMore = useCallback(() => {
+    if (feed.hasNextPage && !feed.isFetchingNextPage) void feed.fetchNextPage();
+  }, [feed]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const { refetch } = feed;
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const openPost = useCallback((post: Post) => router.push(`/post/${post.id}`), [router]);
 
@@ -58,16 +64,63 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.6}
-        ListHeaderComponent={<HomeHeader />}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void onRefresh()}
+            // iOS renders our own indicator (below) instead — the native one is
+            // hidden on EVERY iOS version so two spinners can never show.
+            // Android keeps its native material spinner, tinted to the brand.
+            tintColor="transparent"
+            colors={[colors.brand]}
+          />
+        }
+        ListHeaderComponent={
+          <>
+            {/* RN's RefreshControl spinner doesn't render at all on iOS 26, so
+                iOS uses this indicator instead (native one is tinted
+                transparent above). Android shows only its native spinner. */}
+            {refreshing && Platform.OS === 'ios' ? (
+              <View style={styles.refreshRow}>
+                <ActivityIndicator size="large" color={colors.brand} />
+              </View>
+            ) : null}
+            <HomeHeader />
+          </>
+        }
+        ListEmptyComponent={
+          feed.isLoading ? (
+            <View style={styles.stateWrap}>
+              <ActivityIndicator color={colors.brand} />
+              <Text style={[styles.stateText, { color: colors.textMuted }]}>
+                Loading your feed…
+              </Text>
+            </View>
+          ) : feed.isError ? (
+            <View style={styles.stateWrap}>
+              <Text style={[styles.stateText, { color: colors.textMuted }]}>
+                We couldn't load the feed. Check your connection and try again.
+              </Text>
+              <GhostButton label="Retry" onPress={() => void feed.refetch()} />
+            </View>
+          ) : (
+            <View style={styles.stateWrap}>
+              <Text style={[styles.stateText, { color: colors.textMuted }]}>
+                No posts yet — be the first to say something amazing.
+              </Text>
+            </View>
+          )
+        }
         ListFooterComponent={
-          loadingMore ? (
+          feed.isFetchingNextPage ? (
             <View style={styles.footer}>
               <ActivityIndicator color={colors.brand} />
               <Text style={[styles.footerText, { color: colors.textMuted }]}>
                 Loading more posts…
               </Text>
             </View>
-          ) : exhausted ? (
+          ) : posts.length && !feed.hasNextPage ? (
             <View style={styles.footer}>
               <Text style={[styles.footerText, { color: colors.textMuted }]}>
                 You're all caught up ✨
@@ -96,4 +149,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   footerText: { fontSize: 13, fontWeight: '700' },
+  refreshRow: { alignItems: 'center', paddingBottom: 14 },
+  stateWrap: {
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 34,
+    paddingHorizontal: 24,
+  },
+  stateText: { fontSize: 14, fontWeight: '600', textAlign: 'center', lineHeight: 20 },
 });

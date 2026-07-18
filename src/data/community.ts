@@ -33,14 +33,18 @@ export type Post = {
   author: Member;
   timeAgo: string;
   body: string;
-  /** What this post has earned so far, in ₦. */
-  earned: number;
+  /** What this post has earned so far, in ₦ (API posts don't report it yet). */
+  earned?: number;
   likes: number;
   views: number;
   comments: Comment[];
+  /** Server-side total when `comments` only holds the embedded latest few. */
+  commentCount?: number;
   hashtags?: string[];
   /** Attached images/videos, rendered as a grid + carousel viewer. */
   media?: MediaItem[];
+  /** True for posts that came from the timeline API — engagement calls it. */
+  remote?: boolean;
 };
 
 export type Topic = {

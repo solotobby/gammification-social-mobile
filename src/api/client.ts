@@ -43,7 +43,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
+  (error: AxiosError<{ message?: string; errors?: Record<string, string[]>; error_temp?: string }>) => {
     if (error.response) {
       const { status, data } = error.response;
       // The API signs tokens long-lived and has no refresh endpoint, so a 401
@@ -51,8 +51,11 @@ api.interceptors.response.use(
       if (status === 401 && useAuthStore.getState().token) {
         useAuthStore.getState().signOut();
       }
+      // Some endpoints 500 with a generic message but ship the real validation
+      // failure in `error_temp` (e.g. "The images field is prohibited.").
+      const message = data?.message || `Request failed (${status})`;
       throw new ApiError(
-        data?.message || `Request failed (${status})`,
+        data?.error_temp ? `${message} — ${data.error_temp}` : message,
         status,
         data?.errors,
       );

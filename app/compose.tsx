@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -15,61 +15,86 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as ImagePicker from 'expo-image-picker';
 
+import { ApiError } from '../src/api/client';
+import { tintFor, type NewPostImage } from '../src/api/timeline';
 import { AttachmentStrip } from '../src/components/compose/AttachmentStrip';
 import { Avatar } from '../src/components/ui/Avatar';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
-import { addPost, currentUser, trendingTopics, type MediaItem } from '../src/data/community';
+import { type MediaItem } from '../src/data/community';
+import { useCreatePost } from '../src/hooks/useTimeline';
+import { useAuthStore } from '../src/stores/authStore';
+import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 
 const MAX_LENGTH = 160;
 const MAX_MEDIA = 6;
 
-let attachmentId = 0;
-
 /**
- * Compose modal — the dashboard's "Say something amazing" box as its own
- * screen: 160-char counter, hashtag suggestions, and the earning reminder.
+ * Compose modal — posts to the timeline API as multipart form data:
+ * `content` plus optional `images[]` picked from the library.
  */
 export default function ComposeScreen() {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((s) => s.user);
+  const showToast = useFeedbackStore((s) => s.showToast);
+  const createPost = useCreatePost();
+
   const [body, setBody] = useState('');
-  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  // Compose is a native modal, so the global toast/error hosts in the root
+  // layout can't appear above it — failures surface inline instead.
+  const [postError, setPostError] = useState<string | null>(null);
+
+  // The strip renders MediaItems; keep ids stable per asset uri.
+  const media: MediaItem[] = useMemo(
+    () => assets.map((asset) => ({ id: asset.uri, type: 'image', uri: asset.uri })),
+    [assets],
+  );
 
   const remaining = MAX_LENGTH - body.length;
-  const canPost = body.trim().length > 0 || media.length > 0;
+  const canPost = (body.trim().length > 0 || assets.length > 0) && !createPost.isPending;
 
   const onPost = () => {
     if (!canPost) return;
-    addPost(body.trim(), media);
-    router.back();
+    setPostError(null);
+    const images: NewPostImage[] = assets.map((asset, index) => ({
+      uri: asset.uri,
+      name: asset.fileName ?? `photo-${index + 1}.jpg`,
+      type: asset.mimeType ?? 'image/jpeg',
+    }));
+    createPost.mutate(
+      { content: body.trim(), images },
+      {
+        onSuccess: (data) => {
+          showToast(
+            data.media_status === 'processing'
+              ? 'Post created — your media will appear shortly.'
+              : 'Post created 🎉',
+            'success',
+          );
+          router.back();
+        },
+        onError: (error) =>
+          setPostError(
+            error instanceof ApiError ? error.firstMessage : "Couldn't create your post.",
+          ),
+      },
+    );
   };
 
   const pickMedia = async () => {
+    // The create-post API accepts images only (images[]), so no videos here.
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      selectionLimit: MAX_MEDIA - media.length,
+      selectionLimit: MAX_MEDIA - assets.length,
       quality: 0.8,
     });
     if (result.canceled || !result.assets?.length) return;
-    const picked: MediaItem[] = result.assets.map((asset) => ({
-      id: `att${++attachmentId}`,
-      type: asset.type === 'video' ? 'video' : 'image',
-      uri: asset.uri,
-      // No thumbnail generation in the dummy phase — the grid falls back to the uri.
-      poster: asset.type === 'video' ? asset.uri : undefined,
-    }));
-    setMedia((current) => [...current, ...picked].slice(0, MAX_MEDIA));
-  };
-
-  const addTag = (tag: string) => {
-    const insert = `#${tag}`;
-    if (body.includes(insert)) return;
-    const next = body.length ? `${body.trimEnd()} ${insert}` : insert;
-    if (next.length <= MAX_LENGTH) setBody(next);
+    setAssets((current) => [...current, ...result.assets].slice(0, MAX_MEDIA));
   };
 
   return (
@@ -121,13 +146,13 @@ export default function ComposeScreen() {
             ]}
           >
             <View style={styles.editorHeader}>
-              <Avatar name={currentUser.name} tint={currentUser.tint} size={40} />
+              <Avatar name={user?.name ?? 'You'} tint={tintFor(user?.id ?? 'me')} size={40} />
               <View>
                 <Text style={[styles.editorName, { color: colors.text }]}>
-                  {currentUser.name}
+                  {user?.name ?? 'You'}
                 </Text>
                 <Text style={[styles.editorHandle, { color: colors.textMuted }]}>
-                  @{currentUser.handle}
+                  @{user?.username ?? 'you'}
                 </Text>
               </View>
             </View>
@@ -150,9 +175,9 @@ export default function ComposeScreen() {
             {/* Attachments */}
             <AttachmentStrip
               media={media}
-              onRemove={(id) => setMedia((current) => current.filter((m) => m.id !== id))}
+              onRemove={(id) => setAssets((current) => current.filter((a) => a.uri !== id))}
               onAdd={pickMedia}
-              canAdd={media.length < MAX_MEDIA}
+              canAdd={assets.length < MAX_MEDIA}
             />
           </View>
 
@@ -170,30 +195,25 @@ export default function ComposeScreen() {
             </Text>
           </View>
 
-          {/* Hashtag suggestions */}
-          {/* <View style={styles.tagRow}>
-            {trendingTopics.slice(0, 4).map((topic) => (
-              <Pressable
-                key={topic.id}
-                onPress={() => addTag(topic.tag)}
-                accessibilityRole="button"
-                accessibilityLabel={`Add hashtag ${topic.tag}`}
-                style={({ pressed }) => [
-                  styles.tagChip,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.tagText, { color: colors.brand }]}>#{topic.tag}</Text>
-              </Pressable>
-            ))}
-          </View> */}
+          {postError ? (
+            <View
+              style={[
+                styles.errorBanner,
+                { backgroundColor: `${colors.pink}14`, borderColor: `${colors.pink}40`, borderRadius: radius.md },
+              ]}
+            >
+              <Ionicons name="alert-circle" size={18} color={colors.pink} />
+              <Text style={[styles.errorText, { color: colors.pink }]}>{postError}</Text>
+            </View>
+          ) : null}
 
-          <View style={{ opacity: canPost ? 1 : 0.5 }}>
-            <GradientButton label="Post" icon="paper-plane" onPress={onPost} />
+          <View style={{ opacity: canPost || createPost.isPending ? 1 : 0.5 }}>
+            <GradientButton
+              label="Post"
+              icon="paper-plane"
+              onPress={onPost}
+              loading={createPost.isPending}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -241,12 +261,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   hintText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  tagChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderWidth: 1,
   },
-  tagText: { fontSize: 14, fontWeight: '800' },
+  errorText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '600' },
 });

@@ -31,6 +31,8 @@ export type Comment = {
 export type Post = {
   id: string;
   author: Member;
+  /** For API posts: the author's user id, for "is this my post?" checks. */
+  ownerId?: string;
   timeAgo: string;
   body: string;
   /** What this post has earned so far, in ₦ (API posts don't report it yet). */

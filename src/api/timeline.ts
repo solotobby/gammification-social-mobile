@@ -7,6 +7,7 @@ import type {
   TimelineMediaItem,
   TimelinePost,
   TimelinePostDetail,
+  TimelinePostDetailResponse,
   TimelineUser,
 } from './types';
 import type { Comment, Member, MemberTint, Post } from '../data/community';
@@ -19,19 +20,33 @@ export async function fetchFeed(page: number): Promise<Paginated<TimelinePost>> 
   return data.data;
 }
 
-/** A picked image ready for the multipart body (React Native file part). */
+/** A picked file ready for the multipart body (React Native file part). */
 export type NewPostImage = {
   uri: string;
   name: string;
   type: string;
 };
 
-export async function createPost(content: string, images: NewPostImage[]): Promise<CreatePostData> {
+export type NewPostVideo = NewPostImage;
+
+/**
+ * POST /timeline/post — multipart `content` plus optional media. The backend
+ * accepts `images[]` (many) OR a single `video`, but not both in one post; the
+ * compose screen enforces that per the account level before calling this.
+ */
+export async function createPost(
+  content: string,
+  images: NewPostImage[],
+  video?: NewPostVideo | null,
+): Promise<CreatePostData> {
   const form = new FormData();
   form.append('content', content);
   for (const image of images) {
     // React Native's FormData takes {uri, name, type} file descriptors.
     form.append('images[]', image as unknown as Blob);
+  }
+  if (video) {
+    form.append('video', video as unknown as Blob);
   }
   const { data } = await api.post<ApiEnvelope<CreatePostData>>('/timeline/post', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -48,9 +63,19 @@ export async function postComment(postId: string, comment: string): Promise<void
   await api.post('/timeline/comment', { post_id: postId, comment });
 }
 
-/** The "View" endpoint — fetching it is also what counts a view server-side. */
-export async function fetchPost(postId: string): Promise<TimelinePostDetail> {
-  const { data } = await api.get<ApiEnvelope<TimelinePostDetail>>(`/timeline/post/${postId}`);
+/** DELETE /timeline/delete/post/{id} — removes the caller's own post. */
+export async function deletePost(postId: string): Promise<void> {
+  await api.delete(`/timeline/delete/post/${postId}`);
+}
+
+/**
+ * The "View" endpoint — fetching it is also what counts a view server-side.
+ * Returns the post plus its comment thread as a separate paginator.
+ */
+export async function fetchPost(postId: string): Promise<TimelinePostDetailResponse> {
+  const { data } = await api.get<ApiEnvelope<TimelinePostDetailResponse>>(
+    `/timeline/post/${postId}`,
+  );
   return data.data;
 }
 
@@ -130,7 +155,7 @@ function mediaOf(post: TimelinePost | TimelinePostDetail): MediaItem[] | undefin
 }
 
 function toComment(raw: TimelineComment, postId: string, index: number): Comment | null {
-  const body = raw.comment ?? raw.body ?? raw.content;
+  const body = raw.message ?? raw.comment ?? raw.body ?? raw.content;
   if (!body) return null;
   return {
     id: raw.id ?? `${postId}-comment-${index}`,
@@ -143,23 +168,26 @@ function toComment(raw: TimelineComment, postId: string, index: number): Comment
 }
 
 /**
- * Normalize an API post into the app's `Post` view model. Handles both the
- * count-only `comments` the API returns today and embedded comment objects
- * (either in `latest_comments` or in `comments` itself) once the backend
- * starts sending them.
+ * Normalize a feed post into the app's `Post` view model. `comments` is the
+ * total count; the latest few comment objects ride along in `comments_preview`
+ * (with `latest_comments` / an embedded-array `comments` kept as fallbacks).
  */
 export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
   const rawComments = Array.isArray(apiPost.comments)
     ? apiPost.comments
-    : (apiPost.latest_comments ?? []);
+    : (apiPost.comments_preview ?? apiPost.latest_comments ?? []);
   const comments = rawComments
     .map((raw, i) => toComment(raw, apiPost.id, i))
     .filter((c): c is Comment => c !== null);
-  const commentCount = typeof apiPost.comments === 'number' ? apiPost.comments : comments.length;
+  const commentCount =
+    typeof apiPost.comments === 'number' ? apiPost.comments : comments.length;
 
   return {
     id: apiPost.id,
     author: toMember(apiPost.user),
+    // The author's user id — compare against the signed-in user's id to tell
+    // whether the post is theirs (there is no dedicated "is mine" API flag).
+    ownerId: apiPost.user_id ?? apiPost.user.id,
     timeAgo: timeAgo(apiPost.created_at),
     body: apiPost.content,
     likes: apiPost.likes,
@@ -169,4 +197,32 @@ export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
     media: mediaOf(apiPost),
     remote: true,
   };
+}
+
+/**
+ * Normalize the GET /timeline/post/{id} response — the post merged with its
+ * full (paginated) comment thread, which the detail screen renders in place of
+ * the feed's short preview.
+ */
+export function toPostDetail(res: TimelinePostDetailResponse): Post {
+  const comments = res.comments.data
+    .map((raw, i) => toComment(raw, res.post.id, i))
+    .filter((c): c is Comment => c !== null);
+
+  return {
+    ...toPost(res.post),
+    comments,
+    commentCount: res.comments.total,
+  };
+}
+
+/**
+ * Merge server comments with the comments the user wrote this session, dropping
+ * any session entry the server already reflects (matched by author + body) so a
+ * comment isn't shown twice once the backend has settled it.
+ */
+export function mergeComments(server: Comment[], mine: Comment[]): Comment[] {
+  if (!mine.length) return server;
+  const seen = new Set(server.map((c) => `${c.author.id}|${c.body}`));
+  return [...server, ...mine.filter((c) => !seen.has(`${c.author.id}|${c.body}`))];
 }

@@ -16,23 +16,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ApiError } from '../src/api/client';
-import { tintFor, type NewPostImage } from '../src/api/timeline';
+import { tintFor, type NewPostImage, type NewPostVideo } from '../src/api/timeline';
 import { AttachmentStrip } from '../src/components/compose/AttachmentStrip';
 import { Avatar } from '../src/components/ui/Avatar';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { type MediaItem } from '../src/data/community';
+import { limitsFor } from '../src/data/postLimits';
+import { useMe } from '../src/hooks/useMe';
 import { useCreatePost } from '../src/hooks/useTimeline';
 import { useAuthStore } from '../src/stores/authStore';
 import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 
-const MAX_LENGTH = 160;
-const MAX_MEDIA = 6;
-
 /**
- * Compose modal — posts to the timeline API as multipart form data:
- * `content` plus optional `images[]` picked from the library.
+ * Compose modal — posts to the timeline API as multipart form data (`content`
+ * plus optional `images[]` or a single `video`). What can be attached depends
+ * on the account level from /user/me: Basic is text-only (160 chars), Creator
+ * adds up to 1 photo, Influencer up to 4 photos or 1 video. The limits are
+ * shown up front and enforced here so the user hits them before the request.
  */
 export default function ComposeScreen() {
   const { colors, radius, spacing } = useTheme();
@@ -42,31 +44,61 @@ export default function ComposeScreen() {
   const showToast = useFeedbackStore((s) => s.showToast);
   const createPost = useCreatePost();
 
+  const { data: me } = useMe();
+  const limits = limitsFor(me?.level);
+  const capped = Number.isFinite(limits.maxChars);
+
   const [body, setBody] = useState('');
-  const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  const [images, setImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  const [video, setVideo] = useState<ImagePicker.ImagePickerAsset | null>(null);
   // Compose is a native modal, so the global toast/error hosts in the root
   // layout can't appear above it — failures surface inline instead.
   const [postError, setPostError] = useState<string | null>(null);
 
   // The strip renders MediaItems; keep ids stable per asset uri.
-  const media: MediaItem[] = useMemo(
-    () => assets.map((asset) => ({ id: asset.uri, type: 'image', uri: asset.uri })),
-    [assets],
-  );
+  const media: MediaItem[] = useMemo(() => {
+    const imageItems: MediaItem[] = images.map((asset) => ({
+      id: asset.uri,
+      type: 'image',
+      uri: asset.uri,
+    }));
+    if (video) imageItems.push({ id: video.uri, type: 'video', uri: video.uri });
+    return imageItems;
+  }, [images, video]);
 
-  const remaining = MAX_LENGTH - body.length;
-  const canPost = (body.trim().length > 0 || assets.length > 0) && !createPost.isPending;
+  const remaining = limits.maxChars - body.length;
+  const overLimit = capped && body.length > limits.maxChars;
+  const hasContent = body.trim().length > 0 || images.length > 0 || !!video;
+  const canPost = hasContent && !overLimit && !createPost.isPending;
+
+  // Media rules: images and a video are mutually exclusive (backend rejects
+  // "both"), and each tier caps how many of each it allows.
+  const canAddImage = limits.maxImages > 0 && images.length < limits.maxImages && !video;
+  const canAddVideo = limits.maxVideos > 0 && !video && images.length === 0;
+  const showsMedia = limits.maxImages > 0 || limits.maxVideos > 0;
+
+  const onChangeBody = (text: string) => {
+    if (capped && text.length > limits.maxChars) return;
+    setBody(text);
+  };
 
   const onPost = () => {
     if (!canPost) return;
     setPostError(null);
-    const images: NewPostImage[] = assets.map((asset, index) => ({
+    const imageParts: NewPostImage[] = images.map((asset, index) => ({
       uri: asset.uri,
       name: asset.fileName ?? `photo-${index + 1}.jpg`,
       type: asset.mimeType ?? 'image/jpeg',
     }));
+    const videoPart: NewPostVideo | null = video
+      ? {
+          uri: video.uri,
+          name: video.fileName ?? 'video.mp4',
+          type: video.mimeType ?? 'video/mp4',
+        }
+      : null;
     createPost.mutate(
-      { content: body.trim(), images },
+      { content: body.trim(), images: imageParts, video: videoPart },
       {
         onSuccess: (data) => {
           showToast(
@@ -85,16 +117,35 @@ export default function ComposeScreen() {
     );
   };
 
-  const pickMedia = async () => {
-    // The create-post API accepts images only (images[]), so no videos here.
+  const pickImages = async () => {
+    if (!canAddImage) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: MAX_MEDIA - assets.length,
+      allowsMultipleSelection: limits.maxImages > 1,
+      selectionLimit: limits.maxImages - images.length,
       quality: 0.8,
     });
     if (result.canceled || !result.assets?.length) return;
-    setAssets((current) => [...current, ...result.assets].slice(0, MAX_MEDIA));
+    setImages((current) => [...current, ...result.assets].slice(0, limits.maxImages));
+  };
+
+  const pickVideo = async () => {
+    if (!canAddVideo) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      allowsMultipleSelection: false,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    setVideo(result.assets[0]);
+  };
+
+  const onRemove = (id: string) => {
+    if (video && id === video.uri) {
+      setVideo(null);
+      return;
+    }
+    setImages((current) => current.filter((a) => a.uri !== id));
   };
 
   return (
@@ -131,10 +182,10 @@ export default function ComposeScreen() {
             <Text
               style={[
                 styles.counter,
-                { color: remaining < 20 ? colors.pink : colors.textMuted },
+                { color: capped && remaining < 20 ? colors.pink : colors.textMuted },
               ]}
             >
-              {body.length} / {MAX_LENGTH}
+              {capped ? `${body.length} / ${limits.maxChars}` : `${body.length}`}
             </Text>
           </View>
 
@@ -147,7 +198,7 @@ export default function ComposeScreen() {
           >
             <View style={styles.editorHeader}>
               <Avatar name={user?.name ?? 'You'} tint={tintFor(user?.id ?? 'me')} size={40} />
-              <View>
+              <View style={styles.editorHeaderText}>
                 <Text style={[styles.editorName, { color: colors.text }]}>
                   {user?.name ?? 'You'}
                 </Text>
@@ -155,10 +206,20 @@ export default function ComposeScreen() {
                   @{user?.username ?? 'you'}
                 </Text>
               </View>
+              {/* Level badge */}
+              <View
+                style={[
+                  styles.levelBadge,
+                  { backgroundColor: `${colors.brand}1A`, borderColor: `${colors.brand}40` },
+                ]}
+              >
+                <Ionicons name="ribbon" size={12} color={colors.brand} />
+                <Text style={[styles.levelText, { color: colors.brand }]}>{limits.level}</Text>
+              </View>
             </View>
             <TextInput
               value={body}
-              onChangeText={(text) => text.length <= MAX_LENGTH && setBody(text)}
+              onChangeText={onChangeBody}
               placeholder="Say something amazing every post can earn"
               placeholderTextColor={colors.textMuted}
               selectionColor={colors.brand}
@@ -172,13 +233,89 @@ export default function ComposeScreen() {
               ]}
             />
 
-            {/* Attachments */}
-            <AttachmentStrip
-              media={media}
-              onRemove={(id) => setAssets((current) => current.filter((a) => a.uri !== id))}
-              onAdd={pickMedia}
-              canAdd={assets.length < MAX_MEDIA}
-            />
+            {/* Attachment thumbnails (adds happen via the buttons below) */}
+            {media.length ? (
+              <AttachmentStrip media={media} onRemove={onRemove} onAdd={() => {}} canAdd={false} />
+            ) : null}
+
+            {/* Media actions — vary by level */}
+            {showsMedia ? (
+              <View style={styles.mediaActions}>
+                {limits.maxImages > 0 ? (
+                  <Pressable
+                    onPress={pickImages}
+                    disabled={!canAddImage}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add photo"
+                    style={[
+                      styles.mediaBtn,
+                      {
+                        backgroundColor: colors.surfaceAlt,
+                        borderColor: colors.border,
+                        borderRadius: radius.md,
+                        opacity: canAddImage ? 1 : 0.45,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="image-outline" size={18} color={colors.brand} />
+                    <Text style={[styles.mediaBtnText, { color: colors.text }]}>
+                      Photo{limits.maxImages > 1 ? ` ${images.length}/${limits.maxImages}` : ''}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {limits.maxVideos > 0 ? (
+                  <Pressable
+                    onPress={pickVideo}
+                    disabled={!canAddVideo}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add video"
+                    style={[
+                      styles.mediaBtn,
+                      {
+                        backgroundColor: colors.surfaceAlt,
+                        borderColor: colors.border,
+                        borderRadius: radius.md,
+                        opacity: canAddVideo ? 1 : 0.45,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="videocam-outline" size={18} color={colors.brand} />
+                    <Text style={[styles.mediaBtnText, { color: colors.text }]}>Video</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+
+          {/* Level limits banner — always states what this tier can attach */}
+          <View
+            style={[
+              styles.tierBanner,
+              { backgroundColor: `${colors.brand}12`, borderColor: `${colors.brand}33`, borderRadius: radius.md },
+            ]}
+          >
+            <Ionicons name="information-circle" size={18} color={colors.brand} />
+            <Text style={[styles.tierText, { color: colors.text }]}>
+              {limits.level === 'Basic' ? (
+                <>
+                  As a Basic member you can post{' '}
+                  <Text style={styles.tierEmphasis}>text only (up to 160 characters)</Text>.{' '}
+                  <Text style={{ color: colors.brand }} onPress={() => router.push('/upgrade')}>
+                    Upgrade
+                  </Text>{' '}
+                  to add photos and videos.
+                </>
+              ) : (
+                <>
+                  As {limits.level === 'Influencer' ? 'an' : 'a'}{' '}
+                  <Text style={styles.tierEmphasis}>{limits.level}</Text> you can post{' '}
+                  {limits.mediaSummary.replace(/^Unlimited text and /, 'unlimited text with ')}.
+                  {limits.maxVideos > 0 && limits.maxImages > 0
+                    ? ' Photos and a video can’t be mixed in one post.'
+                    : ''}
+                </>
+              )}
+            </Text>
           </View>
 
           {/* Earning hint */}
@@ -244,8 +381,19 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   editorHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  editorHeaderText: { flex: 1 },
   editorName: { fontSize: 15, fontWeight: '800' },
   editorHandle: { fontSize: 13, fontWeight: '500' },
+  levelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  levelText: { fontSize: 12, fontWeight: '800' },
   input: {
     minHeight: 130,
     fontSize: 17,
@@ -253,6 +401,25 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     textAlignVertical: 'top',
   },
+  mediaActions: { flexDirection: 'row', gap: 10 },
+  mediaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  mediaBtnText: { fontSize: 13, fontWeight: '700' },
+  tierBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 14,
+    borderWidth: 1,
+  },
+  tierText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  tierEmphasis: { fontWeight: '800' },
   hintBanner: {
     flexDirection: 'row',
     alignItems: 'center',

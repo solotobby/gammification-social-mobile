@@ -9,14 +9,16 @@ import {
 
 import {
   createPost,
+  deletePost,
   fetchFeed,
   fetchPost,
   postComment,
   tintFor,
   toggleLike,
   type NewPostImage,
+  type NewPostVideo,
 } from '../api/timeline';
-import type { Paginated, TimelinePost, TimelinePostDetail } from '../api/types';
+import type { Paginated, TimelinePost, TimelinePostDetailResponse } from '../api/types';
 import type { Comment } from '../data/community';
 import { useAuthStore } from '../stores/authStore';
 import { useEngagementStore } from '../stores/engagementStore';
@@ -48,13 +50,50 @@ export function usePost(id: string, enabled = true) {
   });
 }
 
-/** POST /timeline/post — multipart content + optional images. */
+/** POST /timeline/post — multipart content + optional images or a video. */
 export function useCreatePost() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ content, images }: { content: string; images: NewPostImage[] }) =>
-      createPost(content, images),
+    mutationFn: ({
+      content,
+      images,
+      video,
+    }: {
+      content: string;
+      images: NewPostImage[];
+      video?: NewPostVideo | null;
+    }) => createPost(content, images, video),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
+  });
+}
+
+/**
+ * DELETE /timeline/delete/post/{id}. On success the post is dropped from every
+ * cached feed page (so it vanishes without a refetch) and its detail cache is
+ * cleared; a failure surfaces an error toast/modal and leaves the feed intact.
+ */
+export function useDeletePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => deletePost(postId),
+    onSuccess: (_data, postId) => {
+      queryClient.setQueryData<InfiniteData<Paginated<TimelinePost>>>(['feed'], (data) =>
+        data
+          ? {
+              ...data,
+              pages: data.pages.map((page) => ({
+                ...page,
+                data: page.data.filter((post) => post.id !== postId),
+              })),
+            }
+          : data,
+      );
+      queryClient.removeQueries({ queryKey: ['post', postId] });
+      useFeedbackStore.getState().showToast('Post deleted.', 'success');
+    },
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "Couldn't delete your post.");
+    },
   });
 }
 
@@ -75,8 +114,10 @@ function patchCachedPost(
         }
       : data,
   );
-  queryClient.setQueryData<TimelinePostDetail>(['post', postId], (post) =>
-    post ? patch(post) : post,
+  // The detail cache nests the post under `post` (its comment thread lives
+  // alongside it), so patch reaches in rather than replacing the whole entry.
+  queryClient.setQueryData<TimelinePostDetailResponse>(['post', postId], (res) =>
+    res ? { ...res, post: patch(res.post) } : res,
   );
 }
 

@@ -11,6 +11,7 @@ import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { SelectField } from '../src/components/ui/SelectField';
 import { TextField } from '../src/components/ui/TextField';
 import { currentUser } from '../src/data/community';
+import { useMyTint } from '../src/hooks/useMe';
 import { useTheme } from '../src/theme/ThemeProvider';
 
 const ABOUT_MAX = 40;
@@ -28,6 +29,7 @@ const GENDERS = [
 export default function SettingsScreen() {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
+  const myTint = useMyTint();
 
   const [name, setName] = useState(currentUser.name);
   const [email, setEmail] = useState('alan@payhankey.com');
@@ -53,7 +55,7 @@ export default function SettingsScreen() {
 
       {/* Avatar preview */}
       <View style={styles.avatarWrap}>
-        <Avatar name={name || currentUser.name} tint={currentUser.tint} size={76} />
+        <Avatar name={name || currentUser.name} tint={myTint} size={76} />
         <Text style={[styles.avatarHint, { color: colors.textMuted }]}>
           Avatars come from your initials for now
         </Text>

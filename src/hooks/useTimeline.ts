@@ -16,6 +16,7 @@ import {
   tintFor,
   toggleLike,
   type NewPostImage,
+  type NewPostVideo,
 } from '../api/timeline';
 import type { Paginated, TimelinePost, TimelinePostDetailResponse } from '../api/types';
 import type { Comment } from '../data/community';
@@ -49,12 +50,19 @@ export function usePost(id: string, enabled = true) {
   });
 }
 
-/** POST /timeline/post — multipart content + optional images. */
+/** POST /timeline/post — multipart content + optional images or a video. */
 export function useCreatePost() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ content, images }: { content: string; images: NewPostImage[] }) =>
-      createPost(content, images),
+    mutationFn: ({
+      content,
+      images,
+      video,
+    }: {
+      content: string;
+      images: NewPostImage[];
+      video?: NewPostVideo | null;
+    }) => createPost(content, images, video),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
   });
 }

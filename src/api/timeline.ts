@@ -20,19 +20,33 @@ export async function fetchFeed(page: number): Promise<Paginated<TimelinePost>> 
   return data.data;
 }
 
-/** A picked image ready for the multipart body (React Native file part). */
+/** A picked file ready for the multipart body (React Native file part). */
 export type NewPostImage = {
   uri: string;
   name: string;
   type: string;
 };
 
-export async function createPost(content: string, images: NewPostImage[]): Promise<CreatePostData> {
+export type NewPostVideo = NewPostImage;
+
+/**
+ * POST /timeline/post — multipart `content` plus optional media. The backend
+ * accepts `images[]` (many) OR a single `video`, but not both in one post; the
+ * compose screen enforces that per the account level before calling this.
+ */
+export async function createPost(
+  content: string,
+  images: NewPostImage[],
+  video?: NewPostVideo | null,
+): Promise<CreatePostData> {
   const form = new FormData();
   form.append('content', content);
   for (const image of images) {
     // React Native's FormData takes {uri, name, type} file descriptors.
     form.append('images[]', image as unknown as Blob);
+  }
+  if (video) {
+    form.append('video', video as unknown as Blob);
   }
   const { data } = await api.post<ApiEnvelope<CreatePostData>>('/timeline/post', form, {
     headers: { 'Content-Type': 'multipart/form-data' },

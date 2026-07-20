@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { tintFor, toPost } from '../../src/api/timeline';
+import { mergeComments, tintFor, toPostDetail } from '../../src/api/timeline';
 import { PostCard } from '../../src/components/feed/PostCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
@@ -41,7 +41,7 @@ export default function PostDetailScreen() {
 
   const dummy = findPost(id);
   const query = usePost(id, !dummy);
-  const post = dummy ?? (query.data ? toPost(query.data) : undefined);
+  const post = dummy ?? (query.data ? toPostDetail(query.data) : undefined);
 
   const user = useAuthStore((s) => s.user);
   const myComments = useEngagementStore((s) => s.myComments[id] ?? NO_COMMENTS);
@@ -74,7 +74,7 @@ export default function PostDetailScreen() {
     );
   }
 
-  const comments = dummy ? post.comments : [...post.comments, ...myComments];
+  const comments = dummy ? post.comments : mergeComments(post.comments, myComments);
   const commentCount = dummy
     ? post.comments.length
     : Math.max(post.commentCount ?? 0, comments.length);

@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { tintFor } from "../../api/timeline";
+import { mergeComments, tintFor } from "../../api/timeline";
 import { useAddComment, useToggleLike } from "../../hooks/useTimeline";
 import { useAuthStore } from "../../stores/authStore";
 import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
@@ -133,7 +133,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
   const likeCount = post.remote ? post.likes : post.likes + (liked ? 1 : 0);
 
   const myComments = useEngagementStore((s) => s.myComments[post.id] ?? NO_COMMENTS);
-  const stripComments = bare ? NO_COMMENTS : [...post.comments, ...myComments];
+  const stripComments = bare ? NO_COMMENTS : mergeComments(post.comments, myComments);
   const commentCount = post.commentCount ?? post.comments.length;
 
   const content = (

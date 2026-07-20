@@ -16,7 +16,7 @@ import {
   toggleLike,
   type NewPostImage,
 } from '../api/timeline';
-import type { Paginated, TimelinePost, TimelinePostDetail } from '../api/types';
+import type { Paginated, TimelinePost, TimelinePostDetailResponse } from '../api/types';
 import type { Comment } from '../data/community';
 import { useAuthStore } from '../stores/authStore';
 import { useEngagementStore } from '../stores/engagementStore';
@@ -75,8 +75,10 @@ function patchCachedPost(
         }
       : data,
   );
-  queryClient.setQueryData<TimelinePostDetail>(['post', postId], (post) =>
-    post ? patch(post) : post,
+  // The detail cache nests the post under `post` (its comment thread lives
+  // alongside it), so patch reaches in rather than replacing the whole entry.
+  queryClient.setQueryData<TimelinePostDetailResponse>(['post', postId], (res) =>
+    res ? { ...res, post: patch(res.post) } : res,
   );
 }
 

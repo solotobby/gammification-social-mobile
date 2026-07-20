@@ -122,13 +122,16 @@ export type TimelineMedia = {
 };
 
 /**
- * A comment as the backend may embed it on a post. The live API currently
- * returns only comment COUNTS (no comment objects anywhere), but the backend
- * dev plans to attach the latest comments per feed post — the optional field
- * names here cover the likely shapes so they render as soon as they ship.
+ * A comment as the backend embeds it on a post. The body lives in `message`
+ * (the older `comment`/`body`/`content` names are kept as fallbacks). Feed
+ * posts carry a few of these in `comments_preview`; the detail endpoint returns
+ * the full, paginated thread.
  */
 export type TimelineComment = {
   id?: string;
+  post_id?: string;
+  user_id?: string;
+  message?: string;
   comment?: string;
   body?: string;
   content?: string;
@@ -143,9 +146,11 @@ export type TimelinePost = {
   content: string;
   views: number;
   likes: number;
-  /** Count today; tolerate the backend switching this to embedded objects. */
+  /** Total comment count for the post. */
   comments: number | TimelineComment[];
-  /** Where the backend is expected to attach the latest comments per post. */
+  /** The latest few comments the backend embeds on each feed post. */
+  comments_preview?: TimelineComment[];
+  /** Legacy field name — kept as a fallback for older responses. */
   latest_comments?: TimelineComment[];
   has_video: 0 | 1;
   has_images: 0 | 1;
@@ -155,18 +160,39 @@ export type TimelinePost = {
   user: TimelineUser;
 };
 
-/** GET /timeline/post/{id} — the detail ("View") shape adds raw image rows. */
+/**
+ * The post object inside GET /timeline/post/{id} — same core fields as a feed
+ * post plus raw image/video rows and the extra engagement columns. Ownership is
+ * derived from `user_id` (there is no dedicated "is mine" flag).
+ */
 export type TimelinePostDetail = TimelinePost & {
+  unicode?: string;
+  views_external?: number;
+  clicks?: number;
+  likes_external?: number;
+  comment_external?: string;
   status?: string;
   updated_at?: string;
   video?: { full_path?: string | null; thumbnail_path?: string | null } | null;
   images?: {
     id: string;
+    post_id?: string;
+    path?: string | null;
     full_path: string | null;
     thumbnail_path: string | null;
     width: number | null;
     height: number | null;
   }[];
+};
+
+/**
+ * GET /timeline/post/{id} response body. The shape changed: the post now nests
+ * under `post`, and its comment thread comes back as its own Laravel paginator
+ * under `comments` (paged via the `?comments_page=` query param).
+ */
+export type TimelinePostDetailResponse = {
+  post: TimelinePostDetail;
+  comments: Paginated<TimelineComment>;
 };
 
 /** POST /timeline/post */

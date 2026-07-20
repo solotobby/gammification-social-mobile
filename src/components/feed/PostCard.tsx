@@ -10,6 +10,7 @@ import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
 import { MediaGrid } from "./MediaGrid";
+import { PostMenu } from "./PostMenu";
 import type { Comment, Post } from "../../data/community";
 
 type Props = {
@@ -136,6 +137,11 @@ export function PostCard({ post, onOpen, bare }: Props) {
   const stripComments = bare ? NO_COMMENTS : mergeComments(post.comments, myComments);
   const commentCount = post.commentCount ?? post.comments.length;
 
+  // Only the author sees the overflow menu (delete). There's no "is mine" API
+  // flag — a post's ownerId (its user_id) is matched against the signed-in user.
+  const myUserId = useAuthStore((s) => s.user?.id);
+  const isMine = post.remote && !!post.ownerId && post.ownerId === myUserId;
+
   const content = (
     <>
       <View style={styles.headerRow}>
@@ -176,6 +182,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
             </Text>
           </View>
         ) : null}
+        {isMine && !bare ? <PostMenu postId={post.id} /> : null}
       </View>
 
       {/* Feed cards clamp to 3 lines; the detail screen (bare) shows it all. */}

@@ -4,7 +4,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { currentUser, notifications } from '../../data/community';
-import { useMe } from '../../hooks/useMe';
+import { useMe, useMyTint } from '../../hooks/useMe';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { StoriesRail } from '../stories/StoriesRail';
@@ -32,6 +32,7 @@ export function HomeHeader() {
   const { data: me } = useMe();
   const sessionUser = useAuthStore((s) => s.user);
   const displayName = me?.user.name ?? sessionUser?.name ?? currentUser.name;
+  const myTint = useMyTint();
 
   const iconButton = [
     styles.iconButton,
@@ -47,7 +48,7 @@ export function HomeHeader() {
           accessibilityRole="button"
           accessibilityLabel="Open profile"
         >
-          <Avatar name={displayName} tint={currentUser.tint} size={46} />
+          <Avatar name={displayName} tint={myTint} size={46} />
         </Pressable>
         <View style={styles.headerText}>
           <Text style={[styles.hello, { color: colors.textMuted }]}>{greeting}</Text>

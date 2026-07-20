@@ -9,6 +9,7 @@ import {
 
 import {
   createPost,
+  deletePost,
   fetchFeed,
   fetchPost,
   postComment,
@@ -55,6 +56,36 @@ export function useCreatePost() {
     mutationFn: ({ content, images }: { content: string; images: NewPostImage[] }) =>
       createPost(content, images),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed'] }),
+  });
+}
+
+/**
+ * DELETE /timeline/delete/post/{id}. On success the post is dropped from every
+ * cached feed page (so it vanishes without a refetch) and its detail cache is
+ * cleared; a failure surfaces an error toast/modal and leaves the feed intact.
+ */
+export function useDeletePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => deletePost(postId),
+    onSuccess: (_data, postId) => {
+      queryClient.setQueryData<InfiniteData<Paginated<TimelinePost>>>(['feed'], (data) =>
+        data
+          ? {
+              ...data,
+              pages: data.pages.map((page) => ({
+                ...page,
+                data: page.data.filter((post) => post.id !== postId),
+              })),
+            }
+          : data,
+      );
+      queryClient.removeQueries({ queryKey: ['post', postId] });
+      useFeedbackStore.getState().showToast('Post deleted.', 'success');
+    },
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "Couldn't delete your post.");
+    },
   });
 }
 

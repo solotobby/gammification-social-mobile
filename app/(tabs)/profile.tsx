@@ -12,7 +12,7 @@ import { SectionHeader } from '../../src/components/ui/SectionHeader';
 import { ThemeToggle } from '../../src/components/ui/ThemeToggle';
 import { currentUser, referral } from '../../src/data/community';
 import { useLogout } from '../../src/hooks/useAuth';
-import { useMe } from '../../src/hooks/useMe';
+import { useMe, useMyTint } from '../../src/hooks/useMe';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
 
@@ -53,6 +53,7 @@ export default function ProfileScreen() {
   const { data: me } = useMe();
   const sessionUser = useAuthStore((s) => s.user);
   const displayName = me?.user.name ?? sessionUser?.name ?? currentUser.name;
+  const myTint = useMyTint();
   const displayUsername = me?.user.username ?? sessionUser?.username ?? currentUser.handle;
   const level = me?.level ?? 'Basic';
 
@@ -96,7 +97,7 @@ export default function ProfileScreen() {
           />
           <View style={styles.identityBody}>
             <View style={[styles.avatarRing, { borderColor: colors.surface }]}>
-              <Avatar name={displayName} tint={currentUser.tint} size={76} />
+              <Avatar name={displayName} tint={myTint} size={76} />
             </View>
             <Text style={[styles.name, { color: colors.text }]}>{displayName}</Text>
             <Text style={[styles.handle, { color: colors.textMuted }]}>

@@ -49,6 +49,11 @@ export async function postComment(postId: string, comment: string): Promise<void
   await api.post('/timeline/comment', { post_id: postId, comment });
 }
 
+/** DELETE /timeline/delete/post/{id} — removes the caller's own post. */
+export async function deletePost(postId: string): Promise<void> {
+  await api.delete(`/timeline/delete/post/${postId}`);
+}
+
 /**
  * The "View" endpoint — fetching it is also what counts a view server-side.
  * Returns the post plus its comment thread as a separate paginator.

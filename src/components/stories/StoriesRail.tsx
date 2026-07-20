@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { currentUser, type Member } from '../../data/community';
 import { memberStories, myStories, type StoryItem } from '../../data/stories';
+import { useMyTint } from '../../hooks/useMe';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { StoryPreview } from './StoryPreview';
@@ -45,6 +46,7 @@ function CardShell({ onPress, label, children }: CardShellProps) {
 function MyStoryCard({ latest }: { latest?: StoryItem }) {
   const { colors, brand } = useTheme();
   const router = useRouter();
+  const myTint = useMyTint();
 
   return (
     <CardShell
@@ -55,7 +57,7 @@ function MyStoryCard({ latest }: { latest?: StoryItem }) {
         <StoryPreview item={latest} />
       ) : (
         <View style={styles.createBody}>
-          <Avatar name={currentUser.name} tint={currentUser.tint} size={52} />
+          <Avatar name={currentUser.name} tint={myTint} size={52} />
         </View>
       )}
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.65)']} style={styles.scrim} />

@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, UPLOAD_TIMEOUT } from './client';
 import type {
   ApiEnvelope,
   CreatePostData,
@@ -50,6 +50,7 @@ export async function createPost(
   }
   const { data } = await api.post<ApiEnvelope<CreatePostData>>('/timeline/post', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: UPLOAD_TIMEOUT,
   });
   return data.data;
 }

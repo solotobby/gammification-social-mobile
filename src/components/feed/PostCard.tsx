@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { mergeComments, tintFor } from "../../api/timeline";
-import { useAddComment, useToggleLike } from "../../hooks/useTimeline";
+import { newCommentId, useAddComment, useToggleLike } from "../../hooks/useTimeline";
 import { useAuthStore } from "../../stores/authStore";
 import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
 import { useTheme } from "../../theme/ThemeProvider";
@@ -65,7 +65,7 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
   const onSend = () => {
     const body = draft.trim();
     if (!body) return;
-    addComment.mutate({ postId, body });
+    addComment.mutate({ postId, body, clientId: newCommentId() });
     setDraft("");
   };
 

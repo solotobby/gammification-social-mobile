@@ -20,7 +20,7 @@ import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { addComment, findPost } from '../../src/data/community';
-import { useAddComment, usePost } from '../../src/hooks/useTimeline';
+import { newCommentId, useAddComment, usePost } from '../../src/hooks/useTimeline';
 import { useAuthStore } from '../../src/stores/authStore';
 import { NO_COMMENTS, useEngagementStore } from '../../src/stores/engagementStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -86,7 +86,7 @@ export default function PostDetailScreen() {
       addComment(post.id, body);
       setVersion((v) => v + 1);
     } else {
-      remoteAddComment.mutate({ postId: post.id, body });
+      remoteAddComment.mutate({ postId: post.id, body, clientId: newCommentId() });
     }
     setDraft('');
   };

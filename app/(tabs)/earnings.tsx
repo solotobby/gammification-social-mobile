@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
+import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
-import { earnings } from '../../src/data/community';
+import { useMonthlyAnalytics, useYearlyAnalytics } from '../../src/hooks/useEarnings';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import type { MonthlyAnalytics } from '../../src/api/types';
 
 type StatCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -35,21 +37,81 @@ function StatCard({ icon, label, value, accent }: StatCardProps) {
   );
 }
 
+/** "2026-07" → { num: 7, short: "Jul" } for chips and the activity heading. */
+function parseMonth(month: string): { num: number; short: string; year: number } {
+  const [year, m] = month.split('-').map((n) => parseInt(n, 10));
+  const short = new Date(year, (m || 1) - 1, 1).toLocaleDateString(undefined, { month: 'short' });
+  return { num: m, short, year };
+}
+
+const now = new Date();
+const CURRENT_YEAR = now.getFullYear();
+const CURRENT_MONTH = now.getMonth() + 1;
+
 /**
- * Earnings tab — the web Analytics page condensed for mobile: estimated payout,
- * the engagement→naira rate, this month's totals, and monetized breakdown.
+ * Earnings tab — the web Analytics page on mobile, driven by the earnings
+ * analytics endpoints: yearly (GET /earnings/analytics/yearly) fills the month
+ * chips, and monthly (GET /earnings/analytics/monthly) fills the selected
+ * month's payout, activity, and monetized breakdown.
  */
 export default function EarningsScreen() {
   const { colors, brand, radius, spacing } = useTheme();
   const insets = useSafeAreaInsets();
-  const [month, setMonth] = useState(earnings.months.length - 1);
+
+  const yearly = useYearlyAnalytics(CURRENT_YEAR);
+
+  // Month chips come from the year's reported months; fall back to the current
+  // month so the picker is never empty before any post exists.
+  const monthList = useMemo(() => {
+    const months = yearly.data?.months ?? [];
+    if (months.length) return months.map((m) => m.month).sort();
+    return [`${CURRENT_YEAR}-${String(CURRENT_MONTH).padStart(2, '0')}`];
+  }, [yearly.data]);
+
+  const [selected, setSelected] = useState<string | null>(null);
+  const selectedMonth =
+    selected && monthList.includes(selected) ? selected : monthList[monthList.length - 1];
+  const selectedNum = parseMonth(selectedMonth).num;
+
+  const monthly = useMonthlyAnalytics(CURRENT_YEAR, selectedNum);
+
+  // Prefer the fresh monthly call; fall back to the month's slice of the yearly
+  // payload while it loads (or if it fails), so the cards are never blank.
+  const data: MonthlyAnalytics | undefined =
+    monthly.data ?? yearly.data?.months.find((m) => m.month === selectedMonth);
+
+  const monetized = data?.monetized ?? { views: 0, likes: 0, comments: 0, total_engagement: 0 };
+  const unmonetized = data?.unmonetized ?? { views: 0, likes: 0, comments: 0, total_engagement: 0 };
+  const estimated = data?.estimated_earning ?? 0;
+  const totalPosts = data?.total_posts ?? 0;
 
   const monetizedRows = [
-    { icon: 'eye-outline' as const, label: 'Monetized views', value: earnings.monetized.views },
-    { icon: 'heart-outline' as const, label: 'Monetized likes', value: earnings.monetized.likes },
-    { icon: 'chatbubble-outline' as const, label: 'Monetized comments', value: earnings.monetized.comments },
-    { icon: 'flash-outline' as const, label: 'Total engagement', value: earnings.monetized.engagement },
+    { icon: 'eye-outline' as const, label: 'Monetized views', value: monetized.views },
+    { icon: 'heart-outline' as const, label: 'Monetized likes', value: monetized.likes },
+    { icon: 'chatbubble-outline' as const, label: 'Monetized comments', value: monetized.comments },
+    { icon: 'flash-outline' as const, label: 'Total engagement', value: monetized.total_engagement },
   ];
+
+  if (yearly.isLoading) {
+    return (
+      <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
+        <ScreenBackground />
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
+
+  if (yearly.isError && !yearly.data) {
+    return (
+      <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
+        <ScreenBackground />
+        <Text style={[styles.errorText, { color: colors.textMuted }]}>
+          We couldn't load your earnings.
+        </Text>
+        <GhostButton label="Retry" onPress={() => void yearly.refetch()} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -67,12 +129,12 @@ export default function EarningsScreen() {
 
         {/* Month selector */}
         <View style={styles.monthRow}>
-          {earnings.months.map((label, index) => {
-            const active = index === month;
+          {monthList.map((month) => {
+            const active = month === selectedMonth;
             return (
               <Pressable
-                key={label}
-                onPress={() => setMonth(index)}
+                key={month}
+                onPress={() => setSelected(month)}
                 accessibilityRole="button"
                 style={[
                   styles.monthChip,
@@ -87,7 +149,7 @@ export default function EarningsScreen() {
                     { color: active ? colors.onBrand : colors.textSecondary },
                   ]}
                 >
-                  {label}
+                  {parseMonth(month).short}
                 </Text>
               </Pressable>
             );
@@ -102,7 +164,9 @@ export default function EarningsScreen() {
           style={[styles.payoutCard, { borderRadius: radius.lg, shadowColor: brand.violet }]}
         >
           <Text style={styles.payoutLabel}>Estimated earnings</Text>
-          <Text style={styles.payoutValue}>₦{earnings.estimated.toLocaleString()}</Text>
+          <Text style={styles.payoutValue}>
+            ₦{estimated.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </Text>
           <Text style={styles.payoutNote}>
             Not your final payout — payouts are calculated at month end after engagement
             validation.
@@ -118,26 +182,43 @@ export default function EarningsScreen() {
         >
           <Ionicons name="rocket-outline" size={20} color={colors.mint} />
           <Text style={[styles.rateText, { color: colors.text }]}>
-            Every <Text style={styles.rateBold}>1,000 engagements</Text> puts{' '}
-            <Text style={styles.rateBold}>₦{earnings.ratePerThousand.toLocaleString()}</Text>{' '}
-            straight into your wallet. Keep engaging!
+            Only <Text style={styles.rateBold}>monetized</Text> engagement pays — keep posting
+            and engaging to grow the share that counts.
           </Text>
         </View>
 
         {/* Totals */}
         <View style={{ gap: spacing.md }}>
-          <SectionHeader title={`Activity · ${earnings.months[month]} 2026`} icon="bar-chart" />
+          <SectionHeader
+            title={`Activity · ${parseMonth(selectedMonth).short} ${CURRENT_YEAR}`}
+            icon="bar-chart"
+          />
           <View style={styles.statGrid}>
-            <StatCard icon="list-outline" label="Posts" value={earnings.totals.posts} accent={colors.brand} />
-            <StatCard icon="eye-outline" label="Total views" value={earnings.totals.views} accent={colors.mint} />
-            <StatCard icon="heart-outline" label="Likes" value={earnings.totals.likes} accent={colors.pink} />
-            <StatCard icon="chatbubble-outline" label="Comments" value={earnings.totals.comments} accent={colors.gold} />
+            <StatCard icon="list-outline" label="Posts" value={totalPosts} accent={colors.brand} />
+            <StatCard
+              icon="eye-outline"
+              label="Total views"
+              value={monetized.views + unmonetized.views}
+              accent={colors.mint}
+            />
+            <StatCard
+              icon="heart-outline"
+              label="Likes"
+              value={monetized.likes + unmonetized.likes}
+              accent={colors.pink}
+            />
+            <StatCard
+              icon="chatbubble-outline"
+              label="Comments"
+              value={monetized.comments + unmonetized.comments}
+              accent={colors.gold}
+            />
           </View>
         </View>
 
         {/* Monetized engagement */}
         <View style={{ gap: spacing.md }}>
-          <SectionHeader title="Engagement from your posts" icon="flash" />
+          <SectionHeader title="Monetized engagement" icon="flash" />
           <View
             style={[
               styles.monetizedCard,
@@ -170,8 +251,10 @@ export default function EarningsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  center: { alignItems: 'center', justifyContent: 'center', gap: 14 },
+  errorText: { fontSize: 14, fontWeight: '600' },
   title: { fontSize: 26, fontWeight: '800' },
-  monthRow: { flexDirection: 'row', gap: 10 },
+  monthRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   monthChip: {
     paddingHorizontal: 18,
     height: 38,

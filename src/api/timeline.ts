@@ -190,7 +190,18 @@ export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
     ownerId: apiPost.user_id ?? apiPost.user.id,
     timeAgo: timeAgo(apiPost.created_at),
     body: apiPost.content,
-    likes: apiPost.likes,
+    // Profile-view posts omit the like count; default to 0 (or the preview
+    // length as a floor) so the card never renders NaN.
+    likes: apiPost.likes ?? apiPost.likers_preview?.length ?? 0,
+    // Only forward the flag when the endpoint actually sent it, so the heart
+    // falls back to the session engagement store for responses that don't.
+    likedByViewer: apiPost.is_liked_by_viewer,
+    likedBy: apiPost.likers_preview?.map((liker) => ({
+      id: liker.id,
+      name: liker.name,
+      handle: liker.username,
+      tint: tintFor(liker.id),
+    })),
     views: apiPost.views,
     comments,
     commentCount,

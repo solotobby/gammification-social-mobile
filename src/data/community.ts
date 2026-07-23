@@ -47,6 +47,17 @@ export type Post = {
   media?: MediaItem[];
   /** True for posts that came from the timeline API — engagement calls it. */
   remote?: boolean;
+  /**
+   * The server's "has the viewer liked this?" flag when the endpoint sends it
+   * (`is_liked_by_viewer`). Seeds the heart state; a session toggle overrides it.
+   */
+  likedByViewer?: boolean;
+  /**
+   * Preview of the people who liked this post (`likers_preview`) — the first
+   * few, for the Instagram-style "liked by" avatar row. The true count is
+   * `likes`; anyone beyond this preview is folded into the "and N others" text.
+   */
+  likedBy?: { id: string; name: string; handle: string; tint: MemberTint }[];
 };
 
 export type Topic = {

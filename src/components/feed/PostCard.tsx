@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { mergeComments, tintFor } from "../../api/timeline";
@@ -108,6 +108,59 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
 }
 
 /**
+ * Instagram-style "liked by" row — a small stack of the first few likers'
+ * avatars and a "Liked by <name> and N others" line, shown just above the
+ * action row. Renders only when the post carries a liker preview.
+ */
+function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>; count: number }) {
+  const { colors } = useTheme();
+  const router = useRouter();
+  if (!likedBy.length) return null;
+
+  const avatars = likedBy.slice(0, 3);
+  const names = likedBy.slice(0, 2).map((liker) => liker.name.split(' ')[0]);
+  const others = Math.max(0, count - names.length);
+
+  return (
+    <View style={styles.likedByRow}>
+      <View style={styles.likedAvatars}>
+        {avatars.map((liker, i) => (
+          <View
+            key={liker.id}
+            style={[
+              styles.likedAvatarRing,
+              { borderColor: colors.surface, marginLeft: i === 0 ? 0 : -9, zIndex: avatars.length - i },
+            ]}
+          >
+            <Avatar name={liker.name} tint={liker.tint} size={22} />
+          </View>
+        ))}
+      </View>
+      <Text style={[styles.likedText, { color: colors.textSecondary }]} numberOfLines={1}>
+        Liked by{' '}
+        <Text
+          style={[styles.likedName, { color: colors.text }]}
+          onPress={() => router.push(`/member/${likedBy[0].handle}`)}
+        >
+          {names[0]}
+        </Text>
+        {names[1] ? (
+          <>
+            {others > 0 ? ', ' : ' and '}
+            <Text style={[styles.likedName, { color: colors.text }]}>{names[1]}</Text>
+          </>
+        ) : null}
+        {others > 0 ? (
+          <Text style={styles.likedName}>
+            {` and ${others.toLocaleString()} ${others === 1 ? 'other' : 'others'}`}
+          </Text>
+        ) : null}
+      </Text>
+    </View>
+  );
+}
+
+/**
  * A feed post: author row with earned badge, body, hashtags, and the
  * like / comment / views / share action row. API posts (`post.remote`) like
  * optimistically through the timeline API and grow a comment strip: any
@@ -124,6 +177,14 @@ export function PostCard({ post, onOpen, bare }: Props) {
   const remoteLiked = useEngagementStore((s) => !!s.liked[post.id]);
   const toggleLike = useToggleLike();
   const liked = post.remote ? remoteLiked : localLiked;
+
+  // Seed the heart from the server's `is_liked_by_viewer` (endpoints that send
+  // it) so a liked post shows filled on first render; a session toggle wins.
+  useEffect(() => {
+    if (post.remote && post.likedByViewer != null) {
+      useEngagementStore.getState().seedLiked(post.id, post.likedByViewer);
+    }
+  }, [post.id, post.remote, post.likedByViewer]);
   const onLike = () => {
     if (post.remote) toggleLike.mutate(post.id);
     else setLocalLiked((l) => !l);
@@ -201,6 +262,8 @@ export function PostCard({ post, onOpen, bare }: Props) {
           ))}
         </View>
       ) : null}
+
+      {post.likedBy?.length ? <LikedByRow likedBy={post.likedBy} count={likeCount} /> : null}
 
       <View style={[styles.actionRow, { borderTopColor: colors.border }]}>
         <Pressable
@@ -335,6 +398,18 @@ const styles = StyleSheet.create({
   body: { fontSize: 15, lineHeight: 22, fontWeight: "400" },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tag: { fontSize: 14, fontWeight: "700" },
+  likedByRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  likedAvatars: { flexDirection: "row", alignItems: "center" },
+  likedAvatarRing: {
+    borderWidth: 2,
+    borderRadius: 13,
+  },
+  likedText: { flex: 1, fontSize: 13, fontWeight: "500" },
+  likedName: { fontWeight: "800" },
   actionRow: {
     flexDirection: "row",
     alignItems: "center",

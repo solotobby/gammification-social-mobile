@@ -13,6 +13,7 @@ import { ThemeToggle } from '../../src/components/ui/ThemeToggle';
 import { currentUser, referral } from '../../src/data/community';
 import { useLogout } from '../../src/hooks/useAuth';
 import { useMe, useMyTint } from '../../src/hooks/useMe';
+import { useProfile } from '../../src/hooks/useUser';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
 
@@ -57,6 +58,13 @@ export default function ProfileScreen() {
   const displayUsername = me?.user.username ?? sessionUser?.username ?? currentUser.handle;
   const level = me?.level ?? 'Basic';
 
+  // Real follower/following/post counts come from the profile view (GET
+  // /user/me doesn't carry them). Falls back to 0 until the profile resolves.
+  const profilePage = useProfile(me?.user.username ?? sessionUser?.username).data?.pages[0];
+  const followers = profilePage?.profile.followers ?? 0;
+  const following = profilePage?.profile.following ?? 0;
+  const postCount = profilePage?.data.total ?? 0;
+
   const handleLogout = async () => {
     await logout();
     router.replace('/');
@@ -74,9 +82,10 @@ export default function ProfileScreen() {
           gap: spacing.xl,
         }}
       >
-        {/* Identity card — tap through to the full profile (posts + stats) */}
+        {/* Identity card — tap through to the full profile (posts + stats).
+            "me" resolves to the signed-in user inside the profile screen. */}
         <Pressable
-          onPress={() => router.push(`/member/${currentUser.handle}`)}
+          onPress={() => router.push('/member/me')}
           accessibilityRole="button"
           accessibilityLabel="View my profile"
           style={({ pressed }) => [
@@ -106,23 +115,23 @@ export default function ProfileScreen() {
             <View style={styles.statsRow}>
               <View style={styles.stat}>
                 <Text style={[styles.statValue, { color: colors.text }]}>
-                  {currentUser.followers}
+                  {followers.toLocaleString()}
                 </Text>
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>Followers</Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
               <View style={styles.stat}>
                 <Text style={[styles.statValue, { color: colors.text }]}>
-                  {currentUser.following}
+                  {following.toLocaleString()}
                 </Text>
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>Following</Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
               <View style={styles.stat}>
                 <Text style={[styles.statValue, { color: colors.text }]}>
-                  {currentUser.engagements}
+                  {postCount.toLocaleString()}
                 </Text>
-                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Engagements</Text>
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Posts</Text>
               </View>
             </View>
           </View>

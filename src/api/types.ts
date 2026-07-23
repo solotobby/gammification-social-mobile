@@ -87,6 +87,59 @@ export type OnboardPayload = {
   currency: string;
 };
 
+/** GET /user/currency/list — one payout currency option. */
+export type Currency = {
+  symbol: string;
+  code: string;
+  country: string;
+};
+
+/**
+ * GET /user/profile/{username}. The response is NOT the usual
+ * `{ data }` envelope — the member sits at the top level under `profile`, and
+ * their posts come back as a Laravel paginator under `data`.
+ */
+export type ApiProfile = {
+  id: string;
+  avatar: string | null;
+  name: string;
+  username: string;
+  followers: number;
+  following: number;
+  status?: string;
+  /** Free-text bio/profile blurb (nullable). */
+  profile?: string | null;
+  /** Whether the signed-in user follows this member, when the backend sends it. */
+  is_following?: boolean;
+};
+
+export type ProfileViewResponse = {
+  success?: boolean;
+  message: string;
+  profile: ApiProfile;
+  data: Paginated<TimelinePost>;
+};
+
+/** GET /user/search — a person match (their own follower/following counts). */
+export type SearchUser = {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string | null;
+  followers: number;
+  following: number;
+};
+
+/** GET /user/toggle/follow — the new state plus the caller's refreshed counts. */
+export type ToggleFollowData = {
+  following: boolean;
+  auth_user: {
+    id: string;
+    following_count: number;
+    followers_count: number;
+  };
+};
+
 // ---------------------------------------------------------------------------
 // Timeline
 // ---------------------------------------------------------------------------
@@ -105,6 +158,16 @@ export type TimelineUser = {
   id: string;
   username: string;
   name: string;
+  /** CDN avatar URL when present (initials fall back to a tinted disc). */
+  avatar?: string | null;
+};
+
+/** One entry of a post's `likers_preview` — the first few people who liked it. */
+export type LikerPreview = {
+  id: string;
+  name: string;
+  username: string;
+  avatar?: string | null;
 };
 
 /** One entry of a feed post's `media.items` (CDN URLs, may be null while processing). */
@@ -139,13 +202,26 @@ export type TimelineComment = {
   user?: TimelineUser;
 };
 
-/** A post as returned by GET /timeline/feed. */
+/**
+ * A post as returned by the post-listing endpoints. The Profile View response
+ * is the canonical (richest) shape and every post endpoint is converging on it
+ * — `is_liked_by_viewer`, `likers_preview`, `media`, `comments_preview`, and a
+ * `user.avatar` all ride along there. Feed / hashtag responses currently send a
+ * subset (they carry a `likes` count but may omit `is_liked_by_viewer` and
+ * `likers_preview`), so every added field is optional and the normalizer copes
+ * with either shape.
+ */
 export type TimelinePost = {
   id: string;
   user_id: string;
   content: string;
   views: number;
-  likes: number;
+  /** Like count — present on feed/hashtag posts; absent on profile posts. */
+  likes?: number;
+  /** Whether the signed-in viewer has liked this post (profile view sends it). */
+  is_liked_by_viewer?: boolean;
+  /** The first few people who liked the post (profile view sends it). */
+  likers_preview?: LikerPreview[];
   /** Total comment count for the post. */
   comments: number | TimelineComment[];
   /** The latest few comments the backend embeds on each feed post. */
@@ -201,4 +277,65 @@ export type CreatePostData = {
   status: string;
   /** "processing" when images/video were attached and are still being encoded. */
   media_status?: string;
+};
+
+// ---------------------------------------------------------------------------
+// Explore
+// ---------------------------------------------------------------------------
+
+/** A trending hashtag (GET /explore/trending + /explore/trending/hashtags). */
+export type TrendingHashtag = {
+  id: string;
+  name: string;
+  posts_count: number;
+  created_at?: string;
+  updated_at?: string;
+  trend_score?: number;
+};
+
+/** A trending member (GET /explore/trending + /explore/trending/members). */
+export type TrendingMember = {
+  id: string;
+  name: string;
+  username: string;
+  total_engagement: number;
+  avatar?: string | null;
+};
+
+/** GET /explore/trending — the top few of each, side by side. */
+export type TrendingData = {
+  hashtags: TrendingHashtag[];
+  members: TrendingMember[];
+};
+
+// ---------------------------------------------------------------------------
+// Earnings
+// ---------------------------------------------------------------------------
+
+/** The monetized / unmonetized engagement split inside an analytics bucket. */
+export type EngagementBreakdown = {
+  views: number;
+  likes: number;
+  comments: number;
+  total_engagement: number;
+};
+
+/** GET /earnings/analytics/monthly?year=&month= */
+export type MonthlyAnalytics = {
+  /** "YYYY-MM". */
+  month: string;
+  total_posts: number;
+  monetized: EngagementBreakdown;
+  unmonetized: EngagementBreakdown;
+  estimated_earning: number;
+};
+
+/** GET /earnings/analytics/yearly?year= — yearly totals plus a per-month list. */
+export type YearlyAnalytics = {
+  year: number;
+  total_posts: number;
+  total_monetized_engagement: number;
+  total_unmonetized_engagement: number;
+  total_estimated_earning: number;
+  months: MonthlyAnalytics[];
 };

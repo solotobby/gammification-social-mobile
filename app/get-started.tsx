@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from '../src/components/ui/BackButton';
@@ -12,31 +12,24 @@ import { Logo } from '../src/components/ui/Logo';
 import { SelectField, type SelectOption } from '../src/components/ui/SelectField';
 import { useUpdateOnboarding } from '../src/hooks/useAuth';
 import { useMe } from '../src/hooks/useMe';
+import { useChannels, useCurrencies } from '../src/hooks/useUser';
 import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 
 const REFERRAL_BASE_URL = 'https://payhankey.com/join';
 
-const CURRENCIES: SelectOption[] = [
-  { label: 'USD — US Dollar', value: 'USD' },
-  { label: 'EUR — Euro', value: 'EUR' },
-  { label: 'GBP — British Pound', value: 'GBP' },
-  { label: 'NGN — Nigerian Naira', value: 'NGN' },
-  { label: 'KES — Kenyan Shilling', value: 'KES' },
-  { label: 'GHS — Ghanaian Cedi', value: 'GHS' },
-  { label: 'ZAR — South African Rand', value: 'ZAR' },
-  { label: 'CAD — Canadian Dollar', value: 'CAD' },
+// Shown only until the live lists load (or if the request fails), so the picker
+// is never empty. The real options come from /user/currency/list + /user/channel.
+const FALLBACK_CURRENCIES: SelectOption[] = [
+  { label: 'USD — United States of America', value: 'USD' },
+  { label: 'NGN — Nigeria', value: 'NGN' },
+  { label: 'GBP — United Kingdom', value: 'GBP' },
 ];
 
-const HEARD_FROM: SelectOption[] = [
-  { label: 'Facebook', value: 'facebook' },
-  { label: 'Instagram', value: 'instagram' },
-  { label: 'TikTok', value: 'tiktok' },
-  { label: 'X (Twitter)', value: 'x' },
-  { label: 'YouTube', value: 'youtube' },
-  { label: 'A friend or referral', value: 'friend' },
-  { label: 'Google search', value: 'google' },
-  { label: 'Other', value: 'other' },
+const FALLBACK_HEARD_FROM: SelectOption[] = [
+  { label: 'Facebook', value: 'Facebook' },
+  { label: 'Twitter(X)', value: 'Twitter(X)' },
+  { label: 'Google', value: 'Google' },
 ];
 
 const TOTAL_STEPS = 3;
@@ -47,6 +40,24 @@ export default function GetStartedScreen() {
   const { data: me } = useMe();
   const onboardMutation = useUpdateOnboarding();
   const showApiError = useFeedbackStore((s) => s.showApiError);
+
+  const { data: currencies } = useCurrencies();
+  const { data: channels } = useChannels();
+
+  const currencyOptions = useMemo<SelectOption[]>(
+    () =>
+      currencies?.length
+        ? currencies.map((c) => ({ label: `${c.code} — ${c.country}`, value: c.code }))
+        : FALLBACK_CURRENCIES,
+    [currencies],
+  );
+  const heardOptions = useMemo<SelectOption[]>(
+    () =>
+      channels?.length
+        ? channels.map((name) => ({ label: name, value: name }))
+        : FALLBACK_HEARD_FROM,
+    [channels],
+  );
 
   const [step, setStep] = useState(0);
   const [currency, setCurrency] = useState<string | null>(null);
@@ -158,7 +169,7 @@ export default function GetStartedScreen() {
                 placeholder="Select currency"
                 title="Payout currency"
                 value={currency}
-                options={CURRENCIES}
+                options={currencyOptions}
                 onChange={setCurrency}
               />
               <SelectField
@@ -166,7 +177,7 @@ export default function GetStartedScreen() {
                 placeholder="How did you hear about us?"
                 title="How did you hear about us?"
                 value={heard}
-                options={HEARD_FROM}
+                options={heardOptions}
                 onChange={setHeard}
               />
             </View>

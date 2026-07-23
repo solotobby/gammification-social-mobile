@@ -18,7 +18,12 @@ import {
   type NewPostImage,
   type NewPostVideo,
 } from '../api/timeline';
-import type { Paginated, TimelinePost, TimelinePostDetailResponse } from '../api/types';
+import type {
+  LikerPreview,
+  Paginated,
+  TimelinePost,
+  TimelinePostDetailResponse,
+} from '../api/types';
 import type { Comment } from '../data/community';
 import { useAuthStore } from '../stores/authStore';
 import { useEngagementStore } from '../stores/engagementStore';
@@ -126,6 +131,24 @@ function shiftCount(count: number | unknown, delta: number): number | unknown {
 }
 
 /**
+ * Keep a post's `likers_preview` in sync with an optimistic like toggle so the
+ * "liked by" avatar row reflects the user's own like immediately (the server
+ * snapshot only catches up on the next refetch). Prepends the current user when
+ * liking, drops them when unliking.
+ */
+function patchLikers(
+  list: LikerPreview[] | undefined,
+  user: { id: string; name: string; username: string } | null,
+  wasLiked: boolean,
+): LikerPreview[] | undefined {
+  if (!user) return list;
+  const current = list ?? [];
+  if (wasLiked) return current.filter((liker) => liker.id !== user.id);
+  if (current.some((liker) => liker.id === user.id)) return current;
+  return [{ id: user.id, name: user.name, username: user.username, avatar: null }, ...current];
+}
+
+/**
  * POST /timeline/like/toggle, optimistically: the heart flips and the count
  * moves immediately, the call runs silently in the background, and a failure
  * reverses the toggle and surfaces a small error toast. The server has no
@@ -138,18 +161,22 @@ export function useToggleLike() {
     onMutate: (postId) => {
       const wasLiked = !!useEngagementStore.getState().liked[postId];
       useEngagementStore.getState().setLiked(postId, !wasLiked);
+      const user = useAuthStore.getState().user;
       patchCachedPost(queryClient, postId, (post) => ({
         ...post,
-        likes: Math.max(0, post.likes + (wasLiked ? -1 : 1)),
+        likes: Math.max(0, (post.likes ?? 0) + (wasLiked ? -1 : 1)),
+        likers_preview: patchLikers(post.likers_preview, user, wasLiked),
       }));
       return { wasLiked };
     },
     onError: (_error, postId, context) => {
       if (!context) return;
       useEngagementStore.getState().setLiked(postId, context.wasLiked);
+      const user = useAuthStore.getState().user;
       patchCachedPost(queryClient, postId, (post) => ({
         ...post,
-        likes: Math.max(0, post.likes + (context.wasLiked ? 1 : -1)),
+        likes: Math.max(0, (post.likes ?? 0) + (context.wasLiked ? 1 : -1)),
+        likers_preview: patchLikers(post.likers_preview, user, !context.wasLiked),
       }));
       useFeedbackStore
         .getState()

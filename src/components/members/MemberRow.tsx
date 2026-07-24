@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { useToggleFollow } from '../../hooks/useUser';
+import { useAuthStore } from '../../stores/authStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
 import type { Member } from '../../data/community';
 
@@ -29,6 +30,14 @@ export function MemberRow({
   const toggleFollow = useToggleFollow();
   const showToast = useFeedbackStore((s) => s.showToast);
   const [following, setFollowing] = useState(initiallyFollowing);
+
+  // You can't follow yourself — hide the button when this row is the signed-in
+  // user. Matched on either identifier: not every list endpoint returns ids
+  // from the same shape, but the handle is always the username.
+  const me = useAuthStore((s) => s.user);
+  const isMe =
+    !!me &&
+    (member.id === me.id || member.handle.toLowerCase() === me.username.toLowerCase());
 
   const onFollow = () => {
     if (toggleFollow.isPending) return;
@@ -72,26 +81,28 @@ export function MemberRow({
           @{member.handle} · {member.followers} followers
         </Text>
       </Pressable>
-      <Pressable
-        onPress={onFollow}
-        accessibilityRole="button"
-        accessibilityLabel={following ? `Unfollow ${member.name}` : `Follow ${member.name}`}
-        style={[
-          styles.followBtn,
-          following
-            ? { backgroundColor: colors.surfaceAlt, borderColor: colors.border }
-            : { backgroundColor: colors.brand, borderColor: colors.brand },
-        ]}
-      >
-        <Text
+      {isMe ? null : (
+        <Pressable
+          onPress={onFollow}
+          accessibilityRole="button"
+          accessibilityLabel={following ? `Unfollow ${member.name}` : `Follow ${member.name}`}
           style={[
-            styles.followText,
-            { color: following ? colors.textSecondary : colors.onBrand },
+            styles.followBtn,
+            following
+              ? { backgroundColor: colors.surfaceAlt, borderColor: colors.border }
+              : { backgroundColor: colors.brand, borderColor: colors.brand },
           ]}
         >
-          {following ? 'Following' : 'Follow'}
-        </Text>
-      </Pressable>
+          <Text
+            style={[
+              styles.followText,
+              { color: following ? colors.textSecondary : colors.onBrand },
+            ]}
+          >
+            {following ? 'Following' : 'Follow'}
+          </Text>
+        </Pressable>
+      )}
     </Pressable>
   );
 }

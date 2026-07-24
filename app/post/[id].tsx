@@ -18,6 +18,7 @@ import { mergeComments, tintFor, toPostDetail } from '../../src/api/timeline';
 import { PostCard } from '../../src/components/feed/PostCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
+import { HashtagText } from '../../src/components/ui/HashtagText';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { addComment, findPost } from '../../src/data/community';
 import { newCommentId, useAddComment, usePost } from '../../src/hooks/useTimeline';
@@ -155,9 +156,9 @@ export default function PostDetailScreen() {
                         {comment.timeAgo}
                       </Text>
                     </View>
-                    <Text style={[styles.commentText, { color: colors.textSecondary }]}>
+                    <HashtagText style={[styles.commentText, { color: colors.textSecondary }]}>
                       {comment.body}
-                    </Text>
+                    </HashtagText>
                   </View>
                 </View>
               ))

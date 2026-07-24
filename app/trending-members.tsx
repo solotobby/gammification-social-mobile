@@ -12,6 +12,7 @@ import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { type Member } from '../src/data/community';
 import { useTrendingMembers } from '../src/hooks/useExplore';
 import { useToggleFollow } from '../src/hooks/useUser';
+import { useAuthStore } from '../src/stores/authStore';
 import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 
@@ -25,6 +26,12 @@ function TrendingRow({ member, index }: { member: Member; index: number }) {
   const showToast = useFeedbackStore((s) => s.showToast);
   const [following, setFollowing] = useState(false);
   const medal = index < 3;
+
+  // Same rule as MemberRow: no follow button on your own row.
+  const me = useAuthStore((s) => s.user);
+  const isMe =
+    !!me &&
+    (member.id === me.id || member.handle.toLowerCase() === me.username.toLowerCase());
 
   const onFollow = () => {
     if (toggleFollow.isPending) return;
@@ -72,23 +79,25 @@ function TrendingRow({ member, index }: { member: Member; index: number }) {
           </View>
         </View>
       </Pressable>
-      <Pressable
-        onPress={onFollow}
-        accessibilityRole="button"
-        accessibilityLabel={following ? `Unfollow ${member.name}` : `Follow ${member.name}`}
-        style={[
-          styles.followBtn,
-          following
-            ? { backgroundColor: colors.surfaceAlt, borderColor: colors.border }
-            : { backgroundColor: colors.brand, borderColor: colors.brand },
-        ]}
-      >
-        <Ionicons
-          name={following ? 'checkmark' : 'person-add-outline'}
-          size={17}
-          color={following ? colors.textSecondary : colors.onBrand}
-        />
-      </Pressable>
+      {isMe ? null : (
+        <Pressable
+          onPress={onFollow}
+          accessibilityRole="button"
+          accessibilityLabel={following ? `Unfollow ${member.name}` : `Follow ${member.name}`}
+          style={[
+            styles.followBtn,
+            following
+              ? { backgroundColor: colors.surfaceAlt, borderColor: colors.border }
+              : { backgroundColor: colors.brand, borderColor: colors.brand },
+          ]}
+        >
+          <Ionicons
+            name={following ? 'checkmark' : 'person-add-outline'}
+            size={17}
+            color={following ? colors.textSecondary : colors.onBrand}
+          />
+        </Pressable>
+      )}
     </View>
   );
 }

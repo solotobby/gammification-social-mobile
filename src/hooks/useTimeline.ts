@@ -42,16 +42,51 @@ export function useFeed() {
 }
 
 /**
+ * Rebuild a detail response from the post as the feed already has it, so the
+ * detail screen has something to render before (or without) a successful
+ * fetch. The comment thread falls back to the feed's short preview.
+ */
+function feedPostAsDetail(
+  queryClient: QueryClient,
+  id: string,
+): TimelinePostDetailResponse | undefined {
+  const feed = queryClient.getQueryData<InfiniteData<Paginated<TimelinePost>>>(['feed']);
+  const post = feed?.pages.flatMap((page) => page.data).find((entry) => entry.id === id);
+  if (!post) return undefined;
+
+  const preview = Array.isArray(post.comments)
+    ? post.comments
+    : (post.comments_preview ?? post.latest_comments ?? []);
+
+  return {
+    post,
+    comments: {
+      current_page: 1,
+      data: preview,
+      last_page: 1,
+      next_page_url: null,
+      per_page: preview.length,
+      total: typeof post.comments === 'number' ? post.comments : preview.length,
+    },
+  };
+}
+
+/**
  * GET /timeline/post/{id} — the View endpoint. Mounting it on the detail
- * screen is what registers the view server-side, so it always refetches.
+ * screen is what registers the view server-side, so it always refetches and is
+ * never persisted. That leaves nothing to show offline, so the feed's copy of
+ * the post stands in as placeholder data: body, media and counts render
+ * immediately, and the full thread swaps in once the fetch lands.
  */
 export function usePost(id: string, enabled = true) {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['post', id],
     queryFn: () => fetchPost(id),
     enabled,
     staleTime: 0,
     refetchOnMount: 'always',
+    placeholderData: () => feedPostAsDetail(queryClient, id),
   });
 }
 
@@ -153,10 +188,16 @@ function patchLikers(
  * moves immediately, the call runs silently in the background, and a failure
  * reverses the toggle and surfaces a small error toast. The server has no
  * "liked by me" flag, so the flag itself lives in the engagement store.
+ *
+ * Offline the mutation is paused, so the heart simply stays flipped until the
+ * connection returns instead of rolling back. Unlike comments this is not
+ * persisted across an app restart — see `shouldDehydrateMutation` in
+ * src/api/queryClient.ts for why replaying a *toggle* is unsafe.
  */
 export function useToggleLike() {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ['toggleLike'],
     mutationFn: (postId: string) => toggleLike(postId),
     onMutate: (postId) => {
       const wasLiked = !!useEngagementStore.getState().liked[postId];
@@ -185,19 +226,61 @@ export function useToggleLike() {
   });
 }
 
+/** Variables for a comment mutation. */
+export type AddCommentVars = { postId: string; body: string; clientId: string };
+
 /**
- * POST /timeline/comment, optimistically: the comment appears (session store)
- * and the count bumps right away; a failure removes it again and reports why.
+ * Id for an optimistic comment. It travels in the mutation *variables* rather
+ * than in onMutate's context so that a comment paused while offline can still
+ * be identified after an app restart, when only the key and variables survive.
+ */
+export function newCommentId(): string {
+  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** Undo an optimistic comment and explain why. Shared by the live and restored paths. */
+function rollbackComment(
+  queryClient: QueryClient,
+  { postId, clientId }: AddCommentVars,
+  error: unknown,
+) {
+  useEngagementStore.getState().removeComment(postId, clientId);
+  patchCachedPost(queryClient, postId, (post) => ({
+    ...post,
+    comments: shiftCount(post.comments, -1) as typeof post.comments,
+  }));
+  useFeedbackStore.getState().showApiError(error, "Couldn't post your comment.");
+}
+
+/**
+ * Teach the query client how to run a comment mutation from its key alone.
+ * Functions can't be persisted — a restored mutation carries only its key and
+ * variables — so without this a comment paused across an app restart could
+ * never be replayed. Called once from app/_layout.tsx.
+ */
+export function registerMutationDefaults(queryClient: QueryClient) {
+  queryClient.setMutationDefaults(['addComment'], {
+    mutationFn: ({ postId, body }: AddCommentVars) => postComment(postId, body),
+    onError: (error, variables: AddCommentVars) =>
+      rollbackComment(queryClient, variables, error),
+  });
+}
+
+/**
+ * POST /timeline/comment, optimistically: the comment appears (engagement
+ * store) and the count bumps right away. Offline the mutation is *paused*
+ * rather than failed — the comment stays put and sends itself on reconnect.
+ * A real failure removes it again and reports why.
  */
 export function useAddComment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ postId, body }: { postId: string; body: string }) =>
-      postComment(postId, body),
-    onMutate: ({ postId, body }) => {
+    mutationKey: ['addComment'],
+    mutationFn: ({ postId, body }: AddCommentVars) => postComment(postId, body),
+    onMutate: ({ postId, body, clientId }) => {
       const user = useAuthStore.getState().user;
       const comment: Comment = {
-        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        id: clientId,
         author: {
           id: user?.id ?? 'me',
           name: user?.name ?? 'You',
@@ -215,16 +298,7 @@ export function useAddComment() {
         ...post,
         comments: shiftCount(post.comments, 1) as typeof post.comments,
       }));
-      return { commentId: comment.id };
     },
-    onError: (error, { postId }, context) => {
-      if (!context) return;
-      useEngagementStore.getState().removeComment(postId, context.commentId);
-      patchCachedPost(queryClient, postId, (post) => ({
-        ...post,
-        comments: shiftCount(post.comments, -1) as typeof post.comments,
-      }));
-      useFeedbackStore.getState().showApiError(error, "Couldn't post your comment.");
-    },
+    onError: (error, variables) => rollbackComment(queryClient, variables, error),
   });
 }

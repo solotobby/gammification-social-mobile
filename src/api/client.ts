@@ -26,6 +26,13 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Budget for multipart uploads. The default 30s is sized for JSON round-trips;
+ * pushing a video over a weak-but-working connection routinely needs longer,
+ * and timing it out loses a post the user already wrote.
+ */
+export const UPLOAD_TIMEOUT = 120_000;
+
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30_000,

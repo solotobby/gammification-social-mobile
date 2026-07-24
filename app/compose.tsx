@@ -20,6 +20,7 @@ import { tintFor, type NewPostImage, type NewPostVideo } from '../src/api/timeli
 import { AttachmentStrip } from '../src/components/compose/AttachmentStrip';
 import { Avatar } from '../src/components/ui/Avatar';
 import { GradientButton } from '../src/components/ui/GradientButton';
+import { HashtagSpans } from '../src/components/ui/HashtagText';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { type MediaItem } from '../src/data/community';
 import { limitsFor } from '../src/data/postLimits';
@@ -78,8 +79,11 @@ export default function ComposeScreen() {
   const showsMedia = limits.maxImages > 0 || limits.maxVideos > 0;
 
   const onChangeBody = (text: string) => {
-    if (capped && text.length > limits.maxChars) return;
-    setBody(text);
+    // Clamp rather than reject. Native has no `value` prop to snap back from
+    // (the styled children are the source of truth), so ignoring the change
+    // would leave the extra characters sitting in the input. Clamping also
+    // means pasting past the limit truncates instead of silently doing nothing.
+    setBody(capped ? text.slice(0, limits.maxChars) : text);
   };
 
   const onPost = () => {
@@ -218,7 +222,9 @@ export default function ComposeScreen() {
               </View>
             </View>
             <TextInput
-              value={body}
+              // Native drives the text through the styled children below;
+              // passing `value` as well makes iOS render the content twice.
+              value={Platform.OS === 'web' ? body : undefined}
               onChangeText={onChangeBody}
               placeholder="Say something amazing every post can earn"
               placeholderTextColor={colors.textMuted}
@@ -231,7 +237,12 @@ export default function ComposeScreen() {
                 // Suppress the browser's default focus ring on web.
                 Platform.OS === 'web' && ({ outlineStyle: 'none' } as object),
               ]}
-            />
+            >
+              {/* Styled children tint hashtags as they're typed. Native only:
+                  react-native-web renders this as a <textarea>, which can't
+                  hold styled children — there `value` alone drives the text. */}
+              {Platform.OS === 'web' ? null : <HashtagSpans text={body} />}
+            </TextInput>
 
             {/* Attachment thumbnails (adds happen via the buttons below) */}
             {media.length ? (

@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { create } from 'zustand';
 
 import { ApiError } from '../api/client';
@@ -57,11 +58,17 @@ export const useFeedbackStore = create<FeedbackState>((set, get) => ({
 
   showApiError: (error, fallbackMessage = 'Something went wrong. Please try again.') => {
     if (error instanceof ApiError) {
-      const isHard = error.status === undefined || error.status >= 500;
+      const isNetwork = error.status === undefined;
+      // While offline the banner is already saying so, permanently and in one
+      // place. Stacking a blocking modal per failed request on top of it is
+      // just noise the user has to dismiss repeatedly.
+      if (isNetwork && !onlineManager.isOnline()) return;
+
+      const isHard = isNetwork || error.status! >= 500;
       if (isHard) {
         get().showErrorModal(
           error.message,
-          error.status === undefined ? 'Connection problem' : 'Server error',
+          isNetwork ? 'Connection problem' : 'Server error',
         );
       } else {
         get().showToast(error.firstMessage, 'error');

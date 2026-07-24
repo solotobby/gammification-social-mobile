@@ -18,9 +18,10 @@ import { mergeComments, tintFor, toPostDetail } from '../../src/api/timeline';
 import { PostCard } from '../../src/components/feed/PostCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
+import { HashtagText } from '../../src/components/ui/HashtagText';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { addComment, findPost } from '../../src/data/community';
-import { useAddComment, usePost } from '../../src/hooks/useTimeline';
+import { newCommentId, useAddComment, usePost } from '../../src/hooks/useTimeline';
 import { useAuthStore } from '../../src/stores/authStore';
 import { NO_COMMENTS, useEngagementStore } from '../../src/stores/engagementStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -86,7 +87,7 @@ export default function PostDetailScreen() {
       addComment(post.id, body);
       setVersion((v) => v + 1);
     } else {
-      remoteAddComment.mutate({ postId: post.id, body });
+      remoteAddComment.mutate({ postId: post.id, body, clientId: newCommentId() });
     }
     setDraft('');
   };
@@ -155,9 +156,9 @@ export default function PostDetailScreen() {
                         {comment.timeAgo}
                       </Text>
                     </View>
-                    <Text style={[styles.commentText, { color: colors.textSecondary }]}>
+                    <HashtagText style={[styles.commentText, { color: colors.textSecondary }]}>
                       {comment.body}
-                    </Text>
+                    </HashtagText>
                   </View>
                 </View>
               ))

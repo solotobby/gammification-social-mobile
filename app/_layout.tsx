@@ -1,22 +1,21 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { startNetworkWatch } from '../src/api/network';
+import { persistOptions, queryClient } from '../src/api/queryClient';
 import { ErrorModalHost } from '../src/components/feedback/ErrorModal';
+import { OfflineBanner } from '../src/components/feedback/OfflineBanner';
 import { ToastHost } from '../src/components/feedback/Toast';
+import { registerMutationDefaults } from '../src/hooks/useTimeline';
 import { useAuthStore } from '../src/stores/authStore';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60_000,
-      retry: 1,
-    },
-  },
-});
+// Must be registered before the persisted cache is restored, so any comment
+// paused offline in a previous run can be replayed from its key alone.
+registerMutationDefaults(queryClient);
 
 function ThemedStack() {
   const { colors, isDark } = useTheme();
@@ -62,6 +61,7 @@ function ThemedStack() {
             beat that it activates the session, which flips the guards. */}
         <Stack.Screen name="get-started" />
       </Stack>
+      <OfflineBanner />
       <ToastHost />
       <ErrorModalHost />
     </>
@@ -74,13 +74,22 @@ export default function RootLayout() {
     void useAuthStore.getState().hydrate();
   }, []);
 
+  // Tell React Query about connectivity, so it pauses requests while offline
+  // and refetches on reconnect instead of timing out against a dead network.
+  useEffect(() => startNetworkWatch(), []);
+
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={persistOptions}
+        // Send anything that was paused offline as soon as the cache is back.
+        onSuccess={() => void queryClient.resumePausedMutations()}
+      >
         <ThemeProvider>
           <ThemedStack />
         </ThemeProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 }

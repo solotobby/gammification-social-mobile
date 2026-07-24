@@ -3,12 +3,13 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { mergeComments, tintFor } from "../../api/timeline";
-import { useAddComment, useToggleLike } from "../../hooks/useTimeline";
+import { mergeComments } from "../../api/timeline";
+import { newCommentId, useAddComment, useToggleLike } from "../../hooks/useTimeline";
 import { useAuthStore } from "../../stores/authStore";
 import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
+import { HashtagText } from "../ui/HashtagText";
 import { MediaGrid } from "./MediaGrid";
 import { PostMenu } from "./PostMenu";
 import type { Comment, Post } from "../../data/community";
@@ -43,9 +44,9 @@ function CommentRow({ comment }: { comment: Comment }) {
             </Text>
           ) : null}
         </View>
-        <Text style={[styles.commentText, { color: colors.textSecondary }]}>
+        <HashtagText style={[styles.commentText, { color: colors.textSecondary }]}>
           {comment.body}
-        </Text>
+        </HashtagText>
       </View>
     </View>
   );
@@ -57,7 +58,6 @@ function CommentRow({ comment }: { comment: Comment }) {
  */
 export function CommentComposer({ postId, autoFocus }: { postId: string; autoFocus?: boolean }) {
   const { colors } = useTheme();
-  const user = useAuthStore((s) => s.user);
   const addComment = useAddComment();
   const [draft, setDraft] = useState("");
 
@@ -65,13 +65,15 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
   const onSend = () => {
     const body = draft.trim();
     if (!body) return;
-    addComment.mutate({ postId, body });
+    addComment.mutate({ postId, body, clientId: newCommentId() });
     setDraft("");
   };
 
   return (
+    // No avatar here on purpose: the card already carries the author's, and on a
+    // narrow row it costs width without telling you anything the placeholder
+    // doesn't. Comment rows keep theirs — there it identifies the speaker.
     <View style={styles.composerRow}>
-      <Avatar name={user?.name ?? "You"} tint={tintFor(user?.id ?? "me")} size={30} />
       <TextInput
         value={draft}
         onChangeText={setDraft}
@@ -247,16 +249,21 @@ export function PostCard({ post, onOpen, bare }: Props) {
       </View>
 
       {/* Feed cards clamp to 3 lines; the detail screen (bare) shows it all. */}
-      <Text style={[styles.body, { color: colors.text }]} numberOfLines={bare ? undefined : 3}>
+      <HashtagText style={[styles.body, { color: colors.text }]} numberOfLines={bare ? undefined : 3}>
         {post.body}
-      </Text>
+      </HashtagText>
 
       {post.media?.length ? <MediaGrid media={post.media} /> : null}
 
       {post.hashtags?.length ? (
         <View style={styles.tagRow}>
           {post.hashtags.map((tag) => (
-            <Text key={tag} style={[styles.tag, { color: colors.brand }]}>
+            <Text
+              key={tag}
+              suppressHighlighting
+              style={[styles.tag, { color: colors.brand }]}
+              onPress={() => router.push(`/hashtag/${encodeURIComponent(tag)}`)}
+            >
               #{tag}
             </Text>
           ))}

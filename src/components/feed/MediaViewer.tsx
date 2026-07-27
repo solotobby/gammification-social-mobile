@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEvent } from 'expo';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
@@ -25,14 +26,43 @@ type Props = {
 
 /** Video page — plays only while it is the active carousel page. */
 function ViewerVideo({ item, active }: { item: MediaItem; active: boolean }) {
-  const player = useVideoPlayer(item.uri, (p) => {
+  // Full screen is where the higher-quality rendition earns its bytes; the
+  // feed's inline player stays on SD.
+  const player = useVideoPlayer(item.hdUri ?? item.uri, (p) => {
     p.loop = true;
   });
+
+  const { status, error } = useEvent(player, 'statusChange', { status: player.status });
 
   useEffect(() => {
     if (active) player.play();
     else player.pause();
   }, [active, player]);
+
+  if (status === 'error') {
+    // Without this the modal is just a black rectangle — the poster plus a
+    // reason at least says what happened.
+    return (
+      <View style={styles.videoError}>
+        {item.poster ? (
+          <Image
+            source={{ uri: item.poster }}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+          />
+        ) : null}
+        <View style={styles.videoErrorBox}>
+          <Ionicons name="alert-circle" size={30} color="#FFFFFF" />
+          <Text style={styles.videoErrorText}>This video can’t be played on this device</Text>
+          {error?.message ? (
+            <Text style={styles.videoErrorDetail} numberOfLines={3}>
+              {error.message}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    );
+  }
 
   return (
     // Explicit 100% size: <video> is a replaced element on web, so
@@ -153,6 +183,27 @@ export function MediaViewer({ media, initialIndex, visible, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: '#000000' },
   video: { width: '100%', height: '100%' },
+  videoError: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  videoErrorBox: {
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 20,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  videoErrorText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  videoErrorDetail: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   topBar: {
     position: 'absolute',
     left: 20,

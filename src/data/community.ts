@@ -45,6 +45,8 @@ export type Post = {
   hashtags?: string[];
   /** Attached images/videos, rendered as a grid + carousel viewer. */
   media?: MediaItem[];
+  /** The post has media the backend is still transcoding — show a placeholder. */
+  mediaPending?: boolean;
   /** True for posts that came from the timeline API — engagement calls it. */
   remote?: boolean;
   /**

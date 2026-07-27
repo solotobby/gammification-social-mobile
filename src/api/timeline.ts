@@ -4,6 +4,7 @@ import type {
   CreatePostData,
   Paginated,
   TimelineComment,
+  TimelineMedia,
   TimelineMediaItem,
   TimelinePost,
   TimelinePostDetail,
@@ -130,9 +131,33 @@ function toMediaItem(item: TimelineMediaItem, type: string, index: number, postI
   };
 }
 
+/**
+ * A video post's `media` block → one MediaItem. The backend transcodes an
+ * upload into an SD and an HD rendition plus a poster frame and hands them back
+ * on `media` itself (no `items` array, unlike images). The feed plays SD and
+ * the full-screen viewer prefers HD.
+ */
+function videoMediaItem(media: TimelineMedia, postId: string): MediaItem | null {
+  const uri = media.sd_url ?? media.hd_url;
+  if (!uri) return null;
+  return {
+    id: `${postId}-video`,
+    type: 'video',
+    uri,
+    hdUri: media.hd_url ?? undefined,
+    poster: media.poster_url ?? undefined,
+    width: media.width ?? undefined,
+    height: media.height ?? undefined,
+    duration: media.duration ?? undefined,
+  };
+}
+
 function mediaOf(post: TimelinePost | TimelinePostDetail): MediaItem[] | undefined {
   const items: MediaItem[] = [];
-  if (post.media?.items?.length) {
+  if (post.media?.type === 'video') {
+    const clip = videoMediaItem(post.media, post.id);
+    if (clip) items.push(clip);
+  } else if (post.media?.items?.length) {
     post.media.items.forEach((item, i) => {
       const mapped = toMediaItem(item, post.media!.type ?? 'images', i, post.id);
       if (mapped) items.push(mapped);
@@ -144,7 +169,8 @@ function mediaOf(post: TimelinePost | TimelinePostDetail): MediaItem[] | undefin
       }
     });
   }
-  if ('video' in post && post.video?.full_path) {
+  // Legacy detail shape — only if `media` didn't already describe the video.
+  if (!items.some((item) => item.type === 'video') && 'video' in post && post.video?.full_path) {
     items.push({
       id: `${post.id}-video`,
       type: 'video',
@@ -182,6 +208,7 @@ export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
     .filter((c): c is Comment => c !== null);
   const commentCount =
     typeof apiPost.comments === 'number' ? apiPost.comments : comments.length;
+  const media = mediaOf(apiPost);
 
   return {
     id: apiPost.id,
@@ -206,9 +233,22 @@ export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
     views: apiPost.views,
     comments,
     commentCount,
-    media: mediaOf(apiPost),
+    media,
+    // While the backend transcodes an upload it sends `media: null` and hasn't
+    // set `has_video`/`has_images` yet — `media_status` is the only signal, and
+    // without it a just-posted video is an empty card.
+    mediaPending: isMediaPending(apiPost),
     remote: true,
   };
+}
+
+/**
+ * Is this post still waiting on its media? The feed doesn't poll for it — the
+ * card shows a "processing" placeholder until a manual refresh returns the
+ * finished media.
+ */
+function isMediaPending(post: TimelinePost | TimelinePostDetail): boolean {
+  return post.media_status === 'processing' && !post.media;
 }
 
 /**

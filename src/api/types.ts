@@ -179,9 +179,25 @@ export type TimelineMediaItem = {
   height: number | null;
 };
 
+/**
+ * A post's `media` block. One object whose shape follows `type`: image posts
+ * carry an `items[]` array, video posts carry the transcoded renditions
+ * (`sd_url` / `hd_url`) and a `poster_url` frame directly — there is no
+ * `items` array on a video. Every variant field is optional so the normalizer
+ * can read either without narrowing.
+ */
 export type TimelineMedia = {
+  /** "images" | "video". */
   type: string;
-  items: TimelineMediaItem[];
+  /** Image posts only — one entry per attached image. */
+  items?: TimelineMediaItem[];
+  /** Video posts only — CDN renditions, poster frame, and intrinsic size. */
+  sd_url?: string | null;
+  hd_url?: string | null;
+  poster_url?: string | null;
+  duration?: number | null;
+  width?: number | null;
+  height?: number | null;
 };
 
 /**

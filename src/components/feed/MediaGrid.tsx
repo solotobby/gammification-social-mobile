@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
 import type { MediaItem } from '../../data/media';
+import { FeedVideo } from './FeedVideo';
 import { MediaViewer } from './MediaViewer';
 
 const GAP = 4;
@@ -19,6 +20,10 @@ type CellProps = {
 
 /** One tile: image (or video poster with a play badge), tappable into the viewer. */
 function MediaCell({ item, onPress, overflow, style }: CellProps) {
+  // Videos show their poster frame; a video with no poster yet (still
+  // transcoding) falls through to the cell's placeholder tint rather than
+  // handing expo-image an undefined uri.
+  const thumb = item.type === 'video' ? item.poster : item.uri;
   return (
     <Pressable
       onPress={onPress}
@@ -26,12 +31,14 @@ function MediaCell({ item, onPress, overflow, style }: CellProps) {
       accessibilityLabel={item.type === 'video' ? 'Play video' : 'View image'}
       style={({ pressed }) => [styles.cell, style, { opacity: pressed ? 0.85 : 1 }]}
     >
-      <Image
-        source={{ uri: item.type === 'video' ? item.poster : item.uri }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        transition={150}
-      />
+      {thumb ? (
+        <Image
+          source={{ uri: thumb }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={150}
+        />
+      ) : null}
       {item.type === 'video' ? (
         <View style={styles.playBadge}>
           <Ionicons name="play" size={20} color="#FFFFFF" style={{ marginLeft: 2 }} />
@@ -62,7 +69,11 @@ export function MediaGrid({ media }: { media: MediaItem[] }) {
   const overflow = media.length - 4;
 
   let layout: React.ReactNode;
-  if (media.length === 1) {
+  if (media.length === 1 && media[0].type === 'video') {
+    // A lone video is the shape the API actually sends (posts carry images OR
+    // one video), so it gets a real inline player rather than a poster tile.
+    layout = <FeedVideo item={media[0]} onExpand={open(0)} />;
+  } else if (media.length === 1) {
     layout = <MediaCell item={media[0]} onPress={open(0)} style={styles.single} />;
   } else if (media.length === 2) {
     layout = (

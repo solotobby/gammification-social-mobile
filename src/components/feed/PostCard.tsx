@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { mergeComments } from "../../api/timeline";
 import { newCommentId, useAddComment, useToggleLike } from "../../hooks/useTimeline";
@@ -255,6 +255,23 @@ export function PostCard({ post, onOpen, bare }: Props) {
 
       {post.media?.length ? <MediaGrid media={post.media} /> : null}
 
+      {/* Freshly posted media is transcoding server-side — say so rather than
+          leaving a gap where the video will land. The feed doesn't poll for
+          it; a pull-to-refresh swaps in the finished media. */}
+      {post.mediaPending ? (
+        <View
+          style={[
+            styles.pendingMedia,
+            { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: radius.md },
+          ]}
+        >
+          <ActivityIndicator size="small" color={colors.brand} />
+          <Text style={[styles.pendingText, { color: colors.textMuted }]}>
+            Processing media — pull to refresh
+          </Text>
+        </View>
+      ) : null}
+
       {post.hashtags?.length ? (
         <View style={styles.tagRow}>
           {post.hashtags.map((tag) => (
@@ -403,6 +420,15 @@ const styles = StyleSheet.create({
   },
   earnedText: { fontSize: 12, fontWeight: "800" },
   body: { fontSize: 15, lineHeight: 22, fontWeight: "400" },
+  pendingMedia: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    height: 92,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  pendingText: { fontSize: 13, fontWeight: "600" },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tag: { fontSize: 14, fontWeight: "700" },
   likedByRow: {

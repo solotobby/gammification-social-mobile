@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ApiError } from '../src/api/client';
 import { tintFor, type NewPostImage, type NewPostVideo } from '../src/api/timeline';
 import { AttachmentStrip } from '../src/components/compose/AttachmentStrip';
+import { VideoPreview } from '../src/components/compose/VideoPreview';
 import { Avatar } from '../src/components/ui/Avatar';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { HashtagSpans } from '../src/components/ui/HashtagText';
@@ -56,16 +57,12 @@ export default function ComposeScreen() {
   // layout can't appear above it — failures surface inline instead.
   const [postError, setPostError] = useState<string | null>(null);
 
-  // The strip renders MediaItems; keep ids stable per asset uri.
-  const media: MediaItem[] = useMemo(() => {
-    const imageItems: MediaItem[] = images.map((asset) => ({
-      id: asset.uri,
-      type: 'image',
-      uri: asset.uri,
-    }));
-    if (video) imageItems.push({ id: video.uri, type: 'video', uri: video.uri });
-    return imageItems;
-  }, [images, video]);
+  // The strip renders MediaItems; keep ids stable per asset uri. Only images go
+  // through it — a picked video gets its own player preview below.
+  const media: MediaItem[] = useMemo(
+    () => images.map((asset) => ({ id: asset.uri, type: 'image', uri: asset.uri })),
+    [images],
+  );
 
   const remaining = limits.maxChars - body.length;
   const overLimit = capped && body.length > limits.maxChars;
@@ -144,11 +141,8 @@ export default function ComposeScreen() {
     setVideo(result.assets[0]);
   };
 
+  // The strip only carries images now — the video preview removes itself.
   const onRemove = (id: string) => {
-    if (video && id === video.uri) {
-      setVideo(null);
-      return;
-    }
     setImages((current) => current.filter((a) => a.uri !== id));
   };
 
@@ -247,6 +241,19 @@ export default function ComposeScreen() {
             {/* Attachment thumbnails (adds happen via the buttons below) */}
             {media.length ? (
               <AttachmentStrip media={media} onRemove={onRemove} onAdd={() => {}} canAdd={false} />
+            ) : null}
+
+            {/* A picked video previews as a real, playable frame — you see what
+                you're about to post before the upload starts. */}
+            {video ? (
+              <VideoPreview
+                uri={video.uri}
+                width={video.width}
+                height={video.height}
+                durationMs={video.duration ?? undefined}
+                fileSize={video.fileSize}
+                onRemove={() => setVideo(null)}
+              />
             ) : null}
 
             {/* Media actions — vary by level */}

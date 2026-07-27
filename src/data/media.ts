@@ -10,6 +10,16 @@ export type MediaItem = {
   uri: string;
   /** Poster frame rendered in grids/rails before the video plays. */
   poster?: string;
+  /**
+   * Higher-quality rendition of the same video, when the backend transcoded
+   * one. The feed plays `uri` (SD) and the full-screen viewer prefers this.
+   */
+  hdUri?: string;
+  /** Intrinsic pixel size, used to give an inline video its true aspect ratio. */
+  width?: number;
+  height?: number;
+  /** Video length in seconds, shown as a badge on the poster. */
+  duration?: number;
 };
 
 /** Stable dummy image URL for a seed word. */

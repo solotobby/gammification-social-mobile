@@ -19,6 +19,21 @@ export function useMe() {
   });
 }
 
+/** Public base for a share link; the code is appended as a path segment. */
+export const REFERRAL_BASE_URL = 'https://payhankey.com/join';
+
+/**
+ * The signed-in user's referral code and share link, from /user/me. Every
+ * surface that offers the user their code reads it here — a hardcoded one
+ * credits nobody, and referrals pay out, so a wrong code costs real money.
+ * Both are undefined until /user/me resolves; callers show a placeholder.
+ */
+export function useMyReferral(): { code?: string; link?: string } {
+  const { data: me } = useMe();
+  const code = me?.user.referral_code;
+  return { code, link: code ? `${REFERRAL_BASE_URL}/${code}` : undefined };
+}
+
 /**
  * The current user's avatar tint, derived from their id via {@link tintFor} —
  * the same function that colors their posts and comments — so the avatar looks

@@ -1,8 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { fetchMe, login, register, resendOtp, updateOnboarding, verifyOtp } from '../api/auth';
+import { persister } from '../api/queryClient';
 import type { LoginPayload, MeData, VerifyOtpPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
+import { useEngagementStore } from '../stores/engagementStore';
 
 /**
  * Persist and activate a session. Flipping the auth store also flips the
@@ -80,5 +82,11 @@ export function useLogout() {
   return async () => {
     await useAuthStore.getState().signOut();
     queryClient.clear();
+    // Everything below is per-account and would otherwise survive into the next
+    // sign-in on the same device: the engagement store's hearts/comments, and
+    // the persisted cache (clear() only empties memory — the snapshot on disk
+    // is rewritten on a throttle, so a quick kill could still restore it).
+    useEngagementStore.getState().reset();
+    await persister.removeClient();
   };
 }

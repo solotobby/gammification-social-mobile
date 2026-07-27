@@ -10,6 +10,7 @@ import { CopyField } from '../src/components/ui/CopyField';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../src/components/ui/SectionHeader';
 import { referral, referredUsers } from '../src/data/community';
+import { useMyReferral } from '../src/hooks/useMe';
 import { useTheme } from '../src/theme/ThemeProvider';
 
 function TotalCard({ label, value }: { label: string; value: number }) {
@@ -32,6 +33,9 @@ export default function ReferralsScreen() {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // Totals and the referred-user list below are still dummy, but the link is
+  // the one thing here that has to be real — it's what people actually share.
+  const { link } = useMyReferral();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -57,7 +61,7 @@ export default function ReferralsScreen() {
           <TotalCard label="This month" value={referral.thisMonth} />
         </View>
 
-        <CopyField label="Your referral link" value={referral.link} icon="link-outline" />
+        <CopyField label="Your referral link" value={link ?? 'Loading…'} icon="link-outline" />
 
         {/* How it pays */}
         <View

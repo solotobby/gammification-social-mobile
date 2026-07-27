@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { referral } from '../../data/community';
+import { useMyReferral } from '../../hooks/useMe';
 import { useTheme } from '../../theme/ThemeProvider';
 import { CopyField } from '../ui/CopyField';
 
@@ -13,6 +13,7 @@ import { CopyField } from '../ui/CopyField';
  */
 export function InviteCard() {
   const { colors, radius } = useTheme();
+  const { code, link } = useMyReferral();
 
   return (
     <View
@@ -32,8 +33,8 @@ export function InviteCard() {
           </Text>
         </View>
       </View>
-      <CopyField label="Referral code" value={referral.code} icon="gift-outline" emphasized />
-      <CopyField label="Your referral link" value={referral.link} icon="link-outline" />
+      <CopyField label="Referral code" value={code ?? 'Loading…'} icon="gift-outline" emphasized />
+      <CopyField label="Your referral link" value={link ?? 'Loading…'} icon="link-outline" />
     </View>
   );
 }

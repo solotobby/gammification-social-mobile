@@ -50,7 +50,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-const persister = createAsyncStoragePersister({
+export const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
   key: 'payhankey.query-cache',
   throttleTime: 1_000,

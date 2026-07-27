@@ -29,6 +29,13 @@ type EngagementState = {
   seedLiked: (postId: string, liked: boolean) => void;
   addComment: (postId: string, comment: Comment) => void;
   removeComment: (postId: string, commentId: string) => void;
+  /**
+   * Drop everything on sign-out. This state is per-account: `liked` shadows the
+   * server's `is_liked_by_viewer` (seedLiked skips ids it already knows), so
+   * carrying it into the next sign-in would show the previous user's hearts on
+   * a fresh account — and `myComments` would attribute their comments too.
+   */
+  reset: () => void;
 };
 
 export const useEngagementStore = create<EngagementState>()(
@@ -62,6 +69,8 @@ export const useEngagementStore = create<EngagementState>()(
             [postId]: (state.myComments[postId] ?? []).filter((c) => c.id !== commentId),
           },
         })),
+
+      reset: () => set({ liked: {}, myComments: {} }),
     }),
     {
       name: 'payhankey.engagement',

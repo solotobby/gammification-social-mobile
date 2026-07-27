@@ -300,9 +300,9 @@ export function addComment(postId: string, body: string): Comment | undefined {
 // Referral + earnings
 // ---------------------------------------------------------------------------
 
+// The code and link are NOT here on purpose — they're per-account and come from
+// /user/me via `useMyReferral()`. Only these counts are still dummy.
 export const referral = {
-  code: 'KPGEU8SD1U',
-  link: 'https://payhankey.com/reg?referral_code=KPGEU8SD1U',
   total: 1,
   thisMonth: 0,
 };

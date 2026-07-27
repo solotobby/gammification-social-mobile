@@ -41,7 +41,8 @@ const TAB_META: Record<string, { label: string; icon: string; iconActive: string
 /**
  * Floating pill tab bar plus a compose FAB anchored bottom-right above it.
  * Compose is not a tab — it pushes the /compose modal on the root stack.
- * The FAB hides on Reels, where the full-bleed player owns the screen.
+ * The FAB shows on Home only: that's where posting belongs, and the other tabs
+ * (Reels especially, where the full-bleed player owns the screen) stay clear.
  */
 export function TabBar({ state, navigation }: TabBarProps) {
   const { colors, brand, isDark } = useTheme();

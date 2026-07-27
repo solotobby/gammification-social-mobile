@@ -10,8 +10,8 @@ import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { SelectField } from '../src/components/ui/SelectField';
 import { TextField } from '../src/components/ui/TextField';
-import { currentUser } from '../src/data/community';
-import { useMyTint } from '../src/hooks/useMe';
+import { useMe, useMyTint } from '../src/hooks/useMe';
+import { useAuthStore } from '../src/stores/authStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 
 const ABOUT_MAX = 40;
@@ -31,9 +31,18 @@ export default function SettingsScreen() {
   const router = useRouter();
   const myTint = useMyTint();
 
-  const [name, setName] = useState(currentUser.name);
-  const [email, setEmail] = useState('alan@payhankey.com');
-  const [username, setUsername] = useState(currentUser.handle);
+  // These three come from the signed-in account, which may still be loading, so
+  // an untouched field tracks /user/me and an edit takes over from there —
+  // seeding useState once would pin the form to whatever was known at mount.
+  const { data: me } = useMe();
+  const sessionUser = useAuthStore((s) => s.user);
+  const [nameEdit, setName] = useState<string | null>(null);
+  const [emailEdit, setEmail] = useState<string | null>(null);
+  const [usernameEdit, setUsername] = useState<string | null>(null);
+  const name = nameEdit ?? me?.user.name ?? sessionUser?.name ?? '';
+  const email = emailEdit ?? me?.user.email ?? sessionUser?.email ?? '';
+  const username = usernameEdit ?? me?.user.username ?? sessionUser?.username ?? '';
+
   const [about, setAbout] = useState('Building and sharing daily.');
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState<string | null>(null);
@@ -55,7 +64,7 @@ export default function SettingsScreen() {
 
       {/* Avatar preview */}
       <View style={styles.avatarWrap}>
-        <Avatar name={name || currentUser.name} tint={myTint} size={76} />
+        <Avatar name={name} tint={myTint} size={76} />
         <Text style={[styles.avatarHint, { color: colors.textMuted }]}>
           Avatars come from your initials for now
         </Text>

@@ -11,12 +11,10 @@ import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { Logo } from '../src/components/ui/Logo';
 import { SelectField, type SelectOption } from '../src/components/ui/SelectField';
 import { useUpdateOnboarding } from '../src/hooks/useAuth';
-import { useMe } from '../src/hooks/useMe';
+import { useMyReferral } from '../src/hooks/useMe';
 import { useChannels, useCurrencies } from '../src/hooks/useUser';
 import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
-
-const REFERRAL_BASE_URL = 'https://payhankey.com/join';
 
 // Shown only until the live lists load (or if the request fails), so the picker
 // is never empty. The real options come from /user/currency/list + /user/channel.
@@ -37,7 +35,6 @@ const TOTAL_STEPS = 3;
 export default function GetStartedScreen() {
   const { colors, brand, radius, spacing, typography } = useTheme();
   const router = useRouter();
-  const { data: me } = useMe();
   const onboardMutation = useUpdateOnboarding();
   const showApiError = useFeedbackStore((s) => s.showApiError);
 
@@ -63,8 +60,7 @@ export default function GetStartedScreen() {
   const [currency, setCurrency] = useState<string | null>(null);
   const [heard, setHeard] = useState<string | null>(null);
 
-  const referralCode = me?.user.referral_code;
-  const referralLink = referralCode ? `${REFERRAL_BASE_URL}/${referralCode}` : undefined;
+  const { code: referralCode, link: referralLink } = useMyReferral();
 
   const isLastStep = step === TOTAL_STEPS - 1;
 

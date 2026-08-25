@@ -342,6 +342,16 @@ export const wallet = {
   pendingValidation: 2355,
   hasBankInfo: false,
   canWithdraw: false,
+  /**
+   * The web wallet splits the balance into four buckets rather than one number.
+   * `balance` above stays as the headline total (main + referral + promotion).
+   */
+  mainBalance: 2500,
+  referralBalance: 855,
+  promotionBalance: 500,
+  totalWithdrawn: 3000,
+  /** Current plan, mirrored from the account level shown on Me. */
+  plan: 'Basic' as 'Basic' | 'Creator' | 'Influencer',
 };
 
 export const transactions: Transaction[] = [
@@ -457,45 +467,62 @@ export const blogPosts: BlogPost[] = [
 
 export type Tier = {
   name: 'Basic' | 'Creator' | 'Influencer';
-  /** Monthly price in ₦. */
+  /** Monthly list price in ₦ (before the subscription discount). */
   price: number;
   tagline: string;
   benefits: string[];
   /** Benefits this tier does NOT include (rendered muted). */
   locked?: string[];
   popular?: boolean;
+  /** One-off ₦ credited on payment, shown as the last benefit line. */
+  bonus?: number;
 };
+
+/** Direct subscription takes 10% off the list price; pay-as-you-go doesn't. */
+export const SUBSCRIPTION_DISCOUNT = 0.1;
 
 export const tiers: Tier[] = [
   {
     name: 'Basic',
     price: 0,
-    tagline: 'Start posting and earning',
-    benefits: ['Post & engage on the feed', 'Earn on validated engagement', 'Referral bonuses'],
-    locked: ['Account monetization', 'Can make withdrawals'],
+    tagline: 'Your starting point for creating and growing on Payhankey.',
+    benefits: [
+      'Unlimited posts & quizzes',
+      'Payhankey Rolls (videos)',
+      'Full dashboard access',
+      'Discover and join communities',
+    ],
+    locked: ['Content monetization', 'Can make withdrawals'],
   },
   {
     name: 'Creator',
     price: 1800,
-    tagline: 'Unlock monetization',
+    tagline: 'For creators ready to monetize their content and grow their audience.',
     benefits: [
       'Everything in Basic',
-      'Account monetization',
-      'Can make withdrawals',
-      'Creator badge on your profile',
+      'Content monetization',
+      'Create & monetize communities',
+      'Verified creator badge',
+      'Image posting',
+      'Priority discovery',
+      'AI Creator support tools',
     ],
     popular: true,
+    bonus: 525,
   },
   {
     name: 'Influencer',
     price: 7500,
-    tagline: 'Maximum reach and priority payouts',
+    tagline: 'For established creators ready to increase their reach and earning potential.',
     benefits: [
       'Everything in Creator',
-      'Priority payout processing',
-      'Boosted reach on every post',
-      'Influencer badge on your profile',
+      'Influencer verification badge',
+      'Influencer profile ring',
+      'Higher content limits',
+      'Top-feed placement',
+      'Advanced creator opportunities',
     ],
+    bonus: 1500,
   },
 ];
 

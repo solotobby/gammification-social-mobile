@@ -1,5 +1,6 @@
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -17,12 +18,21 @@ import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 // paused offline in a previous run can be replayed from its key alone.
 registerMutationDefaults(queryClient);
 
+// Without this the native splash hides the moment the root view mounts, which
+// is before the session has been read back — see ThemedStack below.
+void SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 350, fade: true });
+
 function ThemedStack() {
   const { colors, isDark } = useTheme();
   const status = useAuthStore((s) => s.status);
 
   // Hold the splash until the persisted session loads, so launch lands
   // directly on the right side of the auth guard with no flash.
+  useEffect(() => {
+    if (status !== 'hydrating') void SplashScreen.hideAsync();
+  }, [status]);
+
   if (status === 'hydrating') return null;
 
   const signedIn = status === 'signedIn';
@@ -43,6 +53,7 @@ function ThemedStack() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="compose" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="story/create" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="community/create" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen
             name="story/[member]"
             options={{ animation: 'fade', contentStyle: { backgroundColor: '#000000' } }}

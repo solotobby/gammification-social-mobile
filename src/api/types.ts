@@ -74,12 +74,40 @@ export type ApiUser = {
   status?: string;
   email_verified_at?: string | null;
   created_at?: string;
+  /**
+   * Added by the backend after the Postman docs were written (confirmed live
+   * 2026-08-24) — these are what PUT /user/profile writes, and /user/me is the
+   * only endpoint that reads them back flat.
+   */
+  date_of_birth?: string | null;
+  gender?: string | null;
+  location?: string | null;
+  about?: string | null;
 };
 
 /** GET /user/me */
 export type MeData = {
   user: ApiUser;
   level: string;
+  /**
+   * The account's wallet currency ("USD", "NGN", …). Undocumented but live —
+   * this is the authority for formatting money, replacing the app's hardcoded
+   * naira. See `src/hooks/useCurrency.ts`.
+   */
+  baseCurrency?: string;
+};
+
+/** The profile record PUT /user/profile writes, as the profile view returns it. */
+export type ApiProfileDetail = {
+  id?: string;
+  user_id?: string;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  location?: string | null;
+  about?: string | null;
+  username_updated_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type OnboardPayload = {
@@ -107,8 +135,12 @@ export type ApiProfile = {
   followers: number;
   following: number;
   status?: string;
-  /** Free-text bio/profile blurb (nullable). */
-  profile?: string | null;
+  /**
+   * **Shape changed** (confirmed live 2026-08-24): this used to be a free-text
+   * bio string; it is now the nested profile record written by
+   * PUT /user/profile. Anything reading it as text will get an object.
+   */
+  profile?: ApiProfileDetail | null;
   /** Whether the signed-in user follows this member, when the backend sends it. */
   is_following?: boolean;
 };
@@ -118,6 +150,10 @@ export type ProfileViewResponse = {
   message: string;
   profile: ApiProfile;
   data: Paginated<TimelinePost>;
+  /** Added alongside the shape change above — all three are undocumented. */
+  level?: string;
+  baseCurrency?: string;
+  total_posts?: number;
 };
 
 /** GET /user/search — a person match (their own follower/following counts). */
@@ -138,6 +174,193 @@ export type ToggleFollowData = {
     following_count: number;
     followers_count: number;
   };
+};
+
+// ---------------------------------------------------------------------------
+// Bank / withdrawal method  (GET+POST /user/bank)
+// ---------------------------------------------------------------------------
+
+/**
+ * One field of the server-driven payout form. The backend decides which fields
+ * apply from the account's wallet currency — a USD wallet is asked for PayPal /
+ * USDT, an NGN one for bank code + account number — so the screen renders this
+ * list rather than hard-coding a Nigerian bank form.
+ */
+export type BankFormField = {
+  name: string;
+  /** "select" | "email" | "text" | "number" — unknown types fall back to text. */
+  type: string;
+  label: string;
+  required?: boolean;
+  /** Required only when `payment_method` currently equals this value. */
+  required_if?: string;
+  /** Present for `type: "select"`. */
+  options?: string[];
+};
+
+export type BankForm = {
+  currency: string;
+  payment_method?: string | null;
+  fields: BankFormField[];
+};
+
+/** The saved payout destination. Which columns are filled depends on the method. */
+export type WithdrawalMethod = {
+  id: string;
+  currency: string;
+  payment_method: string;
+  bank_code?: string | null;
+  bank_name?: string | null;
+  account_number?: string | null;
+  account_name?: string | null;
+  paypal_email?: string | null;
+  usdt_wallet?: string | null;
+  is_active?: boolean;
+};
+
+/** GET /user/bank — the form to render plus whatever is already saved. */
+export type BankData = {
+  form: BankForm;
+  withdrawal_method?: WithdrawalMethod | null;
+};
+
+// ---------------------------------------------------------------------------
+// Referrals & transactions  (GET /user/referrals, GET /user/transactions)
+// ---------------------------------------------------------------------------
+
+/**
+ * Shapes confirmed live 2026-08-24 (the Postman collection ships no examples
+ * for either). Both break the usual envelope: the list is a Laravel paginator
+ * under `data`, and the aggregate rides *alongside* it at the envelope root —
+ * `summary` for referrals, `stats` for transactions — not nested inside `data`.
+ *
+ * Both lists were empty on the test account, so the per-row fields below are
+ * still inferred and every one is optional.
+ */
+export type ApiReferralUser = {
+  id?: string;
+  name?: string;
+  username?: string;
+  email?: string;
+  avatar?: string | null;
+  status?: string;
+  /** Naira credited by this referral, under whichever name the backend uses. */
+  earned?: number | string;
+  bonus?: number | string;
+  amount?: number | string;
+  created_at?: string;
+  joined_at?: string;
+};
+
+export type ApiTransaction = {
+  id?: string;
+  reference?: string;
+  /** Human-readable line; `narration` / `title` are accepted fallbacks. */
+  description?: string;
+  narration?: string;
+  title?: string;
+  amount?: number | string;
+  /** "payout" | "referral" | "credit" | "debit" … — mapped to an icon. */
+  type?: string;
+  kind?: string;
+  status?: string;
+  created_at?: string;
+  date?: string;
+};
+
+/** GET /user/referrals — paginator plus a root-level `summary`. */
+export type ReferralsResponse = {
+  success?: boolean;
+  message: string;
+  data: Paginated<ApiReferralUser>;
+  summary?: {
+    total?: number;
+    this_month?: number;
+    referral_code?: string;
+  };
+};
+
+/** GET /user/transactions — paginator plus a root-level `stats`. */
+export type TransactionsResponse = {
+  success?: boolean;
+  message: string;
+  data: Paginated<ApiTransaction>;
+  /** Empty array on the test account, so the entry shape is still unknown. */
+  stats?: unknown[];
+};
+
+// ---------------------------------------------------------------------------
+// Settings  (PUT /user/profile, GET+PUT /user/socials)
+// ---------------------------------------------------------------------------
+
+/** PUT /user/profile — only these four fields are editable through this route. */
+export type UpdateProfilePayload = {
+  date_of_birth?: string;
+  gender?: string;
+  location?: string;
+  about?: string;
+};
+
+/**
+ * GET/PUT /user/socials. The documented payload carries five networks —
+ * note there is no `tiktok` key, so the mobile form drops that field until the
+ * backend adds it (a field that silently never saves is worse than none).
+ */
+export type Socials = {
+  facebook?: string | null;
+  instagram?: string | null;
+  x?: string | null;
+  linkedin?: string | null;
+  pinterest?: string | null;
+  /** Accepted on read in case the backend adds them; not sent on write. */
+  tiktok?: string | null;
+  twitter?: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// Rolls  (GET /rolls, /rolls/{videoId}, /rolls/{videoId}/comments)
+// ---------------------------------------------------------------------------
+
+/**
+ * A roll's media block. NOTE: the backend currently transcodes to **WebM**
+ * (`format: "webm"`), which AVFoundation cannot decode — those URLs do not play
+ * on iOS at all. `thumbnail_url` is WebP, which iOS does render, so the player
+ * falls back to the poster. See `src/api/rolls.ts`.
+ */
+export type RollMedia = {
+  type: string;
+  url?: string | null;
+  sd_url?: string | null;
+  hd_url?: string | null;
+  low_url?: string | null;
+  quality_versions?: unknown[];
+  thumbnail_url?: string | null;
+  duration?: number | null;
+  width?: number | null;
+  height?: number | null;
+  /** "webm" | "mp4" … — used to skip formats iOS can't play. */
+  format?: string | null;
+};
+
+export type ApiRoll = {
+  video_id: string;
+  post_id: string;
+  content: string;
+  likes: number;
+  comments: number;
+  views: number;
+  video_views?: number;
+  is_liked_by_viewer?: boolean;
+  is_following?: boolean;
+  user: TimelineUser;
+  media?: RollMedia | null;
+  created_at: string;
+};
+
+/** GET /rolls/{videoId} — the requested roll plus the rest of the pager. */
+export type RollDetailData = {
+  current: ApiRoll;
+  more?: Paginated<ApiRoll>;
 };
 
 // ---------------------------------------------------------------------------

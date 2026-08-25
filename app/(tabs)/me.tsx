@@ -9,7 +9,6 @@ import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
-import { ThemeToggle } from '../../src/components/ui/ThemeToggle';
 import { currentUser, referral } from '../../src/data/community';
 import { useLogout } from '../../src/hooks/useAuth';
 import { useMe, useMyTint } from '../../src/hooks/useMe';
@@ -28,10 +27,12 @@ type MenuItem = {
 // Account destinations mapped from the web sidebar. Routes land here as the
 // corresponding screens get built (see docs/APP_FLOW.md).
 const MENU: MenuItem[] = [
+  // Communities is a bottom tab now — no need for a second way in from here.
+  { icon: 'bookmark-outline', label: 'Bookmarks', sub: 'Posts you saved', route: '/bookmarks' },
   { icon: 'wallet-outline', label: 'Wallets', sub: 'Balance & withdrawals', route: '/wallet' },
   { icon: 'card-outline', label: 'Bank information', sub: 'Payout account & currency', route: '/bank-info' },
   { icon: 'swap-horizontal-outline', label: 'Transactions', sub: 'Payout & earning history', route: '/transactions' },
-  { icon: 'trophy-outline', label: 'Top earners', sub: 'Monthly leaderboard', route: '/top-earners' },
+  // { icon: 'trophy-outline', label: 'Top earners', sub: 'Monthly leaderboard', route: '/top-earners' },
   { icon: 'people-outline', label: 'My referrals', sub: `${referral.total} referral so far`, route: '/referrals' },
   { icon: 'arrow-up-circle-outline', label: 'Upgrade level', sub: 'Creator & Influencer plans', route: '/upgrade' },
   { icon: 'settings-outline', label: 'Settings', sub: 'Profile details & socials', route: '/settings' },
@@ -40,10 +41,11 @@ const MENU: MenuItem[] = [
 ];
 
 /**
- * Profile tab — identity card plus the account hub that fans out to the
- * remaining (not yet built) account screens from the web sidebar.
+ * Me tab — the creator's own operating centre: identity card (tap through to
+ * the public profile) plus the account hub that fans out to the remaining
+ * account screens from the web sidebar.
  */
-export default function ProfileScreen() {
+export default function MeScreen() {
   const { colors, brand, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -137,16 +139,7 @@ export default function ProfileScreen() {
           </View>
         </Pressable>
 
-        {/* Appearance */}
-        <View
-          style={[
-            styles.appearanceCard,
-            { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
-          ]}
-        >
-          <SectionHeader title="Appearance" icon="contrast" />
-          <ThemeToggle />
-        </View>
+        {/* Appearance now lives on /settings. */}
 
         {/* Account menu */}
         <View style={{ gap: spacing.md }}>
@@ -246,11 +239,6 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 18, fontWeight: '900' },
   statLabel: { fontSize: 12, fontWeight: '600' },
   statDivider: { width: StyleSheet.hairlineWidth, height: 26 },
-  appearanceCard: {
-    padding: 18,
-    gap: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
   menuCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,

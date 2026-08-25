@@ -13,6 +13,7 @@ import type {
 } from './types';
 import type { Comment, Member, MemberTint, Post } from '../data/community';
 import type { MediaItem } from '../data/media';
+import { estimateEarnings } from '../data/postEarnings';
 
 export async function fetchFeed(page: number): Promise<Paginated<TimelinePost>> {
   const { data } = await api.get<ApiEnvelope<Paginated<TimelinePost>>>('/timeline/feed', {
@@ -199,6 +200,37 @@ function toComment(raw: TimelineComment, postId: string, index: number): Comment
  * total count; the latest few comment objects ride along in `comments_preview`
  * (with `latest_comments` / an embedded-array `comments` kept as fallbacks).
  */
+/**
+ * Per-post earnings, if the backend ever sends them.
+ *
+ * **Confirmed live 2026-08-25: it does not.** GET /timeline/feed and
+ * GET /timeline/post/{id} both return exactly:
+ * `id, user_id, content, views, likes, comments, has_video, has_images,
+ * media_status, created_at, is_liked_by_viewer, media, comments_preview,
+ * likers_preview, user` — no earnings column under any name. The earned pill
+ * that used to show on every card came from the dummy feed in
+ * `src/data/community.ts`, which hardcodes an `earned` value per post.
+ *
+ * This reads the field defensively across the names the backend is most likely
+ * to pick, so the pill switches to real numbers the moment the column ships.
+ * Until then it falls back to the placeholder estimate in
+ * `src/data/postEarnings.ts` — the same rates the analytics screen uses, so
+ * the pill and that screen always agree for a given post.
+ */
+function earnedOf(
+  apiPost: Record<string, unknown>,
+  views: number,
+  likes: number,
+  comments: number,
+): number {
+  for (const key of ['earned', 'earning', 'earnings', 'estimated_earning', 'amount_earned']) {
+    const raw = apiPost[key];
+    const n = typeof raw === 'string' ? Number(raw) : typeof raw === 'number' ? raw : NaN;
+    if (Number.isFinite(n)) return n;
+  }
+  return estimateEarnings(views, likes, comments).total;
+}
+
 export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
   const rawComments = Array.isArray(apiPost.comments)
     ? apiPost.comments
@@ -231,6 +263,12 @@ export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
       tint: tintFor(liker.id),
     })),
     views: apiPost.views,
+    earned: earnedOf(
+      apiPost as unknown as Record<string, unknown>,
+      apiPost.views,
+      apiPost.likes ?? apiPost.likers_preview?.length ?? 0,
+      commentCount,
+    ),
     comments,
     commentCount,
     media,

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -25,6 +25,7 @@ import { sampleImage } from "../../src/data/media";
 import { useProfile, useToggleFollow } from "../../src/hooks/useUser";
 import { useAuthStore } from "../../src/stores/authStore";
 import { useFeedbackStore } from "../../src/stores/feedbackStore";
+import { useFollowStore } from "../../src/stores/followStore";
 import { useTheme } from "../../src/theme/ThemeProvider";
 
 /**
@@ -66,16 +67,32 @@ export default function MemberProfileScreen() {
 
   const toggleFollow = useToggleFollow();
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
-  const following = followOverride ?? profile?.is_following ?? false;
+  const storedFollowing = useFollowStore((s) => (member ? !!s.following[member.id] : false));
+  const setStoredFollowing = useFollowStore((s) => s.setFollowing);
+  const following = followOverride ?? profile?.is_following ?? storedFollowing;
+
+  // This screen is the only place the API reports follow state on read, so its
+  // answer seeds the device's follow set — that's how a follow made on the web
+  // reaches Home's Following tab.
+  useEffect(() => {
+    if (member && profile?.is_following != null) {
+      setStoredFollowing(member.id, profile.is_following);
+    }
+  }, [member, profile?.is_following, setStoredFollowing]);
 
   const onFollow = () => {
     if (!member || toggleFollow.isPending) return;
     const next = !following;
     setFollowOverride(next);
+    setStoredFollowing(member.id, next);
     toggleFollow.mutate(member.id, {
-      onSuccess: (data) => setFollowOverride(data.following),
+      onSuccess: (data) => {
+        setFollowOverride(data.following);
+        setStoredFollowing(member.id, data.following);
+      },
       onError: () => {
         setFollowOverride(!next);
+        setStoredFollowing(member.id, !next);
         showToast("Couldn't update follow — please try again.", "error");
       },
     });
@@ -194,8 +211,20 @@ export default function MemberProfileScreen() {
 
           <Text style={[styles.name, { color: colors.text }]}>{member.name}</Text>
           <Text style={[styles.handle, { color: colors.textMuted }]}>@{member.handle}</Text>
-          {profile?.profile ? (
-            <Text style={[styles.bio, { color: colors.textSecondary }]}>{profile.profile}</Text>
+          {/* `profile.profile` used to BE the bio string; it is now the nested
+              profile record, so the blurb reads from its `about` field. */}
+          {profile?.profile?.about ? (
+            <Text style={[styles.bio, { color: colors.textSecondary }]}>
+              {profile.profile.about}
+            </Text>
+          ) : null}
+          {profile?.profile?.location ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+              <Text style={[styles.location, { color: colors.textMuted }]}>
+                {profile.profile.location}
+              </Text>
+            </View>
           ) : null}
           <Text style={[styles.stats, { color: colors.textSecondary }]}>
             <Text style={styles.statValue}>{member.followers}</Text> Followers ·{" "}
@@ -298,6 +327,8 @@ const styles = StyleSheet.create({
   actionText: { fontSize: 13, fontWeight: "800" },
   name: { fontSize: 21, fontWeight: "800" },
   handle: { fontSize: 13, fontWeight: "600" },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  location: { fontSize: 13, fontWeight: "600" },
   bio: { fontSize: 14, fontWeight: "500", marginTop: 8, lineHeight: 20 },
   stats: { fontSize: 13, fontWeight: "500", marginTop: 8 },
   statValue: { fontWeight: "900" },

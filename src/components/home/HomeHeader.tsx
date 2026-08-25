@@ -7,12 +7,15 @@ import { currentUser, notifications } from '../../data/community';
 import { useMe, useMyTint } from '../../hooks/useMe';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/ThemeProvider';
-import { StoriesRail } from '../stories/StoriesRail';
+// import { StoriesRail } from '../stories/StoriesRail';
 import { Avatar } from '../ui/Avatar';
+import { EarningsPulse } from './EarningsPulse';
+import { FeedTabs, type FeedTab } from './FeedTabs';
 
 /**
  * Everything above the feed on Home: greeting row (profile, search,
- * notifications), the stories rail, and the composer trigger.
+ * notifications), the monetization signal, the composer trigger, and the
+ * For You / Following filter. (The stories rail is commented out below.)
  */
 function getGreeting() {
   const hour = new Date().getHours();
@@ -21,7 +24,13 @@ function getGreeting() {
   return 'Good evening';
 }
 
-export function HomeHeader() {
+export function HomeHeader({
+  feedTab,
+  onChangeFeedTab,
+}: {
+  feedTab: FeedTab;
+  onChangeFeedTab: (tab: FeedTab) => void;
+}) {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
   const hasUnread = notifications.some((n) => n.unread);
@@ -44,7 +53,7 @@ export function HomeHeader() {
       {/* Greeting row */}
       <View style={styles.headerRow}>
         <Pressable
-          onPress={() => router.push('/profile')}
+          onPress={() => router.push('/me')}
           accessibilityRole="button"
           accessibilityLabel="Open profile"
         >
@@ -77,8 +86,13 @@ export function HomeHeader() {
         </Pressable>
       </View>
 
-      {/* Stories */}
-      <StoriesRail />
+      {/* Monetization signal — earning stays visible without a dashboard */}
+      <EarningsPulse />
+
+      {/* Stories — hidden for now; there is no stories endpoint, so the rail
+          runs entirely on dummy data (src/data/stories.ts). Re-enable when the
+          backend ships it. */}
+      {/* <StoriesRail /> */}
 
       {/* Composer trigger */}
       <Pressable
@@ -97,6 +111,9 @@ export function HomeHeader() {
           <Ionicons name="create-outline" size={18} color={colors.brand} />
         </View>
       </Pressable>
+
+      {/* Feed filter — sits last so it reads as the header of the list below */}
+      <FeedTabs value={feedTab} onChange={onChangeFeedTab} />
     </View>
   );
 }

@@ -113,7 +113,7 @@ export default function TopEarnersScreen() {
 
         {/* Your standing */}
         <Pressable
-          onPress={() => router.push('/earnings')}
+          onPress={() => router.push('/earn')}
           accessibilityRole="button"
           accessibilityLabel="Open your earnings"
           style={({ pressed }) => [

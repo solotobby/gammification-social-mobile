@@ -4,7 +4,10 @@ import { fetchMe, login, register, resendOtp, updateOnboarding, verifyOtp } from
 import { persister } from '../api/queryClient';
 import type { LoginPayload, MeData, VerifyOtpPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
+import { useBookmarkStore } from '../stores/bookmarkStore';
 import { useEngagementStore } from '../stores/engagementStore';
+import { useFollowStore } from '../stores/followStore';
+import { useHiddenStore } from '../stores/hiddenStore';
 
 /**
  * Persist and activate a session. Flipping the auth store also flips the
@@ -83,10 +86,14 @@ export function useLogout() {
     await useAuthStore.getState().signOut();
     queryClient.clear();
     // Everything below is per-account and would otherwise survive into the next
-    // sign-in on the same device: the engagement store's hearts/comments, and
-    // the persisted cache (clear() only empties memory — the snapshot on disk
-    // is rewritten on a throttle, so a quick kill could still restore it).
+    // sign-in on the same device: the engagement store's hearts/comments, the
+    // follow set behind Home's Following tab, saved posts, and the persisted
+    // cache (clear() only empties memory — the snapshot on disk is rewritten on
+    // a throttle, so a quick kill could still restore it).
     useEngagementStore.getState().reset();
+    useFollowStore.getState().reset();
+    useBookmarkStore.getState().reset();
+    useHiddenStore.getState().reset();
     await persister.removeClient();
   };
 }

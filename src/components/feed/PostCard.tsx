@@ -6,7 +6,9 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { mergeComments } from "../../api/timeline";
 import { newCommentId, useAddComment, useToggleLike } from "../../hooks/useTimeline";
 import { useAuthStore } from "../../stores/authStore";
+import { useBookmarkStore } from "../../stores/bookmarkStore";
 import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
+import { useCurrency } from "../../hooks/useCurrency";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
 import { HashtagText } from "../ui/HashtagText";
@@ -171,6 +173,7 @@ function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>;
  */
 export function PostCard({ post, onOpen, bare }: Props) {
   const { colors, radius } = useTheme();
+  const { format } = useCurrency();
   const router = useRouter();
 
   // Dummy posts (member profiles) keep the local-only heart; API posts toggle
@@ -203,7 +206,11 @@ export function PostCard({ post, onOpen, bare }: Props) {
   // Only the author sees the overflow menu (delete). There's no "is mine" API
   // flag — a post's ownerId (its user_id) is matched against the signed-in user.
   const myUserId = useAuthStore((s) => s.user?.id);
-  const isMine = post.remote && !!post.ownerId && post.ownerId === myUserId;
+  const isMine = !!post.remote && !!post.ownerId && post.ownerId === myUserId;
+
+  // Bookmarks are local-only (no endpoint yet) — see src/stores/bookmarkStore.ts.
+  const bookmarked = useBookmarkStore((s) => s.posts.some((p) => p.id === post.id));
+  const toggleBookmark = useBookmarkStore((s) => s.toggle);
 
   const content = (
     <>
@@ -241,11 +248,13 @@ export function PostCard({ post, onOpen, bare }: Props) {
           >
             <Ionicons name="trending-up" size={12} color={colors.mint} />
             <Text style={[styles.earnedText, { color: colors.mint }]}>
-              ₦{post.earned.toFixed(2)}
+              {format(post.earned)}
             </Text>
           </View>
         ) : null}
-        {isMine && !bare ? <PostMenu postId={post.id} /> : null}
+        {/* Every post gets the overflow — the menu itself decides whether to
+            offer the author's actions or a reader's. */}
+        {post.remote && !bare ? <PostMenu post={post} isMine={isMine} /> : null}
       </View>
 
       {/* Feed cards clamp to 3 lines; the detail screen (bare) shows it all. */}
@@ -335,6 +344,20 @@ export function PostCard({ post, onOpen, bare }: Props) {
             {post.views}
           </Text>
         </View>
+
+        <Pressable
+          onPress={() => toggleBookmark(post)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={bookmarked ? "Remove bookmark" : "Bookmark"}
+          style={styles.action}
+        >
+          <Ionicons
+            name={bookmarked ? "bookmark" : "bookmark-outline"}
+            size={18}
+            color={bookmarked ? colors.brand : colors.textMuted}
+          />
+        </Pressable>
 
         <Pressable
           hitSlop={8}

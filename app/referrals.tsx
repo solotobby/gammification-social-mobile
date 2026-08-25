@@ -1,19 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '../src/components/ui/Avatar';
 import { BackButton } from '../src/components/ui/BackButton';
 import { CopyField } from '../src/components/ui/CopyField';
+import { GhostButton } from '../src/components/ui/GhostButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../src/components/ui/SectionHeader';
-import { referral, referredUsers } from '../src/data/community';
+import { useReferrals } from '../src/hooks/useAccount';
 import { useMyReferral } from '../src/hooks/useMe';
 import { useTheme } from '../src/theme/ThemeProvider';
 
-function TotalCard({ label, value }: { label: string; value: number }) {
+function TotalCard({ label, value }: { label: string; value: string }) {
   const { colors, radius } = useTheme();
   return (
     <View
@@ -28,14 +29,20 @@ function TotalCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-/** My referrals — totals, the referral link, and everyone who joined with it. */
+/**
+ * My referrals — totals, the referral link, and everyone who joined with it,
+ * from GET /user/referrals. The link itself comes from the signed-in user's own
+ * referral code rather than this endpoint, so it renders even if the list
+ * request fails.
+ */
 export default function ReferralsScreen() {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  // Totals and the referred-user list below are still dummy, but the link is
-  // the one thing here that has to be real — it's what people actually share.
   const { link } = useMyReferral();
+
+  const query = useReferrals();
+  const referredUsers = query.data?.users ?? [];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -57,8 +64,14 @@ export default function ReferralsScreen() {
 
         {/* Totals */}
         <View style={styles.totalsRow}>
-          <TotalCard label="Total referrals" value={referral.total} />
-          <TotalCard label="This month" value={referral.thisMonth} />
+          <TotalCard
+            label="Total referrals"
+            value={(query.data?.total ?? 0).toLocaleString()}
+          />
+          <TotalCard
+            label="This month"
+            value={(query.data?.thisMonth ?? 0).toLocaleString()}
+          />
         </View>
 
         <CopyField label="Your referral link" value={link ?? 'Loading…'} icon="link-outline" />
@@ -81,7 +94,21 @@ export default function ReferralsScreen() {
         {/* Referred users */}
         <View style={{ gap: spacing.md }}>
           <SectionHeader title="People you referred" icon="people" />
-          {referredUsers.length === 0 ? (
+          {query.isLoading ? (
+            <ActivityIndicator color={colors.brand} style={{ paddingVertical: 28 }} />
+          ) : query.isError ? (
+            <View
+              style={[
+                styles.emptyCard,
+                { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
+              ]}
+            >
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                We couldn't load your referrals.
+              </Text>
+              <GhostButton label="Retry" onPress={() => void query.refetch()} />
+            </View>
+          ) : referredUsers.length === 0 ? (
             <View
               style={[
                 styles.emptyCard,
@@ -120,12 +147,16 @@ export default function ReferralsScreen() {
                       {user.name}
                     </Text>
                     <Text style={[styles.userMeta, { color: colors.textMuted }]}>
-                      @{user.handle} · joined {user.joined}
+                      {[user.handle && `@${user.handle}`, user.joined && `joined ${user.joined}`]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </Text>
                   </View>
-                  <Text style={[styles.userEarned, { color: colors.mint }]}>
-                    +₦{user.earnedForYou.toLocaleString()}
-                  </Text>
+                  {user.earned > 0 ? (
+                    <Text style={[styles.userEarned, { color: colors.mint }]}>
+                      +₦{user.earned.toLocaleString()}
+                    </Text>
+                  ) : null}
                 </View>
               ))}
             </View>

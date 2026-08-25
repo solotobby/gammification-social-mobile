@@ -32,26 +32,38 @@ type TabBarProps = {
 
 const TAB_META: Record<string, { label: string; icon: string; iconActive: string }> = {
   home: { label: 'Home', icon: 'home-outline', iconActive: 'home' },
-  explore: { label: 'Explore', icon: 'compass-outline', iconActive: 'compass' },
-  reels: { label: 'Reels', icon: 'film-outline', iconActive: 'film' },
-  earnings: { label: 'Earnings', icon: 'stats-chart-outline', iconActive: 'stats-chart' },
-  profile: { label: 'Profile', icon: 'person-outline', iconActive: 'person' },
+  discover: { label: 'Discover', icon: 'compass-outline', iconActive: 'compass' },
+  rolls: { label: 'Rolls', icon: 'film-outline', iconActive: 'film' },
+  earn: { label: 'Earn', icon: 'cash-outline', iconActive: 'cash' },
+  communities: { label: 'Communities', icon: 'people-outline', iconActive: 'people' },
 };
+
+/**
+ * What the bar shows, in order. `me` is deliberately absent — the profile is
+ * reached by tapping the avatar in the Home header instead.
+ */
+const TABS = ['home', 'discover', 'rolls', 'earn', 'communities'] as const;
 
 /**
  * Floating pill tab bar plus a compose FAB anchored bottom-right above it.
  * Compose is not a tab — it pushes the /compose modal on the root stack.
  * The FAB shows on Home only: that's where posting belongs, and the other tabs
- * (Reels especially, where the full-bleed player owns the screen) stay clear.
+ * stay clear.
+ *
+ * The whole bar hides on Rolls so the pager is fully immersive; that screen
+ * renders its own back button instead.
  */
 export function TabBar({ state, navigation }: TabBarProps) {
   const { colors, brand, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const renderTab = (routeName: string, index: number) => {
+  // Looked up by name rather than position, so adding or reordering a
+  // Tabs.Screen in the layout can't silently point a tab at the wrong route.
+  const renderTab = (routeName: string) => {
     const meta = TAB_META[routeName];
-    if (!meta) return null;
+    const index = state.routes.findIndex((r) => r.name === routeName);
+    if (!meta || index === -1) return null;
     const focused = state.index === index;
     const tint = focused ? colors.brand : colors.textMuted;
     const route = state.routes[index];
@@ -79,12 +91,19 @@ export function TabBar({ state, navigation }: TabBarProps) {
           size={23}
           color={tint}
         />
-        <Text style={[styles.label, { color: tint }]}>{meta.label}</Text>
+        <Text style={[styles.label, { color: tint }]} numberOfLines={1}>
+          {meta.label}
+        </Text>
       </Pressable>
     );
   };
 
   const onHome = state.routes[state.index]?.name === 'home';
+
+  // Rolls is full-bleed video and owns the whole screen — the bar would float
+  // over the caption and action rail. Its own header carries a back button,
+  // which is the way out of the pager.
+  if (state.routes[state.index]?.name === 'rolls') return null;
 
   return (
     <View
@@ -119,11 +138,7 @@ export function TabBar({ state, navigation }: TabBarProps) {
           },
         ]}
       >
-        {renderTab('home', 0)}
-        {renderTab('explore', 1)}
-        {renderTab('reels', 2)}
-        {renderTab('earnings', 3)}
-        {renderTab('profile', 4)}
+        {TABS.map((name) => renderTab(name))}
       </View>
     </View>
   );
@@ -143,7 +158,7 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     borderWidth: 1,
-    paddingHorizontal: 10,
+    paddingHorizontal: 4,
     shadowOpacity: 0.22,
     shadowRadius: 26,
     shadowOffset: { width: 0, height: 14 },
@@ -154,8 +169,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
+    paddingHorizontal: 2,
   },
-  label: { fontSize: 11, fontWeight: '700' },
+  // 9pt so the longest label ("Communities") fits one line across five tabs.
+  label: { fontSize: 9, fontWeight: '700' },
   fab: {
     position: 'absolute',
     right: 20,

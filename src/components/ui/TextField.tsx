@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 type Props = TextInputProps & {
   /** Leading icon. */
@@ -35,7 +36,11 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
       style={[
         styles.container,
         {
-          backgroundColor: colors.surfaceAlt,
+          // `surface`, not `surfaceAlt`: form fields sit directly on the page,
+          // and the web's tinted input fill is the same value as the page
+          // background — on the web that's fine because inputs always sit
+          // inside a white card, but here it would make the field disappear.
+          backgroundColor: colors.surface,
           borderColor: focused ? colors.brand : colors.border,
           borderRadius: radius.md,
         },
@@ -98,6 +103,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   input: {
+    fontFamily: FONT,
     flex: 1,
     fontSize: 16,
     fontWeight: '500',

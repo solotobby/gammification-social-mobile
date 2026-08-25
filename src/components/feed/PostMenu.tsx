@@ -20,6 +20,7 @@ import { useFollowStore } from '../../stores/followStore';
 import { useHiddenStore } from '../../stores/hiddenStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { Post } from '../../data/community';
+import { FONT } from '../../theme/fonts';
 
 /**
  * The "⋯" overflow on every feed post. What it offers depends on who wrote it:
@@ -363,14 +364,15 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 12,
   },
-  rowText: { fontSize: 16, fontWeight: '700' },
+  rowText: { fontFamily: FONT, fontSize: 16, fontWeight: '700' },
   confirmWrap: { gap: 12, paddingHorizontal: 4, paddingTop: 2 },
-  confirmTitle: { fontSize: 18, fontWeight: '800' },
-  confirmText: { fontSize: 14, fontWeight: '500', marginBottom: 4 },
+  confirmTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
+  confirmText: { fontFamily: FONT, fontSize: 14, fontWeight: '500', marginBottom: 4 },
   paneWrap: { gap: 12, paddingHorizontal: 4, paddingTop: 2 },
-  paneTitle: { fontSize: 18, fontWeight: '800' },
-  paneNote: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
+  paneTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
+  paneNote: { fontFamily: FONT, fontSize: 13, fontWeight: '500', lineHeight: 18 },
   editInput: {
+    fontFamily: FONT,
     minHeight: 108,
     maxHeight: 180,
     padding: 14,
@@ -386,19 +388,19 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 10,
   },
-  reasonText: { fontSize: 15, fontWeight: '600' },
+  reasonText: { fontFamily: FONT, fontSize: 15, fontWeight: '600' },
   destructiveBtn: {
     height: 52,
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  destructiveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  destructiveText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
   cancelBtn: {
     height: 52,
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelText: { fontSize: 16, fontWeight: '700' },
+  cancelText: { fontFamily: FONT, fontSize: 16, fontWeight: '700' },
 });

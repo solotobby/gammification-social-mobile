@@ -23,6 +23,7 @@ import { useFollowStore } from '../../src/stores/followStore';
 import { useHiddenStore } from '../../src/stores/hiddenStore';
 import { type Post } from '../../src/data/community';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 /**
  * Home tab — monetization signal, stories rail, composer entry, and the live
@@ -199,7 +200,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 14,
   },
-  footerText: { fontSize: 13, fontWeight: '700' },
+  footerText: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
   refreshRow: { alignItems: 'center', paddingBottom: 14 },
   stateWrap: {
     alignItems: 'center',
@@ -207,5 +208,5 @@ const styles = StyleSheet.create({
     paddingVertical: 34,
     paddingHorizontal: 24,
   },
-  stateText: { fontSize: 14, fontWeight: '600', textAlign: 'center', lineHeight: 20 },
+  stateText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', textAlign: 'center', lineHeight: 20 },
 });

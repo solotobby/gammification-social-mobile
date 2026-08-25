@@ -27,6 +27,7 @@ import { useAuthStore } from "../../src/stores/authStore";
 import { useFeedbackStore } from "../../src/stores/feedbackStore";
 import { useFollowStore } from "../../src/stores/followStore";
 import { useTheme } from "../../src/theme/ThemeProvider";
+import { FONT } from '../../src/theme/fonts';
 
 /**
  * Member profile — GET /user/profile/{username}: cover, identity + stats, then
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  headerTitle: { fontSize: 18, fontWeight: "800" },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: "800" },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
@@ -324,28 +325,29 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  actionText: { fontSize: 13, fontWeight: "800" },
-  name: { fontSize: 21, fontWeight: "800" },
-  handle: { fontSize: 13, fontWeight: "600" },
+  actionText: { fontFamily: FONT, fontSize: 13, fontWeight: "800" },
+  name: { fontFamily: FONT, fontSize: 21, fontWeight: "800" },
+  handle: { fontFamily: FONT, fontSize: 13, fontWeight: "600" },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  location: { fontSize: 13, fontWeight: "600" },
-  bio: { fontSize: 14, fontWeight: "500", marginTop: 8, lineHeight: 20 },
-  stats: { fontSize: 13, fontWeight: "500", marginTop: 8 },
-  statValue: { fontWeight: "900" },
-  feedTitle: { fontSize: 17, fontWeight: "800" },
+  location: { fontFamily: FONT, fontSize: 13, fontWeight: "600" },
+  bio: { fontFamily: FONT, fontSize: 14, fontWeight: "500", marginTop: 8, lineHeight: 20 },
+  stats: { fontFamily: FONT, fontSize: 13, fontWeight: "500", marginTop: 8 },
+  statValue: { fontFamily: FONT, fontWeight: "900" },
+  feedTitle: { fontFamily: FONT, fontSize: 17, fontWeight: "800" },
   emptyWrap: {
     alignItems: "center",
     gap: 6,
     paddingVertical: 30,
     paddingHorizontal: 24,
   },
-  emptyTitle: { fontSize: 15, fontWeight: "800" },
+  emptyTitle: { fontFamily: FONT, fontSize: 15, fontWeight: "800" },
   emptyText: {
+    fontFamily: FONT,
     fontSize: 13,
     fontWeight: "500",
     textAlign: "center",
     lineHeight: 19,
   },
   missing: { paddingHorizontal: 24, gap: 24 },
-  missingText: { fontSize: 15, fontWeight: "600" },
+  missingText: { fontFamily: FONT, fontSize: 15, fontWeight: "600" },
 });

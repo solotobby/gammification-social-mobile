@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 /** Small validation/API error line rendered under a form field or above a CTA. */
 export function FieldError({ message }: { message?: string }) {
@@ -12,6 +13,7 @@ export function FieldError({ message }: { message?: string }) {
 
 const styles = StyleSheet.create({
   text: {
+    fontFamily: FONT,
     fontSize: 13,
     fontWeight: '500',
     marginTop: -6,

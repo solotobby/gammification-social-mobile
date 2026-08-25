@@ -1,3 +1,5 @@
+import { FONT } from './fonts';
+
 /** Shared, mode-independent design tokens. */
 
 export const spacing = {
@@ -19,10 +21,10 @@ export const radius = {
 } as const;
 
 export const typography = {
-  hero: { fontSize: 30, lineHeight: 38, fontWeight: '800' as const },
-  title: { fontSize: 26, lineHeight: 33, fontWeight: '800' as const },
-  body: { fontSize: 16, lineHeight: 24, fontWeight: '400' as const },
-  button: { fontSize: 17, lineHeight: 22, fontWeight: '700' as const },
-  caption: { fontSize: 13, lineHeight: 18, fontWeight: '600' as const },
-  overline: { fontSize: 12, lineHeight: 16, fontWeight: '700' as const },
+  hero: { fontFamily: FONT, fontSize: 30, lineHeight: 38, fontWeight: '800' as const },
+  title: { fontFamily: FONT, fontSize: 26, lineHeight: 33, fontWeight: '800' as const },
+  body: { fontFamily: FONT, fontSize: 16, lineHeight: 24, fontWeight: '400' as const },
+  button: { fontFamily: FONT, fontSize: 17, lineHeight: 22, fontWeight: '700' as const },
+  caption: { fontFamily: FONT, fontSize: 13, lineHeight: 18, fontWeight: '600' as const },
+  overline: { fontFamily: FONT, fontSize: 12, lineHeight: 16, fontWeight: '700' as const },
 } as const;

@@ -11,6 +11,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { StoryPreview } from './StoryPreview';
+import { FONT } from '../../theme/fonts';
 
 const CARD_WIDTH = 104;
 const CARD_HEIGHT = 148;
@@ -184,6 +185,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   cardLabel: {
+    fontFamily: FONT,
     position: 'absolute',
     left: 8,
     right: 8,

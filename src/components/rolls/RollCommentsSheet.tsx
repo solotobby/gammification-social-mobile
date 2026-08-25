@@ -20,6 +20,7 @@ import { useAddComment } from '../../hooks/useTimeline';
 import { useEngagementStore } from '../../stores/engagementStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
+import { FONT } from '../../theme/fonts';
 
 /**
  * The TikTok-style comment sheet for a roll: the thread over the video rather
@@ -216,13 +217,13 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { fontSize: 15, fontWeight: '800' },
+  title: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   stateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  stateText: { fontSize: 13, fontWeight: '600' },
+  stateText: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
   row: { flexDirection: 'row', gap: 10 },
   rowText: { flex: 1, gap: 3 },
-  rowHandle: { fontSize: 12, fontWeight: '700' },
-  rowBody: { fontSize: 14, lineHeight: 19 },
+  rowHandle: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
+  rowBody: { fontFamily: FONT, fontSize: 14, lineHeight: 19 },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -231,6 +232,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   input: {
+    fontFamily: FONT,
     flex: 1,
     maxHeight: 96,
     paddingHorizontal: 14,

@@ -23,6 +23,7 @@ import {
   type CommunityRole,
 } from '../../src/data/communities';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 const TABS = ['Feed', 'About', 'Members'] as const;
 type Tab = (typeof TABS)[number];
@@ -495,8 +496,8 @@ export default function CommunityScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', gap: 10 },
-  missing: { fontSize: 15, fontWeight: '600' },
-  missingLink: { fontSize: 15, fontWeight: '800' },
+  missing: { fontFamily: FONT, fontSize: 15, fontWeight: '600' },
+  missingLink: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   cover: { height: 180, paddingHorizontal: 24 },
   coverBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   coverAction: {
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
   },
   identity: { alignItems: 'center', marginTop: -42, gap: 4 },
   avatarRing: { borderWidth: 4, borderRadius: 43, marginBottom: 6 },
-  name: { fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  name: { fontFamily: FONT, fontSize: 22, fontWeight: '800', textAlign: 'center' },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -517,8 +518,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  meta: { fontSize: 13, fontWeight: '600' },
-  ledBy: { fontSize: 13, fontWeight: '500', marginTop: 2 },
+  meta: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
+  ledBy: { fontFamily: FONT, fontSize: 13, fontWeight: '500', marginTop: 2 },
   joinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -527,10 +528,10 @@ const styles = StyleSheet.create({
     height: 50,
     marginTop: 16,
   },
-  joinText: { fontSize: 15, fontWeight: '800' },
+  joinText: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   tabRow: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth },
   tab: { flex: 1, alignItems: 'center', gap: 8 },
-  tabText: { fontSize: 15, fontWeight: '800' },
+  tabText: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   tabUnderline: { height: 3, width: 44, borderRadius: 2 },
   gateCard: {
     alignItems: 'center',
@@ -538,14 +539,15 @@ const styles = StyleSheet.create({
     padding: 26,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  gateTitle: { fontSize: 16, fontWeight: '800' },
-  gateBlurb: { fontSize: 13, lineHeight: 19, fontWeight: '500', textAlign: 'center' },
+  gateTitle: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
+  gateBlurb: { fontFamily: FONT, fontSize: 13, lineHeight: 19, fontWeight: '500', textAlign: 'center' },
   composer: {
     padding: 14,
     gap: 10,
     borderWidth: StyleSheet.hairlineWidth,
   },
   composerInput: {
+    fontFamily: FONT,
     minHeight: 60,
     fontSize: 15,
     lineHeight: 21,
@@ -558,7 +560,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   composerMedia: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  composerMediaText: { fontSize: 13, fontWeight: '700' },
+  composerMediaText: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
   postBtn: {
     paddingHorizontal: 20,
     height: 36,
@@ -566,7 +568,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  postBtnText: { fontSize: 13, fontWeight: '800' },
+  postBtnText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
   postCard: {
     padding: 16,
     gap: 12,
@@ -574,9 +576,9 @@ const styles = StyleSheet.create({
   },
   postHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   postHeaderText: { flex: 1, gap: 1 },
-  postName: { fontSize: 14, fontWeight: '800' },
-  postMeta: { fontSize: 12, fontWeight: '500' },
-  postBody: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
+  postName: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  postMeta: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
+  postBody: { fontFamily: FONT, fontSize: 15, lineHeight: 22, fontWeight: '400' },
   postActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -585,14 +587,14 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   postAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  postActionText: { fontSize: 13, fontWeight: '700' },
+  postActionText: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
   aboutCard: {
     padding: 18,
     gap: 8,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  aboutTitle: { fontSize: 16, fontWeight: '800' },
-  aboutBlurb: { fontSize: 13, lineHeight: 19, fontWeight: '500', marginBottom: 4 },
+  aboutTitle: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
+  aboutBlurb: { fontFamily: FONT, fontSize: 13, lineHeight: 19, fontWeight: '500', marginBottom: 4 },
   aboutRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -601,15 +603,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  aboutLabel: { fontSize: 13, fontWeight: '600' },
-  aboutValue: { flexShrink: 1, fontSize: 13, fontWeight: '800' },
+  aboutLabel: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
+  aboutValue: { fontFamily: FONT, flexShrink: 1, fontSize: 13, fontWeight: '800' },
   memberCard: { borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16 },
   memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   memberText: { flex: 1, gap: 1 },
-  memberName: { fontSize: 14, fontWeight: '800' },
-  memberHandle: { fontSize: 12, fontWeight: '500' },
+  memberName: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  memberHandle: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   rolePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  roleText: { fontSize: 11, fontWeight: '800' },
+  roleText: { fontFamily: FONT, fontSize: 11, fontWeight: '800' },
   emptyWrap: { alignItems: 'center', gap: 10, paddingVertical: 34 },
-  emptyText: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  emptyText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', textAlign: 'center' },
 });

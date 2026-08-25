@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeProvider';
 import { CopyField } from '../ui/CopyField';
 import { GradientButton } from '../ui/GradientButton';
+import { FONT } from '../../theme/fonts';
 
 /**
  * Bottom sheet for sharing a community link.
@@ -96,6 +97,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { flex: 1, fontSize: 18, fontWeight: '800' },
-  lede: { fontSize: 13, fontWeight: '500', marginTop: -6 },
+  title: { fontFamily: FONT, flex: 1, fontSize: 18, fontWeight: '800' },
+  lede: { fontFamily: FONT, fontSize: 13, fontWeight: '500', marginTop: -6 },
 });

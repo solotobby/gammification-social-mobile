@@ -10,6 +10,7 @@ import {
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { CommunityBadge } from './CommunityBadge';
+import { FONT } from '../../theme/fonts';
 
 /**
  * One community in a list — avatar, name, category · members, description, and
@@ -111,11 +112,11 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerText: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '800' },
-  meta: { fontSize: 12, fontWeight: '600' },
-  description: { fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  name: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  meta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
+  description: { fontFamily: FONT, fontSize: 13, lineHeight: 19, fontWeight: '500' },
   footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  postCount: { fontSize: 12, fontWeight: '700' },
+  postCount: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
   joinBtn: {
     paddingHorizontal: 16,
     height: 36,
@@ -124,5 +125,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  joinText: { fontSize: 13, fontWeight: '800' },
+  joinText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
 });

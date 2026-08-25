@@ -15,6 +15,7 @@ import { useUpdateProfile } from '../src/hooks/useAccount';
 import { useMe, useMyTint } from '../src/hooks/useMe';
 import { useAuthStore } from '../src/stores/authStore';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 const ABOUT_MAX = 160;
 
@@ -259,13 +260,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   avatarWrap: {
     alignItems: 'center',
     gap: 10,
     marginBottom: 28,
   },
-  avatarHint: { fontSize: 12, fontWeight: '500' },
+  avatarHint: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   form: {
     marginBottom: 24,
   },
@@ -281,15 +282,15 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 12,
   },
-  identityLabel: { fontSize: 13, fontWeight: '600' },
-  identityValue: { flex: 1, fontSize: 13, fontWeight: '800', textAlign: 'right' },
-  identityNote: { fontSize: 11, lineHeight: 16, fontWeight: '500', paddingTop: 4 },
+  identityLabel: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
+  identityValue: { fontFamily: FONT, flex: 1, fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  identityNote: { fontFamily: FONT, fontSize: 11, lineHeight: 16, fontWeight: '500', paddingTop: 4 },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  counter: { fontSize: 12, fontWeight: '600' },
+  counter: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   appearanceCard: {
     padding: 16,
     gap: 14,
@@ -298,7 +299,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   appearanceHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  appearanceTitle: { fontSize: 15, fontWeight: '700' },
+  appearanceTitle: { fontFamily: FONT, fontSize: 15, fontWeight: '700' },
   socialsTeaser: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   socialsText: { flex: 1, gap: 1 },
-  socialsLabel: { fontSize: 15, fontWeight: '700' },
-  socialsSub: { fontSize: 12, fontWeight: '500' },
+  socialsLabel: { fontFamily: FONT, fontSize: 15, fontWeight: '700' },
+  socialsSub: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   cta: { width: '100%' },
 });

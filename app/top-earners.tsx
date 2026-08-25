@@ -9,6 +9,7 @@ import { BackButton } from '../src/components/ui/BackButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { earnings, topEarners } from '../src/data/community';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 const MEDALS = ['trophy', 'medal', 'medal-outline'] as const;
 const MEDAL_TINTS = ['gold', 'pink', 'mint'] as const;
@@ -149,8 +150,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerCenter: { alignItems: 'center', gap: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
-  headerSub: { fontSize: 12, fontWeight: '600' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
+  headerSub: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   monthRow: { flexDirection: 'row', gap: 10 },
   monthChip: {
     paddingHorizontal: 18,
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  monthText: { fontSize: 14, fontWeight: '700' },
+  monthText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -169,11 +170,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   rankSlot: { width: 26, alignItems: 'center' },
-  rank: { fontSize: 15, fontWeight: '900' },
+  rank: { fontFamily: FONT, fontSize: 15, fontWeight: '900' },
   rowText: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '800' },
-  handle: { fontSize: 12, fontWeight: '600' },
-  earned: { fontSize: 15, fontWeight: '800' },
+  name: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  handle: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
+  earned: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   youCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -181,6 +182,6 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  youText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  youBold: { fontWeight: '800' },
+  youText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  youBold: { fontFamily: FONT, fontWeight: '800' },
 });

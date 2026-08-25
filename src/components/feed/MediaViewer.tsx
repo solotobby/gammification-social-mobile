@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MediaItem } from '../../data/media';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   media: MediaItem[];
@@ -193,12 +194,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
   },
   videoErrorText: {
+    fontFamily: FONT,
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
   },
   videoErrorDetail: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     fontWeight: '500',
@@ -218,7 +221,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
-  counterText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  counterText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   closeBtn: {
     width: 40,
     height: 40,

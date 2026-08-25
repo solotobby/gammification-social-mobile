@@ -4,6 +4,7 @@ import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { STORY_BACKGROUNDS, type StoryItem } from '../../data/stories';
+import { FONT } from '../../theme/fonts';
 
 /**
  * Fills its parent with a thumbnail of a story item: the image / video poster,
@@ -38,6 +39,7 @@ export function StoryPreview({ item }: { item: StoryItem }) {
 const styles = StyleSheet.create({
   textWrap: { alignItems: 'center', justifyContent: 'center', padding: 8 },
   snippet: {
+    fontFamily: FONT,
     color: '#FFFFFF',
     fontSize: 10,
     lineHeight: 14,

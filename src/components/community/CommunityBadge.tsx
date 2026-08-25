@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { STATUS_META, type CommunityStatus } from '../../data/communities';
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 /**
  * Status pill for a community (Public / Private / Paid / Approval). Colour
@@ -51,5 +52,5 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  text: { fontSize: 11, fontWeight: '800' },
+  text: { fontFamily: FONT, fontSize: 11, fontWeight: '800' },
 });

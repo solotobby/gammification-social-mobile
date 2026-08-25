@@ -15,6 +15,7 @@ import { useMe, useMyTint } from '../../src/hooks/useMe';
 import { useProfile } from '../../src/hooks/useUser';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 type MenuItem = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -227,8 +228,8 @@ const styles = StyleSheet.create({
     borderRadius: 42,
     marginBottom: 6,
   },
-  name: { fontSize: 21, fontWeight: '800' },
-  handle: { fontSize: 13, fontWeight: '600' },
+  name: { fontFamily: FONT, fontSize: 21, fontWeight: '800' },
+  handle: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -236,8 +237,8 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   stat: { alignItems: 'center', gap: 1, minWidth: 72 },
-  statValue: { fontSize: 18, fontWeight: '900' },
-  statLabel: { fontSize: 12, fontWeight: '600' },
+  statValue: { fontFamily: FONT, fontSize: 18, fontWeight: '900' },
+  statLabel: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   statDivider: { width: StyleSheet.hairlineWidth, height: 26 },
   menuCard: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -257,14 +258,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   menuText: { flex: 1, gap: 1 },
-  menuLabel: { fontSize: 15, fontWeight: '700' },
-  menuSub: { fontSize: 12, fontWeight: '500' },
+  menuLabel: { fontFamily: FONT, fontSize: 15, fontWeight: '700' },
+  menuSub: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   soonPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
-  soonText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  soonText: { fontFamily: FONT, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
   logout: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,5 +274,5 @@ const styles = StyleSheet.create({
     height: 52,
     borderWidth: 1,
   },
-  logoutText: { fontSize: 15, fontWeight: '800' },
+  logoutText: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
 });

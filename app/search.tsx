@@ -16,6 +16,7 @@ import { useDebouncedValue } from '../src/hooks/useDebouncedValue';
 import { useTrendingMembers } from '../src/hooks/useExplore';
 import { useSearchUsers } from '../src/hooks/useUser';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /**
  * Search screen (from the home header) — find people via /user/search, using
@@ -120,7 +121,7 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   emptyWrap: { alignItems: 'center', gap: 10, paddingVertical: 32 },
-  emptyText: { fontSize: 14, fontWeight: '600' },
+  emptyText: { fontFamily: FONT, fontSize: 14, fontWeight: '600' },
 });

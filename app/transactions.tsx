@@ -9,6 +9,7 @@ import { GhostButton } from '../src/components/ui/GhostButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { useTransactions } from '../src/hooks/useAccount';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /**
  * Transactions — full payout & referral history from GET /user/transactions
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,16 +156,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: { flex: 1, gap: 3 },
-  description: { fontSize: 14, fontWeight: '700' },
-  reference: { fontSize: 11, fontWeight: '500' },
+  description: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  reference: { fontFamily: FONT, fontSize: 11, fontWeight: '500' },
   trailing: { alignItems: 'flex-end', gap: 5 },
-  amount: { fontSize: 15, fontWeight: '800' },
+  amount: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   statusPill: {
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 999,
   },
   statusText: {
+    fontFamily: FONT,
     fontSize: 10,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -185,8 +187,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  emptyTitle: { fontSize: 17, fontWeight: '800' },
+  emptyTitle: { fontFamily: FONT, fontSize: 17, fontWeight: '800' },
   emptyText: {
+    fontFamily: FONT,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '500',

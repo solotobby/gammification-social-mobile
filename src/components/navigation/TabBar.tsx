@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 /** Vertical space screens should reserve so content scrolls clear of the bar. */
 export const TAB_BAR_CLEARANCE = 104;
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   // 9pt so the longest label ("Communities") fits one line across five tabs.
-  label: { fontSize: 9, fontWeight: '700' },
+  label: { fontFamily: FONT, fontSize: 9, fontWeight: '700' },
   fab: {
     position: 'absolute',
     right: 20,

@@ -11,6 +11,7 @@ import { OtpInput } from '../src/components/ui/OtpInput';
 import { activateSession, useResendOtp, useVerifyOtp } from '../src/hooks/useAuth';
 import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 const RESEND_SECONDS = 30;
 const CODE_LENGTH = 6;
@@ -199,6 +200,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   resendText: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: '500',
   },

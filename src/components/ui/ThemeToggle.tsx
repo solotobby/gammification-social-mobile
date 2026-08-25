@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme, type ThemePreference } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 const OPTIONS: {
   value: ThemePreference;
@@ -77,6 +78,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   label: {
+    fontFamily: FONT,
     fontSize: 13,
     fontWeight: '700',
   },

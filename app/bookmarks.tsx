@@ -11,6 +11,7 @@ import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { type Post } from '../src/data/community';
 import { useBookmarkStore } from '../src/stores/bookmarkStore';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /**
  * Bookmarks — posts saved with the bookmark action on a feed card.
@@ -99,10 +100,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   clear: { width: 44, alignItems: 'flex-end' },
-  clearText: { fontSize: 14, fontWeight: '700' },
-  count: { fontSize: 13, fontWeight: '600' },
+  clearText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  count: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
   emptyCard: {
     alignItems: 'center',
     gap: 10,
@@ -117,8 +118,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 2,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '800' },
+  emptyTitle: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
   emptyBlurb: {
+    fontFamily: FONT,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '500',

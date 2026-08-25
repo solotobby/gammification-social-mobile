@@ -16,6 +16,7 @@ import { TextField } from '../src/components/ui/TextField';
 import { signUpSchema, type SignUpValues } from '../src/forms/auth';
 import { useRegister } from '../src/hooks/useAuth';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 export default function SignUpScreen() {
   const { colors, typography, spacing } = useTheme();
@@ -255,6 +256,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   footerText: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: '500',
   },

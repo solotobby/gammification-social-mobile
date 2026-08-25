@@ -13,6 +13,7 @@ import { SectionHeader } from '../src/components/ui/SectionHeader';
 import { useReferrals } from '../src/hooks/useAccount';
 import { useMyReferral } from '../src/hooks/useMe';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 function TotalCard({ label, value }: { label: string; value: string }) {
   const { colors, radius } = useTheme();
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   totalsRow: { flexDirection: 'row', gap: 12 },
   totalCard: {
     flex: 1,
@@ -182,8 +183,8 @@ const styles = StyleSheet.create({
     gap: 2,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  totalValue: { fontSize: 28, fontWeight: '900' },
-  totalLabel: { fontSize: 12, fontWeight: '700' },
+  totalValue: { fontFamily: FONT, fontSize: 28, fontWeight: '900' },
+  totalLabel: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
   payBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,8 +192,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  payText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  payBold: { fontWeight: '800' },
+  payText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  payBold: { fontFamily: FONT, fontWeight: '800' },
   listCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
@@ -204,9 +205,9 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   userText: { flex: 1, gap: 2 },
-  userName: { fontSize: 15, fontWeight: '800' },
-  userMeta: { fontSize: 12, fontWeight: '600' },
-  userEarned: { fontSize: 15, fontWeight: '800' },
+  userName: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  userMeta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
+  userEarned: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   emptyCard: {
     alignItems: 'center',
     gap: 8,
@@ -221,8 +222,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 6,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '800' },
+  emptyTitle: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
   emptyText: {
+    fontFamily: FONT,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '500',

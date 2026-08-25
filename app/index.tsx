@@ -18,6 +18,7 @@ import { GradientButton } from '../src/components/ui/GradientButton';
 import { Logo } from '../src/components/ui/Logo';
 import { onboardingSlides } from '../src/data/onboarding';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 export default function WelcomeScreen() {
   const { colors, spacing } = useTheme();
@@ -150,6 +151,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   skip: {
+    fontFamily: FONT,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -165,6 +167,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   signIn: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: '500',
   },

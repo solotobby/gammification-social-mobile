@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   value: string;
@@ -50,7 +51,7 @@ export function OtpInput({
             style={[
               styles.cell,
               {
-                backgroundColor: colors.surfaceAlt,
+                backgroundColor: colors.surface,
                 borderColor: isActive || isFilled ? colors.brand : colors.border,
                 borderRadius: radius.md,
               },
@@ -97,6 +98,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   char: {
+    fontFamily: FONT,
     fontSize: 24,
     fontWeight: '800',
   },

@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCurrency } from '../../hooks/useCurrency';
 import { useMonthlyAnalytics } from '../../hooks/useEarnings';
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 const now = new Date();
 const CURRENT_YEAR = now.getFullYear();
@@ -129,8 +130,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   text: { flex: 1, gap: 3 },
-  headline: { fontSize: 14, fontWeight: '800' },
-  sub: { fontSize: 12, fontWeight: '600' },
+  headline: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  sub: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   track: { height: 4, borderRadius: 2, overflow: 'hidden', marginTop: 3 },
   fill: { height: 4, borderRadius: 2 },
 });

@@ -4,6 +4,7 @@ import { StyleSheet, Text } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
 import type { MemberTint } from '../../data/community';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   name: string;
@@ -16,11 +17,15 @@ type Props = {
 export function Avatar({ name, tint = 'violet', size = 44 }: Props) {
   const { brand } = useTheme();
 
+  // Deep -> bright, matching the web's `linear-gradient(135deg, violet,
+  // violetBright)` on .ph-avatar. The per-member tint is ours: the web paints
+  // every avatar violet, but keeping a stable colour per person is what makes
+  // them scannable in a feed.
   const gradients: Record<MemberTint, [string, string]> = {
-    violet: [brand.violetBright, brand.violet],
-    mint: [brand.mintBright, brand.mint],
-    gold: [brand.gold, '#E09A1A'],
-    pink: ['#FF7BA9', brand.pink],
+    violet: [brand.violet, brand.violetBright],
+    mint: [brand.mint, brand.mintBright],
+    gold: ['#E09A1A', brand.gold],
+    pink: [brand.pink, '#FF7BA9'],
   };
 
   const initials = name
@@ -51,6 +56,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   initials: {
+    fontFamily: FONT,
     color: '#FFFFFF',
     fontWeight: '800',
     letterSpacing: 0.5,

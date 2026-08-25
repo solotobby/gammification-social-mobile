@@ -15,6 +15,7 @@ import { useToggleFollow } from '../src/hooks/useUser';
 import { useAuthStore } from '../src/stores/authStore';
 import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 const MEDALS = ['trophy', 'medal', 'medal-outline'] as const;
 const MEDAL_TINTS = ['gold', 'pink', 'mint'] as const;
@@ -185,8 +186,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerCenter: { alignItems: 'center', gap: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
-  headerSub: { fontSize: 12, fontWeight: '600' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
+  headerSub: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -195,12 +196,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   rankSlot: { width: 26, alignItems: 'center' },
-  rank: { fontSize: 15, fontWeight: '900' },
+  rank: { fontFamily: FONT, fontSize: 15, fontWeight: '900' },
   memberTap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowText: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '800' },
+  name: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  meta: { fontSize: 12, fontWeight: '600' },
+  meta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   followBtn: {
     width: 38,
     height: 38,
@@ -210,5 +211,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   stateWrap: { alignItems: 'center', gap: 14, paddingVertical: 34, paddingHorizontal: 24 },
-  stateText: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  stateText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', textAlign: 'center' },
 });

@@ -14,6 +14,7 @@ import { useCurrency } from '../../src/hooks/useCurrency';
 import { useMonthlyAnalytics, useYearlyAnalytics } from '../../src/hooks/useEarnings';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import type { MonthlyAnalytics } from '../../src/api/types';
+import { FONT } from '../../src/theme/fonts';
 
 type StatCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -392,8 +393,8 @@ export default function EarnScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', gap: 14 },
-  errorText: { fontSize: 14, fontWeight: '600' },
-  title: { fontSize: 26, fontWeight: '800' },
+  errorText: { fontFamily: FONT, fontSize: 14, fontWeight: '600' },
+  title: { fontFamily: FONT, fontSize: 26, fontWeight: '800' },
   monthRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   monthChip: {
     paddingHorizontal: 18,
@@ -403,7 +404,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  monthText: { fontSize: 14, fontWeight: '700' },
+  monthText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
   payoutCard: {
     padding: 22,
     gap: 6,
@@ -412,8 +413,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  payoutLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
-  payoutValue: { color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
+  payoutLabel: { fontFamily: FONT, color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
+  payoutValue: { fontFamily: FONT, color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
   deltaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -424,8 +425,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
-  deltaText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  deltaText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   payoutNote: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.75)',
     fontSize: 12,
     lineHeight: 17,
@@ -439,8 +441,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  rateText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  rateBold: { fontWeight: '800' },
+  rateText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  rateBold: { fontFamily: FONT, fontWeight: '800' },
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -460,8 +462,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statValue: { fontSize: 24, fontWeight: '900' },
-  statLabel: { fontSize: 12, fontWeight: '700' },
+  statValue: { fontFamily: FONT, fontSize: 24, fontWeight: '900' },
+  statLabel: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
   listCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 18,
@@ -480,15 +482,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   wayText: { flex: 1, gap: 1 },
-  wayLabel: { fontSize: 15, fontWeight: '700' },
-  waySub: { fontSize: 12, fontWeight: '500' },
+  wayLabel: { fontFamily: FONT, fontSize: 15, fontWeight: '700' },
+  waySub: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   monetizedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 15,
   },
-  monetizedLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
+  monetizedLabel: { fontFamily: FONT, flex: 1, fontSize: 14, fontWeight: '600' },
   txRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   txIcon: {
     width: 38,
@@ -498,8 +500,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   txText: { flex: 1, gap: 1 },
-  txLabel: { fontSize: 14, fontWeight: '700' },
-  txDate: { fontSize: 12, fontWeight: '500' },
-  txAmount: { fontSize: 15, fontWeight: '800' },
-  monetizedValue: { fontSize: 16, fontWeight: '800' },
+  txLabel: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  txDate: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
+  txAmount: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  monetizedValue: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
 });

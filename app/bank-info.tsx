@@ -13,6 +13,7 @@ import { TextField } from '../src/components/ui/TextField';
 import { useBank, useSaveBank } from '../src/hooks/useAccount';
 import { useTheme } from '../src/theme/ThemeProvider';
 import type { BankFormField, WithdrawalMethod } from '../src/api/types';
+import { FONT } from '../src/theme/fonts';
 
 /**
  * Bank information — payout destination, driven by GET /user/bank.
@@ -215,21 +216,22 @@ export default function BankInfoScreen() {
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', gap: 14 },
-  errorText: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  errorText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   lede: {
+    fontFamily: FONT,
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '500',
     marginBottom: 20,
   },
-  ledeBold: { fontWeight: '800' },
+  ledeBold: { fontFamily: FONT, fontWeight: '800' },
   savedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -238,9 +240,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 20,
   },
-  savedText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  savedText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
   form: { marginBottom: 12 },
   hint: {
+    fontFamily: FONT,
     fontSize: 13,
     fontWeight: '500',
     paddingHorizontal: 4,

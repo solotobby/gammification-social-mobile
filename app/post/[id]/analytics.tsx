@@ -13,6 +13,7 @@ import { useMe } from '../../../src/hooks/useMe';
 import { usePost } from '../../../src/hooks/useTimeline';
 import { useTheme } from '../../../src/theme/ThemeProvider';
 import { brand } from '../../../src/theme/colors';
+import { FONT, FONT_MONO } from '../../../src/theme/fonts';
 
 /**
  * Per-post analytics — the mobile version of the web's
@@ -261,16 +262,17 @@ export default function PostAnalyticsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  backText: { fontSize: 14, fontWeight: '700' },
+  backText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
   hero: { padding: 20, gap: 8 },
   heroEyebrow: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.75)',
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
   },
-  heroTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: '900' },
-  heroSub: { color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  heroTitle: { fontFamily: FONT, color: '#FFFFFF', fontSize: 28, fontWeight: '900' },
+  heroSub: { fontFamily: FONT, color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 18, fontWeight: '500' },
   heroBadge: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.22)',
@@ -278,15 +280,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  heroBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  heroBadgeText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
   heroQuote: {
     backgroundColor: 'rgba(255,255,255,0.16)',
     borderRadius: 10,
     padding: 12,
     marginTop: 2,
   },
-  heroQuoteText: { color: '#FFFFFF', fontSize: 14, lineHeight: 19, fontWeight: '600' },
-  heroMeta: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' },
+  heroQuoteText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 14, lineHeight: 19, fontWeight: '600' },
+  heroMeta: { fontFamily: FONT, color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' },
   heroActions: { flexDirection: 'row', gap: 10, marginTop: 6 },
   heroBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -294,16 +296,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  heroBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  heroBtnText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   totalCard: { backgroundColor: '#141024', padding: 20, gap: 4 },
   totalEyebrow: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.6)',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1,
   },
-  totalValue: { fontSize: 32, fontWeight: '900' },
-  totalSplit: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600' },
+  totalValue: { fontFamily: FONT_MONO, fontSize: 30, fontWeight: '700' },
+  totalSplit: { fontFamily: FONT, color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600' },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: {
     width: '47.8%',
@@ -319,14 +322,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tileValue: { fontSize: 22, fontWeight: '900' },
-  tileLabel: { fontSize: 12, fontWeight: '600' },
+  tileValue: { fontFamily: FONT, fontSize: 22, fontWeight: '900' },
+  tileLabel: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   groupCard: { padding: 16, gap: 12, borderWidth: StyleSheet.hairlineWidth },
-  groupTitle: { fontSize: 15, fontWeight: '800' },
+  groupTitle: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   cellRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cell: { width: '47.5%', flexGrow: 1, paddingVertical: 12, paddingHorizontal: 12, gap: 2 },
-  cellValue: { fontSize: 17, fontWeight: '800' },
-  cellLabel: { fontSize: 11, fontWeight: '600' },
+  cellValue: { fontFamily: FONT, fontSize: 17, fontWeight: '800' },
+  cellLabel: { fontFamily: FONT, fontSize: 11, fontWeight: '600' },
   breakRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -334,9 +337,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  breakLabel: { fontSize: 14, fontWeight: '700' },
-  breakAmount: { fontSize: 14, fontWeight: '800' },
-  footnote: { fontSize: 11, lineHeight: 15, fontWeight: '500' },
+  breakLabel: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  breakAmount: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  footnote: { fontFamily: FONT, fontSize: 11, lineHeight: 15, fontWeight: '500' },
   upgradeRow: {
     flexDirection: 'row',
     alignItems: 'center',

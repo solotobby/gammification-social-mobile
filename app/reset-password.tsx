@@ -9,6 +9,7 @@ import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { TextField } from '../src/components/ui/TextField';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 const MIN_LENGTH = 8;
 
@@ -134,6 +135,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   hint: {
+    fontFamily: FONT,
     fontSize: 13,
     fontWeight: '500',
     paddingHorizontal: 4,

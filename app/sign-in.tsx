@@ -15,6 +15,7 @@ import { TextField } from '../src/components/ui/TextField';
 import { signInSchema, type SignInValues } from '../src/forms/auth';
 import { activateSession, useLogin } from '../src/hooks/useAuth';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 export default function SignInScreen() {
   const { colors, typography, spacing } = useTheme();
@@ -166,6 +167,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   forgotText: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -179,6 +181,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   footerText: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: '500',
   },

@@ -9,6 +9,7 @@ import { StoryViewersSheet } from '../../src/components/stories/StoryViewersShee
 import { Avatar } from '../../src/components/ui/Avatar';
 import { currentUser } from '../../src/data/community';
 import { deleteStory, findStoryGroup, getStoryGroups, markStoriesSeen } from '../../src/data/stories';
+import { FONT } from '../../src/theme/fonts';
 
 /**
  * Full-screen story viewer: segmented progress bars auto-advance through a
@@ -252,8 +253,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   headerText: { flex: 1, gap: 1 },
-  headerName: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  headerTime: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '600' },
+  headerName: { fontFamily: FONT, color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  headerTime: { fontFamily: FONT, color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '600' },
   closeBtn: {
     width: 40,
     height: 40,
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 999,
   },
-  viewsText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  viewsText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   confirmBackdrop: {
     position: 'absolute',
     top: 0,
@@ -293,8 +294,8 @@ const styles = StyleSheet.create({
     padding: 22,
     gap: 8,
   },
-  confirmTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
-  confirmBody: { color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 20, fontWeight: '500' },
+  confirmTitle: { fontFamily: FONT, color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
+  confirmBody: { fontFamily: FONT, color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 20, fontWeight: '500' },
   confirmActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
   confirmBtn: {
     flex: 1,
@@ -304,16 +305,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   confirmCancel: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  confirmCancelText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  confirmCancelText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   confirmDelete: { backgroundColor: '#EF4444' },
-  confirmDeleteText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  confirmDeleteText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   missing: { flex: 1, alignItems: 'center', gap: 16, paddingHorizontal: 24 },
-  missingText: { color: 'rgba(255,255,255,0.8)', fontSize: 15, fontWeight: '600' },
+  missingText: { fontFamily: FONT, color: 'rgba(255,255,255,0.8)', fontSize: 15, fontWeight: '600' },
   missingBtn: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
   },
-  missingBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  missingBtnText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 });

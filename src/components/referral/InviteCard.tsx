@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useMyReferral } from '../../hooks/useMe';
 import { useTheme } from '../../theme/ThemeProvider';
 import { CopyField } from '../ui/CopyField';
+import { FONT } from '../../theme/fonts';
 
 /**
  * "Invite friends & earn together" card (moved here from Home). Carries both
@@ -54,6 +55,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   text: { flex: 1, gap: 3 },
-  title: { fontSize: 16, fontWeight: '800' },
-  sub: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  title: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
+  sub: { fontFamily: FONT, fontSize: 13, lineHeight: 18, fontWeight: '500' },
 });

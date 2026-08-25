@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useIsOffline } from '../../hooks/useIsOffline';
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 /** How long "Back online" stays up before the banner retracts. */
 const RECONNECTED_MS = 1800;
@@ -118,6 +119,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   message: {
+    fontFamily: FONT,
     flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',

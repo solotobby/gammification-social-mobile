@@ -45,6 +45,19 @@
       ],
       "expo-secure-store",
       [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PlusJakartaSans_400Regular.ttf",
+            "./assets/fonts/PlusJakartaSans_500Medium.ttf",
+            "./assets/fonts/PlusJakartaSans_600SemiBold.ttf",
+            "./assets/fonts/PlusJakartaSans_700Bold.ttf",
+            "./assets/fonts/PlusJakartaSans_800ExtraBold.ttf",
+            "./assets/fonts/SpaceMono_700Bold.ttf"
+          ]
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-logo-light.png",
@@ -65,7 +78,8 @@
             }
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "router": {},

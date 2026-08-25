@@ -25,6 +25,7 @@ import { useToggleFollow } from '../../src/hooks/useUser';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useEngagementStore } from '../../src/stores/engagementStore';
 import { useFollowStore } from '../../src/stores/followStore';
+import { FONT } from '../../src/theme/fonts';
 
 /**
  * Rolls — Payhankey's short-form video, a TikTok/IG-style vertical pager backed
@@ -539,6 +540,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   stateText: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     fontWeight: '600',
@@ -558,6 +560,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10,7,26,0.72)',
   },
   unplayableText: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.9)',
     fontSize: 13,
     fontWeight: '700',
@@ -592,7 +595,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   topLead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  topTitle: { color: '#FFFFFF', fontSize: 19, fontWeight: '900' },
+  topTitle: { fontFamily: FONT, color: '#FFFFFF', fontSize: 19, fontWeight: '900' },
   topActions: { flexDirection: 'row', gap: 10 },
   topBtn: {
     width: 38,
@@ -612,7 +615,7 @@ const styles = StyleSheet.create({
   },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   authorTap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  authorName: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  authorName: { fontFamily: FONT, color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   followBtn: {
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.8)',
@@ -621,11 +624,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   followingBtn: { borderColor: 'rgba(255,255,255,0.35)' },
-  followText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  caption: { color: '#FFFFFF', fontSize: 14, lineHeight: 19, fontWeight: '500' },
-  tags: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  followText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  caption: { fontFamily: FONT, color: '#FFFFFF', fontSize: 14, lineHeight: 19, fontWeight: '500' },
+  tags: { fontFamily: FONT, color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   audioRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  audio: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', flex: 1 },
+  audio: { fontFamily: FONT, color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', flex: 1 },
   rail: {
     position: 'absolute',
     right: 12,
@@ -633,7 +636,7 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   railBtn: { alignItems: 'center', gap: 3 },
-  railText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  railText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   menuBackdrop: {
     position: 'absolute',
     top: 0,
@@ -664,5 +667,5 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
   },
-  menuLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  menuLabel: { fontFamily: FONT, color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });

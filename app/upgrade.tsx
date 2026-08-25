@@ -9,6 +9,7 @@ import { BackButton } from '../src/components/ui/BackButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { SUBSCRIPTION_DISCOUNT, tiers, type Tier } from '../src/data/community';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /** The dummy user's current plan (matches "Basic level" on the Me tab). */
 const CURRENT_TIER: Tier['name'] = 'Basic';
@@ -292,8 +293,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   lede: {
+    fontFamily: FONT,
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '500',
@@ -314,14 +316,15 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   popularText: {
+    fontFamily: FONT,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   cardHeader: { gap: 3 },
-  tierName: { fontSize: 20, fontWeight: '800' },
-  tagline: { fontSize: 13, fontWeight: '500' },
+  tierName: { fontFamily: FONT, fontSize: 20, fontWeight: '800' },
+  tagline: { fontFamily: FONT, fontSize: 13, fontWeight: '500' },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -329,9 +332,9 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 8,
   },
-  price: { fontSize: 30, fontWeight: '900' },
-  priceWas: { fontSize: 15, fontWeight: '700', textDecorationLine: 'line-through' },
-  priceUnit: { fontSize: 13, fontWeight: '600' },
+  price: { fontFamily: FONT, fontSize: 30, fontWeight: '900' },
+  priceWas: { fontFamily: FONT, fontSize: 15, fontWeight: '700', textDecorationLine: 'line-through' },
+  priceUnit: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
   discountPill: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
@@ -339,9 +342,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginTop: 6,
   },
-  discountText: { fontSize: 11, fontWeight: '800' },
-  priceNote: { fontSize: 12, fontWeight: '600', marginTop: 6 },
-  bonusAmount: { fontWeight: '900' },
+  discountText: { fontFamily: FONT, fontSize: 11, fontWeight: '800' },
+  priceNote: { fontFamily: FONT, fontSize: 12, fontWeight: '600', marginTop: 6 },
+  bonusAmount: { fontFamily: FONT, fontWeight: '900' },
   billingToggle: {
     flexDirection: 'row',
     padding: 4,
@@ -362,18 +365,18 @@ const styles = StyleSheet.create({
     height: 42,
     paddingHorizontal: 8,
   },
-  billingText: { flexShrink: 1, fontSize: 13, fontWeight: '800' },
+  billingText: { fontFamily: FONT, flexShrink: 1, fontSize: 13, fontWeight: '800' },
   billingTag: { flexShrink: 0, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
-  billingTagText: { fontSize: 9, fontWeight: '900', letterSpacing: 0.3 },
-  billingNote: { fontSize: 12, lineHeight: 17, fontWeight: '500', textAlign: 'center' },
+  billingTagText: { fontFamily: FONT, fontSize: 9, fontWeight: '900', letterSpacing: 0.3 },
+  billingNote: { fontFamily: FONT, fontSize: 12, lineHeight: 17, fontWeight: '500', textAlign: 'center' },
   benefits: { gap: 10 },
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  benefitText: { flex: 1, fontSize: 14, fontWeight: '600' },
-  lockedText: { textDecorationLine: 'line-through', fontWeight: '500' },
+  benefitText: { fontFamily: FONT, flex: 1, fontSize: 14, fontWeight: '600' },
+  lockedText: { fontFamily: FONT, textDecorationLine: 'line-through', fontWeight: '500' },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -381,7 +384,7 @@ const styles = StyleSheet.create({
     gap: 8,
     height: 50,
   },
-  ctaText: { fontSize: 14, fontWeight: '800' },
+  ctaText: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
   note: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,5 +392,5 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  noteText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  noteText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
 });

@@ -30,6 +30,7 @@ import { useTrending } from '../../src/hooks/useExplore';
 import { useRollsFeed } from '../../src/hooks/useRolls';
 import { useSearchUsers } from '../../src/hooks/useUser';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 /** Ways to earn / learn that already have a screen — no dead ends on this page. */
 const OPPORTUNITIES: {
@@ -333,7 +334,7 @@ export default function DiscoverScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  title: { fontSize: 26, fontWeight: '800' },
+  title: { fontFamily: FONT, fontSize: 26, fontWeight: '800' },
   topicWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   topicChip: {
     flexDirection: 'row',
@@ -344,9 +345,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  topicFlame: { fontSize: 12 },
-  topicTag: { fontSize: 14, fontWeight: '800' },
-  topicCount: { fontSize: 12, fontWeight: '700' },
+  topicFlame: { fontFamily: FONT, fontSize: 12 },
+  topicTag: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  topicCount: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
   rollRail: { gap: 12, paddingRight: 4 },
   rollCard: {
     width: 124,
@@ -367,9 +368,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(10,7,26,0.55)',
   },
-  rollPlayText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
-  rollHandle: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  emptyRail: { fontSize: 13, fontWeight: '600', paddingVertical: 12 },
+  rollPlayText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  rollHandle: { fontFamily: FONT, color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  emptyRail: { fontFamily: FONT, fontSize: 13, fontWeight: '600', paddingVertical: 12 },
   communityRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -378,8 +379,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   communityText: { flex: 1, gap: 2 },
-  communityName: { fontSize: 15, fontWeight: '800' },
-  communityMeta: { fontSize: 12, fontWeight: '600' },
+  communityName: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  communityMeta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   oppGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   oppCard: {
     flexBasis: '47%',
@@ -396,8 +397,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 2,
   },
-  oppTitle: { fontSize: 14, fontWeight: '800' },
-  oppSub: { fontSize: 12, fontWeight: '600' },
+  oppTitle: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  oppSub: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   emptyWrap: { alignItems: 'center', gap: 10, paddingVertical: 32 },
-  emptyText: { fontSize: 14, fontWeight: '600' },
+  emptyText: { fontFamily: FONT, fontSize: 14, fontWeight: '600' },
 });

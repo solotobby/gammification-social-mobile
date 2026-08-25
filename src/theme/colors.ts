@@ -78,11 +78,22 @@ export const lightColors: ThemeColors = {
   gold: brand.gold,
   pink: brand.pink,
 
-  background: '#F6F4FF', // --ph-bg
-  backgroundElevated: '#EFEBFF', // --ph-surface
-  surface: '#FFFFFF',
-  surfaceAlt: '#EFEBFF',
-  border: 'rgba(90, 79, 220, 0.12)',
+  // Sampled from the live web app (payhankey.com, 2026-08-25) so light mode
+  // matches it exactly — the web is light-only, so none of this applies to
+  // dark mode below.
+  //
+  // The web's relationship is: page shell #EDF0F7, cards white on top of it,
+  // and insets (the comment input, `.form-control-alt`) back at #EDF0F7. So
+  // `background` and `surfaceAlt` being the same value is deliberate, not a
+  // copy-paste slip — an inset sits inside a white card, never on the page.
+  background: '#EDF0F7', // web page shell / --bs-light
+  backgroundElevated: '#F7F8FA', // web .pk-comments strip
+  surface: '#FFFFFF', // web .pk-card
+  surfaceAlt: '#EDF0F7', // web .form-control-alt (comment input)
+  // The web's form border (--bs-border-color), not its card border (#EFF3F4).
+  // #EFF3F4 is near-invisible against white and vanishes entirely against the
+  // page, which left every input looking unbordered; this reads on both.
+  border: '#DFE4F1',
 
   text: '#171331', // --ph-ink
   textSecondary: '#5A5578', // --ph-slate

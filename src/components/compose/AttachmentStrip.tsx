@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
 import type { MediaItem } from '../../data/media';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   media: MediaItem[];
@@ -76,7 +77,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: 'dashed',
   },
-  addText: { fontSize: 11, fontWeight: '700' },
+  addText: { fontFamily: FONT, fontSize: 11, fontWeight: '700' },
   videoBadge: {
     position: 'absolute',
     bottom: 6,

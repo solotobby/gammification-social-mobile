@@ -4,6 +4,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   uri: string;
@@ -97,5 +98,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { fontSize: 12, fontWeight: '600' },
+  metaText: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
 });

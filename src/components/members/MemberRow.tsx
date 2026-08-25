@@ -9,6 +9,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
 import { useFollowStore } from '../../stores/followStore';
 import type { Member } from '../../data/community';
+import { FONT } from '../../theme/fonts';
 
 /**
  * A member result row with a follow toggle — shared by Discover, the search
@@ -126,8 +127,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   memberText: { flex: 1, gap: 2 },
-  memberName: { fontSize: 15, fontWeight: '800' },
-  memberMeta: { fontSize: 13, fontWeight: '500' },
+  memberName: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  memberMeta: { fontFamily: FONT, fontSize: 13, fontWeight: '500' },
   followBtn: {
     paddingHorizontal: 14,
     height: 36,
@@ -136,5 +137,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  followText: { fontSize: 13, fontWeight: '800' },
+  followText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
 });

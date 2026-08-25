@@ -17,6 +17,7 @@ import {
 } from '../../src/data/communities';
 import { useFeedbackStore } from '../../src/stores/feedbackStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 const DESCRIPTION_MAX = 1000;
 const STATUSES: CommunityStatus[] = ['public', 'private', 'paid', 'approval'];
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  title: { flex: 1, fontSize: 22, fontWeight: '800' },
+  title: { fontFamily: FONT, flex: 1, fontSize: 22, fontWeight: '800' },
   close: {
     width: 36,
     height: 36,
@@ -257,11 +258,12 @@ const styles = StyleSheet.create({
     padding: 13,
     borderWidth: 1,
   },
-  currencyText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '500' },
-  currencyBold: { fontWeight: '800' },
+  currencyText: { fontFamily: FONT, flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '500' },
+  currencyBold: { fontFamily: FONT, fontWeight: '800' },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  counter: { fontSize: 11, fontWeight: '700' },
+  counter: { fontFamily: FONT, fontSize: 11, fontWeight: '700' },
   textarea: {
+    fontFamily: FONT,
     minHeight: 104,
     padding: 14,
     fontSize: 15,
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     borderWidth: StyleSheet.hairlineWidth,
   },
-  error: { fontSize: 12, fontWeight: '700' },
+  error: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
   statusCard: { padding: 14, gap: 8 },
   statusHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   radio: {
@@ -289,8 +291,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statusLabel: { flex: 1, fontSize: 15, fontWeight: '800' },
-  statusBlurb: { fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  statusLabel: { fontFamily: FONT, flex: 1, fontSize: 15, fontWeight: '800' },
+  statusBlurb: { fontFamily: FONT, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   adminNote: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,5 +300,5 @@ const styles = StyleSheet.create({
     padding: 13,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  adminText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '500' },
+  adminText: { fontFamily: FONT, flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '500' },
 });

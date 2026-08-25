@@ -12,6 +12,7 @@ import { TextField } from '../../src/components/ui/TextField';
 import { useSocials, useUpdateSocials } from '../../src/hooks/useAccount';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import type { Socials } from '../../src/api/types';
+import { FONT } from '../../src/theme/fonts';
 
 type NetworkKey = 'facebook' | 'instagram' | 'x' | 'linkedin' | 'pinterest';
 
@@ -135,8 +136,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   lede: {
+    fontFamily: FONT,
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '500',

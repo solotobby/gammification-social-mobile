@@ -10,6 +10,7 @@ import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../src/components/ui/SectionHeader';
 import { wallet } from '../src/data/community';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /**
  * Wallets — the balance breakdown the web shows (main / referral / promotion /
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   balanceCard: {
     padding: 22,
     gap: 6,
@@ -240,14 +241,15 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   balanceOverline: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.7)',
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
-  balanceValue: { color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
+  balanceLabel: { fontFamily: FONT, color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
+  balanceValue: { fontFamily: FONT, color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
   balanceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   balanceCell: {
     flexBasis: '47%',
@@ -264,9 +266,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  balanceCellValue: { fontSize: 20, fontWeight: '900' },
-  balanceCellLabel: { fontSize: 13, fontWeight: '700' },
-  balanceCellSub: { fontSize: 11, fontWeight: '500' },
+  balanceCellValue: { fontFamily: FONT, fontSize: 20, fontWeight: '900' },
+  balanceCellLabel: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
+  balanceCellSub: { fontFamily: FONT, fontSize: 11, fontWeight: '500' },
   planCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -285,7 +287,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     marginTop: 2,
   },
-  pendingText: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
+  pendingText: { fontFamily: FONT, color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
   withdrawBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,7 +298,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     marginTop: 14,
   },
-  withdrawText: { fontSize: 15, fontWeight: '800' },
+  withdrawText: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   gateBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -304,8 +306,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  gateText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  gateBold: { fontWeight: '800' },
+  gateText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  gateBold: { fontFamily: FONT, fontWeight: '800' },
   stepsCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
@@ -324,8 +326,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepText: { flex: 1, gap: 1 },
-  stepLabel: { fontSize: 15, fontWeight: '700' },
-  stepSub: { fontSize: 12, fontWeight: '500' },
+  stepLabel: { fontFamily: FONT, fontSize: 15, fontWeight: '700' },
+  stepSub: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   historyCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
@@ -344,7 +346,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   txText: { flex: 1, gap: 1 },
-  txLabel: { fontSize: 14, fontWeight: '700' },
-  txDate: { fontSize: 12, fontWeight: '500' },
-  txAmount: { fontSize: 15, fontWeight: '800' },
+  txLabel: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  txDate: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
+  txAmount: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
 });

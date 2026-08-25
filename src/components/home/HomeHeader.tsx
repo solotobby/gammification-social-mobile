@@ -11,6 +11,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { EarningsPulse } from './EarningsPulse';
 import { FeedTabs, type FeedTab } from './FeedTabs';
+import { FONT } from '../../theme/fonts';
 
 /**
  * Everything above the feed on Home: greeting row (profile, search,
@@ -125,8 +126,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerText: { flex: 1 },
-  hello: { fontSize: 13, fontWeight: '600' },
-  helloName: { fontSize: 20, fontWeight: '800' },
+  hello: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
+  helloName: { fontFamily: FONT, fontSize: 20, fontWeight: '800' },
   iconButton: {
     width: 44,
     height: 44,
@@ -151,7 +152,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  composerHint: { flex: 1, fontSize: 14, fontWeight: '500' },
+  composerHint: { fontFamily: FONT, flex: 1, fontSize: 14, fontWeight: '500' },
   composerAction: {
     width: 38,
     height: 38,

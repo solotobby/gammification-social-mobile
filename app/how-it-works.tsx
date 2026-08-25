@@ -10,6 +10,7 @@ import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../src/components/ui/SectionHeader';
 import { earnings } from '../src/data/community';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 const STEPS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
   {
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   pitch: {
     padding: 22,
     gap: 8,
@@ -205,8 +206,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  pitchTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
+  pitchTitle: { fontFamily: FONT, color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
   pitchBody: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.85)',
     fontSize: 14,
     lineHeight: 20,
@@ -229,10 +231,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepNumber: { fontSize: 11, fontWeight: '800' },
+  stepNumber: { fontFamily: FONT, fontSize: 11, fontWeight: '800' },
   stepText: { flex: 1, gap: 3 },
-  stepTitle: { fontSize: 15, fontWeight: '800' },
-  stepBody: { fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  stepTitle: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  stepBody: { fontFamily: FONT, fontSize: 13, lineHeight: 19, fontWeight: '500' },
   faqCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
@@ -247,6 +249,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  faqQuestion: { flex: 1, fontSize: 14, fontWeight: '700' },
-  faqAnswer: { fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  faqQuestion: { fontFamily: FONT, flex: 1, fontSize: 14, fontWeight: '700' },
+  faqAnswer: { fontFamily: FONT, fontSize: 13, lineHeight: 19, fontWeight: '500' },
 });

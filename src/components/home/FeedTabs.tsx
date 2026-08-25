@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 /** Which slice of the timeline Home is showing. */
 export type FeedTab = 'for-you' | 'following';
@@ -65,6 +66,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   tab: { flex: 1, alignItems: 'center', gap: 8 },
-  label: { fontSize: 15, fontWeight: '800' },
+  label: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   underline: { height: 3, width: 46, borderRadius: 2 },
 });

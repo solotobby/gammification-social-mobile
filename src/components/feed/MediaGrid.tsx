@@ -7,6 +7,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import type { MediaItem } from '../../data/media';
 import { FeedVideo } from './FeedVideo';
 import { MediaViewer } from './MediaViewer';
+import { FONT } from '../../theme/fonts';
 
 const GAP = 4;
 
@@ -155,5 +156,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  overflowText: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
+  overflowText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
 });

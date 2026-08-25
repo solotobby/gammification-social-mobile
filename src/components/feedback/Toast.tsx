@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFeedbackStore, type ToastKind } from '../../stores/feedbackStore';
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 const SHOW_MS = 3200;
 
@@ -113,6 +114,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   message: {
+    fontFamily: FONT,
     flexShrink: 1,
     fontSize: 14,
     fontWeight: '600',

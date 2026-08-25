@@ -19,6 +19,7 @@ import {
   trendingCommunities,
 } from '../../src/data/communities';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 /** Chips above the list: the two membership views, then every category. */
 const FILTERS = ['All', 'Joined', 'My communities', ...COMMUNITY_CATEGORIES] as const;
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   createCard: {
     padding: 20,
     gap: 8,
@@ -230,8 +231,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  createTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
+  createTitle: { fontFamily: FONT, color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
   createBlurb: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.82)',
     fontSize: 13,
     lineHeight: 19,
@@ -246,7 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginTop: 8,
   },
-  createBtnText: { fontSize: 14, fontWeight: '800' },
+  createBtnText: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
   trendRail: { gap: 12, paddingRight: 4 },
   trendCard: {
     width: 148,
@@ -255,9 +257,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   trendTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  trendRank: { fontSize: 15, fontWeight: '900' },
-  trendName: { fontSize: 14, fontWeight: '800', marginTop: 2 },
-  trendMeta: { fontSize: 12, fontWeight: '600' },
+  trendRank: { fontFamily: FONT, fontSize: 15, fontWeight: '900' },
+  trendName: { fontFamily: FONT, fontSize: 14, fontWeight: '800', marginTop: 2 },
+  trendMeta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   chipRail: { gap: 8, paddingRight: 4 },
   chip: {
     paddingHorizontal: 15,
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  chipText: { fontSize: 13, fontWeight: '700' },
+  chipText: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
   emptyWrap: { alignItems: 'center', gap: 10, paddingVertical: 34 },
-  emptyText: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  emptyText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', textAlign: 'center' },
 });

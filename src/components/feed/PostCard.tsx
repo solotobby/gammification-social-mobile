@@ -15,6 +15,7 @@ import { HashtagText } from "../ui/HashtagText";
 import { MediaGrid } from "./MediaGrid";
 import { PostMenu } from "./PostMenu";
 import type { Comment, Post } from "../../data/community";
+import { FONT, FONT_MONO } from '../../theme/fonts';
 
 type Props = {
   post: Post;
@@ -430,8 +431,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerText: { flex: 1, gap: 1 },
-  name: { fontSize: 15, fontWeight: "800" },
-  meta: { fontSize: 13, fontWeight: "500" },
+  name: { fontFamily: FONT, fontSize: 15, fontWeight: "800" },
+  meta: { fontFamily: FONT, fontSize: 13, fontWeight: "500" },
   earnedPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -441,8 +442,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  earnedText: { fontSize: 12, fontWeight: "800" },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: "400" },
+  earnedText: { fontFamily: FONT_MONO, fontSize: 12, fontWeight: "700" },
+  body: { fontFamily: FONT, fontSize: 15, lineHeight: 22, fontWeight: "400" },
   pendingMedia: {
     flexDirection: "row",
     alignItems: "center",
@@ -451,9 +452,9 @@ const styles = StyleSheet.create({
     height: 92,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  pendingText: { fontSize: 13, fontWeight: "600" },
+  pendingText: { fontFamily: FONT, fontSize: 13, fontWeight: "600" },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  tag: { fontSize: 14, fontWeight: "700" },
+  tag: { fontFamily: FONT, fontSize: 14, fontWeight: "700" },
   likedByRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -464,8 +465,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 13,
   },
-  likedText: { flex: 1, fontSize: 13, fontWeight: "500" },
-  likedName: { fontWeight: "800" },
+  likedText: { fontFamily: FONT, flex: 1, fontSize: 13, fontWeight: "500" },
+  likedName: { fontFamily: FONT, fontWeight: "800" },
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -480,7 +481,7 @@ const styles = StyleSheet.create({
     gap: 6,
     minWidth: 42,
   },
-  actionText: { fontSize: 13, fontWeight: "700" },
+  actionText: { fontFamily: FONT, fontSize: 13, fontWeight: "700" },
   commentStrip: { gap: 8 },
   commentRow: {
     flexDirection: "row",
@@ -489,15 +490,16 @@ const styles = StyleSheet.create({
   },
   commentBody: { flex: 1, gap: 2 },
   commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  commentName: { flexShrink: 1, fontSize: 13, fontWeight: "800" },
-  commentTime: { fontSize: 11, fontWeight: "600" },
-  commentText: { fontSize: 13, lineHeight: 18, fontWeight: "400" },
+  commentName: { fontFamily: FONT, flexShrink: 1, fontSize: 13, fontWeight: "800" },
+  commentTime: { fontFamily: FONT, fontSize: 11, fontWeight: "600" },
+  commentText: { fontFamily: FONT, fontSize: 13, lineHeight: 18, fontWeight: "400" },
   composerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   composerInput: {
+    fontFamily: FONT,
     flex: 1,
     height: 38,
     borderRadius: 19,

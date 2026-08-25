@@ -25,6 +25,7 @@ import { newCommentId, useAddComment, usePost } from '../../src/hooks/useTimelin
 import { useAuthStore } from '../../src/stores/authStore';
 import { NO_COMMENTS, useEngagementStore } from '../../src/stores/engagementStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 /**
  * Post detail — the full post with its comment thread and a comment box.
@@ -220,12 +221,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   postCard: {
     padding: 18,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  commentsTitle: { fontSize: 17, fontWeight: '800' },
+  commentsTitle: { fontFamily: FONT, fontSize: 17, fontWeight: '800' },
   commentRow: {
     flexDirection: 'row',
     gap: 12,
@@ -234,14 +235,14 @@ const styles = StyleSheet.create({
   },
   commentBody: { flex: 1, gap: 3 },
   commentHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  commentName: { flex: 1, fontSize: 14, fontWeight: '800' },
-  commentTime: { fontSize: 12, fontWeight: '600' },
-  commentText: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
+  commentName: { fontFamily: FONT, flex: 1, fontSize: 14, fontWeight: '800' },
+  commentTime: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
+  commentText: { fontFamily: FONT, fontSize: 14, lineHeight: 20, fontWeight: '400' },
   missing: { paddingHorizontal: 24, gap: 24 },
-  missingText: { fontSize: 15, fontWeight: '600' },
+  missingText: { fontFamily: FONT, fontSize: 15, fontWeight: '600' },
   loadingWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   emptyWrap: { alignItems: 'center', gap: 8, paddingVertical: 26, paddingHorizontal: 24 },
-  emptyText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  emptyText: { fontFamily: FONT, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -251,6 +252,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   input: {
+    fontFamily: FONT,
     flex: 1,
     height: 42,
     borderRadius: 21,

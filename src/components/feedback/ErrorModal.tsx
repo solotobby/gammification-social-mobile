@@ -5,6 +5,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFeedbackStore } from '../../stores/feedbackStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { GradientButton } from '../ui/GradientButton';
+import { FONT } from '../../theme/fonts';
 
 /**
  * Blocking dialog for hard failures (no connection, server errors) — renders
@@ -91,6 +92,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   title: {
+    fontFamily: FONT,
     fontSize: 22,
     textAlign: 'center',
   },

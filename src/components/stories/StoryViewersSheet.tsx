@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import type { StoryItem } from '../../data/stories';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   item: StoryItem;
@@ -81,11 +82,11 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { flex: 1, fontSize: 16, fontWeight: '800' },
+  title: { fontFamily: FONT, flex: 1, fontSize: 16, fontWeight: '800' },
   list: { marginTop: 12 },
-  empty: { fontSize: 13, fontWeight: '600', paddingVertical: 14 },
+  empty: { fontFamily: FONT, fontSize: 13, fontWeight: '600', paddingVertical: 14 },
   viewerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   viewerText: { flex: 1, gap: 1 },
-  viewerName: { fontSize: 14, fontWeight: '800' },
-  viewerHandle: { fontSize: 12, fontWeight: '600' },
+  viewerName: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  viewerHandle: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
 });

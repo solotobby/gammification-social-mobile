@@ -7,20 +7,24 @@ import { Avatar } from '../ui/Avatar';
 import { useToggleFollow } from '../../hooks/useUser';
 import { useAuthStore } from '../../stores/authStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
+import { useFollowStore } from '../../stores/followStore';
 import type { Member } from '../../data/community';
+import { FONT } from '../../theme/fonts';
 
 /**
- * A member result row with a follow toggle — shared by Explore, the search
+ * A member result row with a follow toggle — shared by Discover, the search
  * screen, and anywhere else people are listed. Tapping the row opens the
  * member's profile; the follow button hits /user/toggle/follow optimistically.
  *
  * The search / trending endpoints don't report whether the signed-in user
- * already follows each result, so the button starts on "Follow" (or an
- * `initiallyFollowing` override) and the returned state reconciles it.
+ * already follows each result, so the button starts from the device's follow
+ * store (or an `initiallyFollowing` override) and the returned state reconciles
+ * it. Every toggle is mirrored back into that store, which is what fills Home's
+ * Following tab — see src/stores/followStore.ts.
  */
 export function MemberRow({
   member,
-  initiallyFollowing = false,
+  initiallyFollowing,
 }: {
   member: Member;
   initiallyFollowing?: boolean;
@@ -29,7 +33,9 @@ export function MemberRow({
   const router = useRouter();
   const toggleFollow = useToggleFollow();
   const showToast = useFeedbackStore((s) => s.showToast);
-  const [following, setFollowing] = useState(initiallyFollowing);
+  const knownFollowing = useFollowStore((s) => !!s.following[member.id]);
+  const setStoredFollowing = useFollowStore((s) => s.setFollowing);
+  const [following, setFollowing] = useState(initiallyFollowing ?? knownFollowing);
 
   // You can't follow yourself — hide the button when this row is the signed-in
   // user. Matched on either identifier: not every list endpoint returns ids
@@ -43,10 +49,15 @@ export function MemberRow({
     if (toggleFollow.isPending) return;
     const next = !following;
     setFollowing(next); // optimistic
+    setStoredFollowing(member.id, next);
     toggleFollow.mutate(member.id, {
-      onSuccess: (data) => setFollowing(data.following),
+      onSuccess: (data) => {
+        setFollowing(data.following);
+        setStoredFollowing(member.id, data.following);
+      },
       onError: () => {
         setFollowing(!next);
+        setStoredFollowing(member.id, !next);
         showToast("Couldn't update follow — please try again.", 'error');
       },
     });
@@ -116,8 +127,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   memberText: { flex: 1, gap: 2 },
-  memberName: { fontSize: 15, fontWeight: '800' },
-  memberMeta: { fontSize: 13, fontWeight: '500' },
+  memberName: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  memberMeta: { fontFamily: FONT, fontSize: 13, fontWeight: '500' },
   followBtn: {
     paddingHorizontal: 14,
     height: 36,
@@ -126,5 +137,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  followText: { fontSize: 13, fontWeight: '800' },
+  followText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
 });

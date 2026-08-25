@@ -8,6 +8,7 @@ import { BackButton } from '../src/components/ui/BackButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { notifications, type AppNotification } from '../src/data/community';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /** Icon + accent per notification kind. */
 function useKindMeta() {
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -113,9 +114,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowText: { flex: 1, gap: 4 },
-  text: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  text: { fontFamily: FONT, fontSize: 14, lineHeight: 20, fontWeight: '600' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  time: { fontSize: 12, fontWeight: '600' },
-  amount: { fontSize: 12, fontWeight: '800' },
+  time: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
+  amount: { fontFamily: FONT, fontSize: 12, fontWeight: '800' },
   unreadDot: { width: 8, height: 8, borderRadius: 4 },
 });

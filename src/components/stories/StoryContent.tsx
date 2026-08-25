@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { STORY_BACKGROUNDS, type StoryItem } from '../../data/stories';
+import { FONT } from '../../theme/fonts';
 
 function StoryVideo({ item, active }: { item: StoryItem; active: boolean }) {
   const player = useVideoPlayer(item.uri ?? null, (p) => {
@@ -61,6 +62,7 @@ const styles = StyleSheet.create({
   video: { width: '100%', height: '100%' },
   textWrap: { alignItems: 'center', justifyContent: 'center', padding: 32 },
   textBody: {
+    fontFamily: FONT,
     color: '#FFFFFF',
     fontSize: 26,
     lineHeight: 36,
@@ -75,6 +77,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   caption: {
+    fontFamily: FONT,
     color: '#FFFFFF',
     fontSize: 17,
     lineHeight: 24,

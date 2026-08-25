@@ -10,6 +10,7 @@ import { GhostButton } from '../src/components/ui/GhostButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { useTrendingHashtags } from '../src/hooks/useExplore';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /** Full ranked list behind the dashboard's "Trending Topics" card. */
 export default function TrendingTopicsScreen() {
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   subBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  subText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  subText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -144,10 +145,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  rank: { width: 22, fontSize: 16, fontWeight: '900', textAlign: 'center' },
+  rank: { fontFamily: FONT, width: 22, fontSize: 16, fontWeight: '900', textAlign: 'center' },
   rowText: { flex: 1, gap: 2 },
-  tag: { fontSize: 16, fontWeight: '800' },
-  count: { fontSize: 12, fontWeight: '600' },
+  tag: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
+  count: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   stateWrap: { alignItems: 'center', gap: 14, paddingVertical: 34, paddingHorizontal: 24 },
-  stateText: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  stateText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', textAlign: 'center' },
 });

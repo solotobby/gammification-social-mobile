@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
 import type { MediaItem } from '../../data/media';
+import { FONT } from '../../theme/fonts';
 
 /** Hard ceiling for tall screens, so a portrait clip can't eat the whole feed. */
 const MAX_HEIGHT = 460;
@@ -175,12 +176,14 @@ const styles = StyleSheet.create({
   },
   errorBox: { alignItems: 'center', gap: 6, paddingHorizontal: 24 },
   errorText: {
+    fontFamily: FONT,
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
   },
   errorDetail: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.7)',
     fontSize: 11,
     fontWeight: '500',
@@ -196,5 +199,5 @@ const styles = StyleSheet.create({
   durationPill: { bottom: 10, right: 10, paddingHorizontal: 8, paddingVertical: 3 },
   mutePill: { top: 10, right: 10, width: 30, height: 30 },
   expandPill: { top: 10, left: 10, width: 30, height: 30 },
-  pillText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  pillText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
 });

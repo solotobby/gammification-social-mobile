@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 export type SelectOption = { label: string; value: string };
 
@@ -51,7 +52,7 @@ export function SelectField({
         style={[
           styles.field,
           {
-            backgroundColor: colors.surfaceAlt,
+            backgroundColor: colors.surface,
             borderColor: colors.border,
             borderRadius: radius.md,
           },
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   leading: { marginRight: 12 },
-  value: { flex: 1, fontSize: 16, fontWeight: '500' },
+  value: { fontFamily: FONT, flex: 1, fontSize: 16, fontWeight: '500' },
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -165,6 +166,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
+    fontFamily: FONT,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 8,
@@ -178,5 +180,5 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 12,
   },
-  rowText: { fontSize: 16, fontWeight: '600' },
+  rowText: { fontFamily: FONT, fontSize: 16, fontWeight: '600' },
 });

@@ -55,8 +55,11 @@ export function GradientButton({
         accessibilityLabel={label}
         accessibilityState={{ disabled: !!blocked, busy: !!loading }}
       >
+        {/* Deep -> bright, matching the web's
+            `linear-gradient(135deg, var(--ph-violet), var(--ph-violet-bright))`
+            on .ph-post-btn. */}
         <LinearGradient
-          colors={[brand.violetBright, brand.violet]}
+          colors={[brand.violet, brand.violetBright]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[

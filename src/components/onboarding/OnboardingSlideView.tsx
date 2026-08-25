@@ -12,6 +12,7 @@ import {
 
 import type { OnboardingSlide } from '../../data/onboarding';
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   slide: OnboardingSlide;
@@ -278,12 +279,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipLabel: {
+    fontFamily: FONT,
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   chipValue: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: '800',
   },

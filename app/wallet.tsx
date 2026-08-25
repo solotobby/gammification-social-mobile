@@ -8,37 +8,73 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/ui/BackButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../src/components/ui/SectionHeader';
-import { transactions, wallet } from '../src/data/community';
+import { wallet } from '../src/data/community';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /**
- * Wallets — balance card, the (gated) withdraw action, and a payout history
- * preview that links out to /transactions. Withdrawals unlock once bank info
- * exists and the account is Creator/Influencer tier.
+ * Wallets — the balance breakdown the web shows (main / referral / promotion /
+ * total withdrawn), the current plan, the gated withdraw action, and a payout
+ * history preview that links out to /transactions. Withdrawals unlock once bank
+ * info exists and the account is Creator/Influencer tier.
+ *
+ * The web page embeds the whole plan checkout here; on mobile the plan cards
+ * already live on /upgrade, so this shows plan *status* and links there rather
+ * than carrying a second copy of the pricing table.
  */
 export default function WalletScreen() {
   const { colors, brand, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const recent = transactions.slice(0, 3);
-
-  const unlockSteps = [
+  const balances = [
     {
       icon: 'card-outline' as const,
-      label: 'Add bank information',
-      sub: 'Where your payouts land',
-      route: '/bank-info',
-      done: wallet.hasBankInfo,
+      label: 'Main balance',
+      sub: 'Content monetization',
+      value: wallet.mainBalance,
+      accent: colors.brand,
     },
     {
-      icon: 'arrow-up-circle-outline' as const,
-      label: 'Upgrade',
-      sub: 'Only Creator or Influencer receives payout',
-      route: '/upgrade',
-      done: false,
+      icon: 'people-outline' as const,
+      label: 'Referral balance',
+      sub: 'From people you invited',
+      value: wallet.referralBalance,
+      accent: colors.mint,
+    },
+    {
+      icon: 'megaphone-outline' as const,
+      label: 'Promotion balance',
+      sub: 'Campaign credits',
+      value: wallet.promotionBalance,
+      accent: colors.gold,
+    },
+    {
+      icon: 'arrow-down-outline' as const,
+      label: 'Total withdrawn',
+      sub: 'Paid out to your bank',
+      value: wallet.totalWithdrawn,
+      accent: colors.pink,
     },
   ];
+
+  // Commented out with the steps card it feeds — restore both together.
+  // const unlockSteps = [
+  //   {
+  //     icon: 'card-outline' as const,
+  //     label: 'Add bank information',
+  //     sub: 'Where your payouts land',
+  //     route: '/bank-info',
+  //     done: wallet.hasBankInfo,
+  //   },
+  //   {
+  //     icon: 'arrow-up-circle-outline' as const,
+  //     label: 'Upgrade',
+  //     sub: 'Only Creator or Influencer receives payout',
+  //     route: '/upgrade',
+  //     done: false,
+  //   },
+  // ];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -65,7 +101,8 @@ export default function WalletScreen() {
           end={{ x: 1, y: 1 }}
           style={[styles.balanceCard, { borderRadius: radius.lg, shadowColor: brand.violet }]}
         >
-          <Text style={styles.balanceLabel}>Available balance</Text>
+          <Text style={styles.balanceOverline}>Wallet · {wallet.plan}</Text>
+          <Text style={styles.balanceLabel}>Your earnings</Text>
           <Text style={styles.balanceValue}>₦{wallet.balance.toLocaleString()}</Text>
           <View style={styles.pendingChip}>
             <Ionicons name="hourglass-outline" size={13} color="rgba(255,255,255,0.85)" />
@@ -73,15 +110,64 @@ export default function WalletScreen() {
               ₦{wallet.pendingValidation.toLocaleString()} pending validation
             </Text>
           </View>
-
-          {/* <View
-            style={[styles.withdrawBtn, { borderRadius: radius.pill }]}
-            accessibilityLabel="Withdraw (locked)"
-          >
-            <Ionicons name="lock-closed" size={16} color={brand.violet} />
-            <Text style={[styles.withdrawText, { color: brand.violet }]}>Withdraw</Text>
-          </View> */}
         </LinearGradient>
+
+        {/* Balance breakdown */}
+        <View style={styles.balanceGrid}>
+          {balances.map((item) => (
+            <View
+              key={item.label}
+              style={[
+                styles.balanceCell,
+                { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
+              ]}
+            >
+              <View style={[styles.balanceIcon, { backgroundColor: `${item.accent}1A` }]}>
+                <Ionicons name={item.icon} size={17} color={item.accent} />
+              </View>
+              <Text style={[styles.balanceCellValue, { color: colors.text }]}>
+                ₦{item.value.toLocaleString()}
+              </Text>
+              <Text style={[styles.balanceCellLabel, { color: colors.text }]}>
+                {item.label}
+              </Text>
+              <Text style={[styles.balanceCellSub, { color: colors.textMuted }]} numberOfLines={1}>
+                {item.sub}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Plan status */}
+        <Pressable
+          onPress={() => router.push('/upgrade')}
+          accessibilityRole="button"
+          accessibilityLabel="Change your plan"
+          style={({ pressed }) => [
+            styles.planCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: `${colors.brand}33`,
+              borderRadius: radius.lg,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <View style={[styles.stepIcon, { backgroundColor: `${colors.brand}1A` }]}>
+            <Ionicons name="ribbon-outline" size={19} color={colors.brand} />
+          </View>
+          <View style={styles.stepText}>
+            <Text style={[styles.stepLabel, { color: colors.text }]}>
+              Current plan · {wallet.plan}
+            </Text>
+            <Text style={[styles.stepSub, { color: colors.textMuted }]}>
+              {wallet.plan === 'Basic'
+                ? 'Upgrade to unlock monetization and withdrawals'
+                : 'Manage or change your subscription'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
 
         {/* Withdrawal gate */}
         <View
@@ -97,6 +183,7 @@ export default function WalletScreen() {
           </Text>
         </View>
 
+        {/* Add bank information / Upgrade steps — hidden for now.
         <View
           style={[
             styles.stepsCard,
@@ -129,51 +216,9 @@ export default function WalletScreen() {
             </Pressable>
           ))}
         </View>
+        */}
 
-        {/* Payout history preview */}
-        <View style={{ gap: spacing.md }}>
-          <SectionHeader
-            title="Payout history"
-            icon="receipt"
-            onSeeAll={() => router.push('/transactions')}
-          />
-          <View
-            style={[
-              styles.historyCard,
-              { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
-            ]}
-          >
-            {recent.map((tx, index) => (
-              <View
-                key={tx.id}
-                style={[
-                  styles.txRow,
-                  index > 0 && {
-                    borderTopWidth: StyleSheet.hairlineWidth,
-                    borderTopColor: colors.border,
-                  },
-                ]}
-              >
-                <View style={[styles.txIcon, { backgroundColor: `${colors.mint}1A` }]}>
-                  <Ionicons
-                    name={tx.kind === 'payout' ? 'cash-outline' : 'gift-outline'}
-                    size={18}
-                    color={colors.mint}
-                  />
-                </View>
-                <View style={styles.txText}>
-                  <Text style={[styles.txLabel, { color: colors.text }]} numberOfLines={1}>
-                    {tx.description}
-                  </Text>
-                  <Text style={[styles.txDate, { color: colors.textMuted }]}>{tx.date}</Text>
-                </View>
-                <Text style={[styles.txAmount, { color: colors.mint }]}>
-                  +₦{tx.amount.toLocaleString()}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
+        {/* Payout history now lives on the Earn tab. */}
       </ScrollView>
     </View>
   );
@@ -186,7 +231,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   balanceCard: {
     padding: 22,
     gap: 6,
@@ -195,8 +240,42 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
-  balanceValue: { color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
+  balanceOverline: {
+    fontFamily: FONT,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  balanceLabel: { fontFamily: FONT, color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
+  balanceValue: { fontFamily: FONT, color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
+  balanceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  balanceCell: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    padding: 14,
+    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  balanceIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  balanceCellValue: { fontFamily: FONT, fontSize: 20, fontWeight: '900' },
+  balanceCellLabel: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
+  balanceCellSub: { fontFamily: FONT, fontSize: 11, fontWeight: '500' },
+  planCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderWidth: 1,
+  },
   pendingChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,7 +287,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     marginTop: 2,
   },
-  pendingText: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
+  pendingText: { fontFamily: FONT, color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
   withdrawBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,7 +298,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     marginTop: 14,
   },
-  withdrawText: { fontSize: 15, fontWeight: '800' },
+  withdrawText: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   gateBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -227,8 +306,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  gateText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  gateBold: { fontWeight: '800' },
+  gateText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  gateBold: { fontFamily: FONT, fontWeight: '800' },
   stepsCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
@@ -247,8 +326,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepText: { flex: 1, gap: 1 },
-  stepLabel: { fontSize: 15, fontWeight: '700' },
-  stepSub: { fontSize: 12, fontWeight: '500' },
+  stepLabel: { fontFamily: FONT, fontSize: 15, fontWeight: '700' },
+  stepSub: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   historyCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
@@ -267,7 +346,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   txText: { flex: 1, gap: 1 },
-  txLabel: { fontSize: 14, fontWeight: '700' },
-  txDate: { fontSize: 12, fontWeight: '500' },
-  txAmount: { fontSize: 15, fontWeight: '800' },
+  txLabel: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  txDate: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
+  txAmount: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
 });

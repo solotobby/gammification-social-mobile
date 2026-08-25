@@ -30,6 +30,7 @@ import { useCreatePost } from '../src/hooks/useTimeline';
 import { useAuthStore } from '../src/stores/authStore';
 import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /**
  * Compose modal — posts to the timeline API as multipart form data (`content`
@@ -391,8 +392,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: '800' },
-  counter: { fontSize: 13, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, flex: 1, fontSize: 20, fontWeight: '800' },
+  counter: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
   editorCard: {
     padding: 18,
     gap: 14,
@@ -400,8 +401,8 @@ const styles = StyleSheet.create({
   },
   editorHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   editorHeaderText: { flex: 1 },
-  editorName: { fontSize: 15, fontWeight: '800' },
-  editorHandle: { fontSize: 13, fontWeight: '500' },
+  editorName: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  editorHandle: { fontFamily: FONT, fontSize: 13, fontWeight: '500' },
   levelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -411,8 +412,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  levelText: { fontSize: 12, fontWeight: '800' },
+  levelText: { fontFamily: FONT, fontSize: 12, fontWeight: '800' },
   input: {
+    fontFamily: FONT,
     minHeight: 130,
     fontSize: 17,
     lineHeight: 25,
@@ -428,7 +430,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  mediaBtnText: { fontSize: 13, fontWeight: '700' },
+  mediaBtnText: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
   tierBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -436,8 +438,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  tierText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  tierEmphasis: { fontWeight: '800' },
+  tierText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  tierEmphasis: { fontFamily: FONT, fontWeight: '800' },
   hintBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -445,7 +447,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  hintText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  hintText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -453,5 +455,5 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  errorText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  errorText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '600' },
 });

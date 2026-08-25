@@ -9,6 +9,7 @@ import { BackButton } from '../src/components/ui/BackButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { blogPosts } from '../src/data/community';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { FONT } from '../src/theme/fonts';
 
 /**
  * Blog — tips & product stories as a card list. The newest story gets the
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   featured: {
     padding: 22,
     gap: 10,
@@ -114,20 +115,22 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   featuredPillText: {
+    fontFamily: FONT,
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  featuredTitle: { color: '#FFFFFF', fontSize: 21, lineHeight: 27, fontWeight: '800' },
+  featuredTitle: { fontFamily: FONT, color: '#FFFFFF', fontSize: 21, lineHeight: 27, fontWeight: '800' },
   featuredExcerpt: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.82)',
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '500',
   },
-  featuredMeta: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: '600' },
+  featuredMeta: { fontFamily: FONT, color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: '600' },
   card: {
     padding: 18,
     gap: 8,
@@ -140,12 +143,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   categoryText: {
+    fontFamily: FONT,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  cardTitle: { fontSize: 17, lineHeight: 22, fontWeight: '800' },
-  cardExcerpt: { fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  cardMeta: { fontSize: 12, fontWeight: '600' },
+  cardTitle: { fontFamily: FONT, fontSize: 17, lineHeight: 22, fontWeight: '800' },
+  cardExcerpt: { fontFamily: FONT, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  cardMeta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
 });

@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   title: string;
@@ -42,6 +43,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  title: { fontSize: 18, fontWeight: '800' },
-  seeAll: { fontSize: 14, fontWeight: '700' },
+  title: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
+  seeAll: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
 });

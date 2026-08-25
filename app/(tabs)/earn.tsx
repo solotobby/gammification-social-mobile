@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,9 +9,12 @@ import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
+import { transactions } from '../../src/data/community';
+import { useCurrency } from '../../src/hooks/useCurrency';
 import { useMonthlyAnalytics, useYearlyAnalytics } from '../../src/hooks/useEarnings';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import type { MonthlyAnalytics } from '../../src/api/types';
+import { FONT } from '../../src/theme/fonts';
 
 type StatCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -37,6 +41,27 @@ function StatCard({ icon, label, value, accent }: StatCardProps) {
   );
 }
 
+/**
+ * The ways an account can make money on Payhankey. Every row points at a screen
+ * that exists today — Subscriptions joins the list when it's real, not before.
+ *
+ * Commented out along with the "Earn from Payhankey" section it feeds; nothing
+ * else reads it. Restore both together.
+ */
+// const WAYS_TO_EARN: {
+//   icon: keyof typeof Ionicons.glyphMap;
+//   label: string;
+//   sub: string;
+//   route: string;
+// }[] = [
+//   { icon: 'document-text-outline', label: 'Content', sub: 'Earn from eligible engagement', route: '/how-it-works' },
+//   { icon: 'film-outline', label: 'Rolls', sub: 'Short videos, more reach', route: '/rolls' },
+//   { icon: 'people-circle-outline', label: 'Communities', sub: 'Build and monetize a community', route: '/communities' },
+//   { icon: 'gift-outline', label: 'Referrals', sub: 'Invite people, earn rewards', route: '/referrals' },
+//   { icon: 'arrow-up-circle-outline', label: 'Creator programs', sub: 'Unlock a higher level', route: '/upgrade' },
+//   { icon: 'wallet-outline', label: 'Withdraw', sub: 'Move earnings to your bank', route: '/wallet' },
+// ];
+
 /** "2026-07" → { num: 7, short: "Jul" } for chips and the activity heading. */
 function parseMonth(month: string): { num: number; short: string; year: number } {
   const [year, m] = month.split('-').map((n) => parseInt(n, 10));
@@ -49,14 +74,21 @@ const CURRENT_YEAR = now.getFullYear();
 const CURRENT_MONTH = now.getMonth() + 1;
 
 /**
- * Earnings tab — the web Analytics page on mobile, driven by the earnings
- * analytics endpoints: yearly (GET /earnings/analytics/yearly) fills the month
- * chips, and monthly (GET /earnings/analytics/monthly) fills the selected
- * month's payout, activity, and monetized breakdown.
+ * Earn tab — what you've made and every way to make more. Driven by the
+ * earnings analytics endpoints: yearly (GET /earnings/analytics/yearly) fills
+ * the month chips and the month-over-month comparison, monthly
+ * (GET /earnings/analytics/monthly) fills the selected month's payout, growth,
+ * and monetized breakdown.
  */
-export default function EarningsScreen() {
+export default function EarnScreen() {
   const { colors, brand, radius, spacing } = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The earnings endpoints return the account's own currency, not naira.
+  const { format: money } = useCurrency();
+  const format = money;
+
+  const recentPayouts = transactions.slice(0, 3);
 
   const yearly = useYearlyAnalytics(CURRENT_YEAR);
 
@@ -84,6 +116,18 @@ export default function EarningsScreen() {
   const unmonetized = data?.unmonetized ?? { views: 0, likes: 0, comments: 0, total_engagement: 0 };
   const estimated = data?.estimated_earning ?? 0;
   const totalPosts = data?.total_posts ?? 0;
+
+  // Month-over-month movement — real data beats a goal number we'd have to
+  // invent. Only shown when there's a previous month to compare against.
+  const previous = useMemo(() => {
+    const index = monthList.indexOf(selectedMonth);
+    if (index <= 0) return undefined;
+    const previousMonth = monthList[index - 1];
+    const found = yearly.data?.months.find((m) => m.month === previousMonth);
+    return found ? { short: parseMonth(previousMonth).short, earning: found.estimated_earning } : undefined;
+  }, [monthList, selectedMonth, yearly.data]);
+
+  const delta = previous ? estimated - previous.earning : null;
 
   const monetizedRows = [
     { icon: 'eye-outline' as const, label: 'Monetized views', value: monetized.views },
@@ -125,7 +169,7 @@ export default function EarningsScreen() {
           gap: spacing.xl,
         }}
       >
-        <Text style={[styles.title, { color: colors.text }]}>Earnings</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Earn</Text>
 
         {/* Month selector */}
         <View style={styles.monthRow}>
@@ -156,24 +200,72 @@ export default function EarningsScreen() {
           })}
         </View>
 
-        {/* Estimated payout */}
+        {/* Your earnings */}
         <LinearGradient
           colors={[brand.violetBright, brand.violet]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.payoutCard, { borderRadius: radius.lg, shadowColor: brand.violet }]}
         >
-          <Text style={styles.payoutLabel}>Estimated earnings</Text>
-          <Text style={styles.payoutValue}>
-            ₦{estimated.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-          </Text>
+          <Text style={styles.payoutLabel}>Your earnings</Text>
+          <Text style={styles.payoutValue}>{money(estimated)}</Text>
+          {delta !== null ? (
+            <View style={styles.deltaRow}>
+              <Ionicons
+                name={delta >= 0 ? 'arrow-up' : 'arrow-down'}
+                size={13}
+                color="#FFFFFF"
+              />
+              <Text style={styles.deltaText}>
+                {money(Math.abs(delta))} vs {previous?.short}
+              </Text>
+            </View>
+          ) : null}
           <Text style={styles.payoutNote}>
             Not your final payout — payouts are calculated at month end after engagement
             validation.
           </Text>
         </LinearGradient>
 
-        {/* Rate banner */}
+        {/* Ways to earn — hidden for now. Re-enable with WAYS_TO_EARN above.
+        <View style={{ gap: spacing.md }}>
+          <SectionHeader title="Earn from Payhankey" icon="cash" />
+          <View
+            style={[
+              styles.listCard,
+              { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
+            ]}
+          >
+            {WAYS_TO_EARN.map((way, index) => (
+              <Pressable
+                key={way.label}
+                onPress={() => router.push(way.route as never)}
+                accessibilityRole="button"
+                accessibilityLabel={way.label}
+                style={({ pressed }) => [
+                  styles.wayRow,
+                  index > 0 && {
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: colors.border,
+                  },
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <View style={[styles.wayIcon, { backgroundColor: colors.surfaceAlt }]}>
+                  <Ionicons name={way.icon} size={19} color={colors.brand} />
+                </View>
+                <View style={styles.wayText}>
+                  <Text style={[styles.wayLabel, { color: colors.text }]}>{way.label}</Text>
+                  <Text style={[styles.waySub, { color: colors.textMuted }]}>{way.sub}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+        */}
+
+        {/* Rate banner — hidden for now.
         <View
           style={[
             styles.rateBanner,
@@ -186,11 +278,12 @@ export default function EarningsScreen() {
             and engaging to grow the share that counts.
           </Text>
         </View>
+        */}
 
-        {/* Totals */}
+        {/* Your growth */}
         <View style={{ gap: spacing.md }}>
           <SectionHeader
-            title={`Activity · ${parseMonth(selectedMonth).short} ${CURRENT_YEAR}`}
+            title={`Your growth · ${parseMonth(selectedMonth).short} ${CURRENT_YEAR}`}
             icon="bar-chart"
           />
           <View style={styles.statGrid}>
@@ -221,7 +314,7 @@ export default function EarningsScreen() {
           <SectionHeader title="Monetized engagement" icon="flash" />
           <View
             style={[
-              styles.monetizedCard,
+              styles.listCard,
               { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
             ]}
           >
@@ -244,6 +337,54 @@ export default function EarningsScreen() {
             ))}
           </View>
         </View>
+
+        {/* Payout history — moved here from /wallet, which now covers balance
+            and plan status only. Still the dummy list: /user/transactions is
+            wired on /transactions, but this preview has never been switched
+            over to it. */}
+        <View style={{ gap: spacing.md }}>
+          <SectionHeader
+            title="Payout history"
+            icon="receipt"
+            onSeeAll={() => router.push('/transactions')}
+          />
+          <View
+            style={[
+              styles.listCard,
+              { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
+            ]}
+          >
+            {recentPayouts.map((tx, index) => (
+              <View
+                key={tx.id}
+                style={[
+                  styles.txRow,
+                  index > 0 && {
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: colors.border,
+                  },
+                ]}
+              >
+                <View style={[styles.txIcon, { backgroundColor: `${colors.mint}1A` }]}>
+                  <Ionicons
+                    name={tx.kind === 'payout' ? 'cash-outline' : 'gift-outline'}
+                    size={18}
+                    color={colors.mint}
+                  />
+                </View>
+                <View style={styles.txText}>
+                  <Text style={[styles.txLabel, { color: colors.text }]} numberOfLines={1}>
+                    {tx.description}
+                  </Text>
+                  <Text style={[styles.txDate, { color: colors.textMuted }]}>{tx.date}</Text>
+                </View>
+                <Text style={[styles.txAmount, { color: colors.mint }]}>
+                  +{format(tx.amount)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -252,8 +393,8 @@ export default function EarningsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', gap: 14 },
-  errorText: { fontSize: 14, fontWeight: '600' },
-  title: { fontSize: 26, fontWeight: '800' },
+  errorText: { fontFamily: FONT, fontSize: 14, fontWeight: '600' },
+  title: { fontFamily: FONT, fontSize: 26, fontWeight: '800' },
   monthRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   monthChip: {
     paddingHorizontal: 18,
@@ -263,7 +404,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  monthText: { fontSize: 14, fontWeight: '700' },
+  monthText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
   payoutCard: {
     padding: 22,
     gap: 6,
@@ -272,9 +413,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  payoutLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
-  payoutValue: { color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
+  payoutLabel: { fontFamily: FONT, color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
+  payoutValue: { fontFamily: FONT, color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
+  deltaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  deltaText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   payoutNote: {
+    fontFamily: FONT,
     color: 'rgba(255,255,255,0.75)',
     fontSize: 12,
     lineHeight: 17,
@@ -288,8 +441,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  rateText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  rateBold: { fontWeight: '800' },
+  rateText: { fontFamily: FONT, flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  rateBold: { fontFamily: FONT, fontWeight: '800' },
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -309,18 +462,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statValue: { fontSize: 24, fontWeight: '900' },
-  statLabel: { fontSize: 12, fontWeight: '700' },
-  monetizedCard: {
+  statValue: { fontFamily: FONT, fontSize: 24, fontWeight: '900' },
+  statLabel: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
+  listCard: {
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 18,
   },
+  wayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+  },
+  wayIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wayText: { flex: 1, gap: 1 },
+  wayLabel: { fontFamily: FONT, fontSize: 15, fontWeight: '700' },
+  waySub: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   monetizedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 15,
   },
-  monetizedLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
-  monetizedValue: { fontSize: 16, fontWeight: '800' },
+  monetizedLabel: { fontFamily: FONT, flex: 1, fontSize: 14, fontWeight: '600' },
+  txRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+  txIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  txText: { flex: 1, gap: 1 },
+  txLabel: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  txDate: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
+  txAmount: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  monetizedValue: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
 });

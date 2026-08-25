@@ -11,6 +11,7 @@ import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { type Post } from '../../src/data/community';
 import { useHashtagPosts } from '../../src/hooks/useExplore';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 /** Posts carrying a hashtag — reached from the trending topic chips/rows. */
 export default function HashtagScreen() {
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800' },
   stateWrap: { alignItems: 'center', gap: 14, paddingVertical: 34, paddingHorizontal: 24 },
-  stateText: { fontSize: 14, fontWeight: '600', textAlign: 'center', lineHeight: 20 },
+  stateText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', textAlign: 'center', lineHeight: 20 },
 });

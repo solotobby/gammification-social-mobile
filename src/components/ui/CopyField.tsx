@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
+import { FONT } from '../../theme/fonts';
 
 type Props = {
   label: string;
@@ -31,7 +32,7 @@ export function CopyField({ label, value, icon, emphasized }: Props) {
         style={[
           styles.row,
           {
-            backgroundColor: colors.surfaceAlt,
+            backgroundColor: colors.surface,
             borderColor: copied ? colors.mint : colors.border,
             borderRadius: radius.md,
           },
@@ -81,6 +82,7 @@ export function CopyField({ label, value, icon, emphasized }: Props) {
 const styles = StyleSheet.create({
   wrap: { gap: 8 },
   label: {
+    fontFamily: FONT,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',

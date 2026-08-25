@@ -19,6 +19,7 @@ import { GradientButton } from '../../src/components/ui/GradientButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { addStory, STORY_BACKGROUNDS, type StoryBackground } from '../../src/data/stories';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { FONT } from '../../src/theme/fonts';
 
 type PickedMedia = { uri: string; type: 'image' | 'video' };
 
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
   toggle: { flexDirection: 'row', padding: 4 },
   toggleItem: {
     flex: 1,
@@ -257,9 +258,10 @@ const styles = StyleSheet.create({
     gap: 7,
     paddingVertical: 9,
   },
-  toggleText: { fontSize: 13, fontWeight: '800' },
+  toggleText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
   canvas: { flex: 1, overflow: 'hidden' },
   textInput: {
+    fontFamily: FONT,
     flex: 1,
     color: '#FFFFFF',
     fontSize: 24,
@@ -270,6 +272,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   counter: {
+    fontFamily: FONT,
     position: 'absolute',
     right: 14,
     bottom: 12,
@@ -289,7 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
   },
-  videoTagText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  videoTagText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   removeBtn: {
     position: 'absolute',
     top: 12,
@@ -302,6 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   captionInput: {
+    fontFamily: FONT,
     position: 'absolute',
     left: 16,
     right: 16,
@@ -324,8 +328,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  pickTitle: { fontSize: 16, fontWeight: '800' },
-  pickSub: { fontSize: 13, fontWeight: '600' },
+  pickTitle: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
+  pickSub: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
   swatchRow: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
   swatchRing: {
     padding: 3,

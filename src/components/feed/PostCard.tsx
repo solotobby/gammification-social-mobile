@@ -6,13 +6,16 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { mergeComments } from "../../api/timeline";
 import { newCommentId, useAddComment, useToggleLike } from "../../hooks/useTimeline";
 import { useAuthStore } from "../../stores/authStore";
+import { useBookmarkStore } from "../../stores/bookmarkStore";
 import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
+import { useCurrency } from "../../hooks/useCurrency";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
 import { HashtagText } from "../ui/HashtagText";
 import { MediaGrid } from "./MediaGrid";
 import { PostMenu } from "./PostMenu";
 import type { Comment, Post } from "../../data/community";
+import { FONT, FONT_MONO } from '../../theme/fonts';
 
 type Props = {
   post: Post;
@@ -171,6 +174,7 @@ function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>;
  */
 export function PostCard({ post, onOpen, bare }: Props) {
   const { colors, radius } = useTheme();
+  const { format } = useCurrency();
   const router = useRouter();
 
   // Dummy posts (member profiles) keep the local-only heart; API posts toggle
@@ -203,7 +207,11 @@ export function PostCard({ post, onOpen, bare }: Props) {
   // Only the author sees the overflow menu (delete). There's no "is mine" API
   // flag — a post's ownerId (its user_id) is matched against the signed-in user.
   const myUserId = useAuthStore((s) => s.user?.id);
-  const isMine = post.remote && !!post.ownerId && post.ownerId === myUserId;
+  const isMine = !!post.remote && !!post.ownerId && post.ownerId === myUserId;
+
+  // Bookmarks are local-only (no endpoint yet) — see src/stores/bookmarkStore.ts.
+  const bookmarked = useBookmarkStore((s) => s.posts.some((p) => p.id === post.id));
+  const toggleBookmark = useBookmarkStore((s) => s.toggle);
 
   const content = (
     <>
@@ -241,11 +249,13 @@ export function PostCard({ post, onOpen, bare }: Props) {
           >
             <Ionicons name="trending-up" size={12} color={colors.mint} />
             <Text style={[styles.earnedText, { color: colors.mint }]}>
-              ₦{post.earned.toFixed(2)}
+              {format(post.earned)}
             </Text>
           </View>
         ) : null}
-        {isMine && !bare ? <PostMenu postId={post.id} /> : null}
+        {/* Every post gets the overflow — the menu itself decides whether to
+            offer the author's actions or a reader's. */}
+        {post.remote && !bare ? <PostMenu post={post} isMine={isMine} /> : null}
       </View>
 
       {/* Feed cards clamp to 3 lines; the detail screen (bare) shows it all. */}
@@ -337,6 +347,20 @@ export function PostCard({ post, onOpen, bare }: Props) {
         </View>
 
         <Pressable
+          onPress={() => toggleBookmark(post)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={bookmarked ? "Remove bookmark" : "Bookmark"}
+          style={styles.action}
+        >
+          <Ionicons
+            name={bookmarked ? "bookmark" : "bookmark-outline"}
+            size={18}
+            color={bookmarked ? colors.brand : colors.textMuted}
+          />
+        </Pressable>
+
+        <Pressable
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Share"
@@ -407,8 +431,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerText: { flex: 1, gap: 1 },
-  name: { fontSize: 15, fontWeight: "800" },
-  meta: { fontSize: 13, fontWeight: "500" },
+  name: { fontFamily: FONT, fontSize: 15, fontWeight: "800" },
+  meta: { fontFamily: FONT, fontSize: 13, fontWeight: "500" },
   earnedPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -418,8 +442,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  earnedText: { fontSize: 12, fontWeight: "800" },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: "400" },
+  earnedText: { fontFamily: FONT_MONO, fontSize: 12, fontWeight: "700" },
+  body: { fontFamily: FONT, fontSize: 15, lineHeight: 22, fontWeight: "400" },
   pendingMedia: {
     flexDirection: "row",
     alignItems: "center",
@@ -428,9 +452,9 @@ const styles = StyleSheet.create({
     height: 92,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  pendingText: { fontSize: 13, fontWeight: "600" },
+  pendingText: { fontFamily: FONT, fontSize: 13, fontWeight: "600" },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  tag: { fontSize: 14, fontWeight: "700" },
+  tag: { fontFamily: FONT, fontSize: 14, fontWeight: "700" },
   likedByRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -441,8 +465,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 13,
   },
-  likedText: { flex: 1, fontSize: 13, fontWeight: "500" },
-  likedName: { fontWeight: "800" },
+  likedText: { fontFamily: FONT, flex: 1, fontSize: 13, fontWeight: "500" },
+  likedName: { fontFamily: FONT, fontWeight: "800" },
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -457,7 +481,7 @@ const styles = StyleSheet.create({
     gap: 6,
     minWidth: 42,
   },
-  actionText: { fontSize: 13, fontWeight: "700" },
+  actionText: { fontFamily: FONT, fontSize: 13, fontWeight: "700" },
   commentStrip: { gap: 8 },
   commentRow: {
     flexDirection: "row",
@@ -466,15 +490,16 @@ const styles = StyleSheet.create({
   },
   commentBody: { flex: 1, gap: 2 },
   commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  commentName: { flexShrink: 1, fontSize: 13, fontWeight: "800" },
-  commentTime: { fontSize: 11, fontWeight: "600" },
-  commentText: { fontSize: 13, lineHeight: 18, fontWeight: "400" },
+  commentName: { fontFamily: FONT, flexShrink: 1, fontSize: 13, fontWeight: "800" },
+  commentTime: { fontFamily: FONT, fontSize: 11, fontWeight: "600" },
+  commentText: { fontFamily: FONT, fontSize: 13, lineHeight: 18, fontWeight: "400" },
   composerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   composerInput: {
+    fontFamily: FONT,
     flex: 1,
     height: 38,
     borderRadius: 19,

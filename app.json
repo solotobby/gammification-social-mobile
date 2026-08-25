@@ -8,12 +8,18 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/ios-icon-dark.png",
+        "tinted": "./assets/ios-icon-tinted.png"
+      },
+      "bundleIdentifier": "com.payhankey.app"
     },
     "android": {
       "package": "com.payhankey.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#5A4FDC",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -37,7 +43,43 @@
           "photosPermission": "Payhankey needs access to your photos so you can attach them to posts and stories."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PlusJakartaSans_400Regular.ttf",
+            "./assets/fonts/PlusJakartaSans_500Medium.ttf",
+            "./assets/fonts/PlusJakartaSans_600SemiBold.ttf",
+            "./assets/fonts/PlusJakartaSans_700Bold.ttf",
+            "./assets/fonts/PlusJakartaSans_800ExtraBold.ttf",
+            "./assets/fonts/SpaceMono_700Bold.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-logo-light.png",
+          "imageWidth": 260,
+          "resizeMode": "contain",
+          "backgroundColor": "#F6F4FF",
+          "dark": {
+            "image": "./assets/splash-logo-dark.png",
+            "backgroundColor": "#0C0820"
+          },
+          "android": {
+            "image": "./assets/splash-mark.png",
+            "imageWidth": 150,
+            "backgroundColor": "#F6F4FF",
+            "dark": {
+              "image": "./assets/splash-mark.png",
+              "backgroundColor": "#0C0820"
+            }
+          }
+        }
+      ],
+      "expo-font"
     ],
     "extra": {
       "router": {},

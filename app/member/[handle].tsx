@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -14,14 +13,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { toPost } from "../../src/api/timeline";
 import { toMemberFromProfile } from "../../src/api/user";
-import { PostCard } from "../../src/components/feed/PostCard";
+import { FEED_GUTTER, PostCard } from "../../src/components/feed/PostCard";
+import { ProfileCover } from "../../src/components/profile/ProfileCover";
 import { InviteCard } from "../../src/components/referral/InviteCard";
 import { Avatar } from "../../src/components/ui/Avatar";
 import { BackButton } from "../../src/components/ui/BackButton";
 import { GhostButton } from "../../src/components/ui/GhostButton";
 import { ScreenBackground } from "../../src/components/ui/ScreenBackground";
 import { type Post } from "../../src/data/community";
-import { sampleImage } from "../../src/data/media";
 import { useProfile, useToggleFollow } from "../../src/hooks/useUser";
 import { useAuthStore } from "../../src/stores/authStore";
 import { useFeedbackStore } from "../../src/stores/feedbackStore";
@@ -135,7 +134,9 @@ export default function MemberProfileScreen() {
   }
 
   const header = (
-    <View style={{ gap: spacing.xl }}>
+    // Posts below run full-bleed, so the list drops its horizontal padding and
+    // the whole header re-applies the gutter.
+    <View style={[styles.gutter, { gap: spacing.xl, paddingBottom: spacing.lg }]}>
       <View style={styles.headerRow}>
         <BackButton onPress={() => router.back()} />
         <Text style={[styles.headerTitle, { color: colors.text }]}>
@@ -155,12 +156,8 @@ export default function MemberProfileScreen() {
           },
         ]}
       >
-        <Image
-          source={{ uri: sampleImage(`cover-${member.handle}`, 900, 300) }}
-          style={styles.cover}
-          contentFit="cover"
-          transition={150}
-        />
+        {/* Shared default banner, fading into the card body below it. */}
+        <ProfileCover fadeTo={colors.surface} />
         <View style={styles.cardBody}>
           <View style={styles.avatarRow}>
             <View style={[styles.avatarRing, { borderColor: colors.surface }]}>
@@ -278,8 +275,6 @@ export default function MemberProfileScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + spacing.lg,
           paddingBottom: insets.bottom + spacing.xl,
-          paddingHorizontal: spacing.xl,
-          gap: spacing.lg,
         }}
       />
     </View>
@@ -288,6 +283,7 @@ export default function MemberProfileScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  gutter: { paddingHorizontal: FEED_GUTTER },
   center: { alignItems: "center", justifyContent: "center" },
   headerRow: {
     flexDirection: "row",
@@ -299,7 +295,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },
-  cover: { height: 120 },
   cardBody: {
     paddingHorizontal: 18,
     paddingBottom: 18,

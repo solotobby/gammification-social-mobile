@@ -10,13 +10,18 @@ import {
 import {
   createPost,
   deletePost,
+  fetchBookmarks,
   fetchFeed,
   fetchPost,
+  fetchPostAnalytics,
   postComment,
   tintFor,
+  toggleBookmark,
   toggleLike,
+  updatePost,
   type NewPostImage,
   type NewPostVideo,
+  type PostEdit,
 } from '../api/timeline';
 import type {
   LikerPreview,
@@ -134,6 +139,99 @@ export function useDeletePost() {
     onError: (error) => {
       useFeedbackStore.getState().showApiError(error, "Couldn't delete your post.");
     },
+  });
+}
+
+/**
+ * PUT /timeline/post/{id}. A caption-only edit patches every cached copy in
+ * place so the feed updates without a round trip; an edit that touched media
+ * invalidates instead, because the server re-encodes and the new URLs (and
+ * `media_status`) can only come from a refetch.
+ */
+export function useUpdatePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ postId, edit }: { postId: string; edit: PostEdit }) =>
+      updatePost(postId, edit),
+    onSuccess: (_data, { postId, edit }) => {
+      const touchedMedia = !!edit.images?.length || !!edit.video || !!edit.removeVideo;
+      if (touchedMedia) {
+        void queryClient.invalidateQueries({ queryKey: ['feed'] });
+        void queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      } else if (edit.content != null) {
+        patchCachedPost(queryClient, postId, (post) => ({ ...post, content: edit.content! }));
+      }
+      // The author's own profile lists the post too.
+      void queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+}
+
+/** GET /timeline/post/{id}/analytics — the author's per-post breakdown. */
+export function usePostAnalytics(postId: string | undefined) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: ['post-analytics', postId],
+    queryFn: () => fetchPostAnalytics(postId!),
+    enabled: !!token && !!postId,
+  });
+}
+
+/** GET /timeline/bookmarks — the saved-posts list, paged. */
+export function useBookmarks() {
+  const token = useAuthStore((s) => s.token);
+  return useInfiniteQuery({
+    queryKey: ['bookmarks'],
+    queryFn: ({ pageParam }) => fetchBookmarks(pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.next_page_url ? last.current_page + 1 : undefined),
+    enabled: !!token,
+  });
+}
+
+/**
+ * POST /timeline/bookmark/toggle, optimistically — the icon fills immediately
+ * and rolls back on failure. The saved list is refetched on settle rather than
+ * spliced: an unbookmark has to leave `/bookmarks`, and a bookmark has to land
+ * in it in the server's order.
+ *
+ * Like `useToggleLike` this is a *toggle*, so the flag lives in the (unpersisted)
+ * engagement store and re-seeds from `is_bookmarked` on the next fetch.
+ */
+export function useToggleBookmark() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => toggleBookmark(postId),
+    onMutate: (postId) => {
+      const wasBookmarked = !!useEngagementStore.getState().bookmarked[postId];
+      useEngagementStore.getState().setBookmarked(postId, !wasBookmarked);
+      patchCachedPost(queryClient, postId, (post) => ({
+        ...post,
+        is_bookmarked: !wasBookmarked,
+      }));
+      return { wasBookmarked };
+    },
+    onSuccess: (data, postId) => {
+      // Trust the server's answer over the optimistic guess.
+      useEngagementStore.getState().setBookmarked(postId, data.bookmarked);
+      patchCachedPost(queryClient, postId, (post) => ({
+        ...post,
+        is_bookmarked: data.bookmarked,
+      }));
+    },
+    onError: (error, postId, context) => {
+      if (context) {
+        useEngagementStore.getState().setBookmarked(postId, context.wasBookmarked);
+        patchCachedPost(queryClient, postId, (post) => ({
+          ...post,
+          is_bookmarked: context.wasBookmarked,
+        }));
+      }
+      // The backend refuses your own posts with a 422 whose message says so —
+      // worth showing verbatim rather than a generic failure.
+      useFeedbackStore.getState().showApiError(error, "Couldn't update your bookmark.");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['bookmarks'] }),
   });
 }
 

@@ -35,8 +35,23 @@ export type Post = {
   ownerId?: string;
   timeAgo: string;
   body: string;
-  /** What this post has earned so far, in ₦ (API posts don't report it yet). */
+  /**
+   * What this post has earned so far, in the viewer's own currency. API posts
+   * report it as `estimatedEarnings`; a post the backend has no figure for
+   * leaves this undefined and the card simply shows no pill.
+   */
   earned?: number;
+  /**
+   * The symbol to print `earned` with, as the post itself reported it
+   * (`currencySymbol`). Preferred over the account-wide symbol so a post can
+   * never be labelled in the wrong currency.
+   */
+  earnedSymbol?: string;
+  /**
+   * The server's "has the viewer bookmarked this?" flag (`is_bookmarked`).
+   * Seeds the bookmark icon; a session toggle overrides it.
+   */
+  bookmarkedByViewer?: boolean;
   likes: number;
   views: number;
   comments: Comment[];
@@ -332,27 +347,9 @@ export type Transaction = {
   status: 'paid' | 'pending';
 };
 
-/**
- * Wallet snapshot. Withdrawals stay gated until bank info exists and the
- * account is Creator/Influencer tier — both false for the dummy Basic user.
- */
-export const wallet = {
-  balance: 3855,
-  /** This month's engagement still awaiting validation (matches `earnings.estimated`). */
-  pendingValidation: 2355,
-  hasBankInfo: false,
-  canWithdraw: false,
-  /**
-   * The web wallet splits the balance into four buckets rather than one number.
-   * `balance` above stays as the headline total (main + referral + promotion).
-   */
-  mainBalance: 2500,
-  referralBalance: 855,
-  promotionBalance: 500,
-  totalWithdrawn: 3000,
-  /** Current plan, mirrored from the account level shown on Me. */
-  plan: 'Basic' as 'Basic' | 'Creator' | 'Influencer',
-};
+// The dummy `wallet` snapshot that used to live here is gone: /wallet now reads
+// GET /user/wallet, and leaving invented balances in the module invites them
+// back onto a money screen.
 
 export const transactions: Transaction[] = [
   { id: 'tx1', reference: 'PHK-2026-0630-8241', description: 'June engagement payout', amount: 1500, date: 'Jun 30, 2026', kind: 'payout', status: 'paid' },

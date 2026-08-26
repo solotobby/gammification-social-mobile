@@ -225,6 +225,36 @@ export type BankData = {
 };
 
 // ---------------------------------------------------------------------------
+// Wallet balances  (GET /user/wallet)
+// ---------------------------------------------------------------------------
+
+/**
+ * One wallet balance. `type` is the stable key ("main" | "referral" |
+ * "promoter"); `label` and `description` are the backend's own copy, and
+ * `formatted` already carries the currency symbol — so the screen renders those
+ * rather than re-deriving them and risking a different symbol per surface.
+ */
+export type WalletBalance = {
+  type: string;
+  label: string;
+  description?: string | null;
+  amount: number;
+  formatted: string;
+};
+
+/**
+ * GET /user/wallet — verified live 2026-08-26. There is **no "total withdrawn"**
+ * balance; the wallet screen used to show one from dummy data and no longer
+ * does.
+ */
+export type WalletBalancesData = {
+  currency: string;
+  currency_symbol: string;
+  balances: WalletBalance[];
+  total: { amount: number; formatted: string };
+};
+
+// ---------------------------------------------------------------------------
 // Referrals & transactions  (GET /user/referrals, GET /user/transactions)
 // ---------------------------------------------------------------------------
 
@@ -352,6 +382,10 @@ export type ApiRoll = {
   video_views?: number;
   is_liked_by_viewer?: boolean;
   is_following?: boolean;
+  /** Plays recorded through POST /rolls/{videoId}/play. */
+  play_count?: number;
+  /** Mean watch seconds recorded through POST /rolls/{videoId}/watch. */
+  avg_watch_time?: number | null;
   user: TimelineUser;
   media?: RollMedia | null;
   created_at: string;
@@ -361,6 +395,31 @@ export type ApiRoll = {
 export type RollDetailData = {
   current: ApiRoll;
   more?: Paginated<ApiRoll>;
+};
+
+/**
+ * GET /rolls/top — the Discover rail. A **plain array**, not a paginator, and a
+ * leaner row than `ApiRoll`: it carries the ranking and enough to render a card,
+ * but no counts and no viewer flags.
+ */
+export type ApiTopRoll = {
+  rank: number;
+  post_id: string;
+  video_id: string;
+  user: TimelineUser;
+  media?: RollMedia | null;
+};
+
+/** POST /rolls/{videoId}/play */
+export type RollPlayData = {
+  video_id: string;
+  post_id: string;
+  play_count: number;
+};
+
+/** POST /rolls/{videoId}/watch */
+export type RollWatchData = RollPlayData & {
+  avg_watch_time: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -415,12 +474,22 @@ export type TimelineMedia = {
   /** Image posts only — one entry per attached image. */
   items?: TimelineMediaItem[];
   /** Video posts only — CDN renditions, poster frame, and intrinsic size. */
+  url?: string | null;
   sd_url?: string | null;
   hd_url?: string | null;
+  low_url?: string | null;
+  /**
+   * The poster frame. The live payload calls it `thumbnail_url` (same key the
+   * rolls endpoints use — the two media blocks have converged); `poster_url` is
+   * kept as a fallback for older responses.
+   */
+  thumbnail_url?: string | null;
   poster_url?: string | null;
   duration?: number | null;
   width?: number | null;
   height?: number | null;
+  /** "webm" | "mp4" … — see `playableUri` in src/api/rolls.ts. */
+  format?: string | null;
 };
 
 /**
@@ -473,6 +542,79 @@ export type TimelinePost = {
   media?: TimelineMedia | null;
   created_at: string;
   user: TimelineUser;
+  /**
+   * Whether the signed-in viewer has bookmarked this post. Live on every post
+   * endpoint since 2026-08-26 — it's what seeds the bookmark icon.
+   */
+  is_bookmarked?: boolean;
+  /**
+   * The post's earnings so far, in the *viewer's* currency, alongside the symbol
+   * to print it with. Both landed 2026-08-26; before that the app had no
+   * per-post figure at all (see `earnedOf` in src/api/timeline.ts).
+   */
+  estimatedEarnings?: number | string;
+  currencySymbol?: string;
+  /** GET /timeline/bookmarks only — when the viewer saved it. */
+  bookmarked_at?: string;
+};
+
+/** POST /timeline/bookmark/toggle — 422s with a message when it's your own post. */
+export type BookmarkToggleData = {
+  bookmarked: boolean;
+  post_id: string;
+};
+
+/** PUT /timeline/post/{id} */
+export type UpdatePostData = {
+  post_id: string;
+  /** "processing" when the edit attached media that is still being encoded. */
+  media_status?: string;
+};
+
+/**
+ * GET /timeline/post/{id}/analytics — verified live 2026-08-26.
+ *
+ * Note the two spellings side by side: `summary.currencySymbol` is camelCase
+ * like the feed's, while everything around it is snake_case. Read it as sent.
+ */
+export type PostAnalyticsMetric = {
+  monetized: number;
+  unmonetized: number;
+  total: number;
+  revenue: number;
+};
+
+export type PostAnalyticsData = {
+  post: {
+    id: string;
+    content: string;
+    created_at: string;
+    /** Server-rendered relative time ("2h ago", "4w ago"). */
+    posted_ago: string;
+    /** "Basic" | "Creator" | "Influencer". */
+    account_level?: string;
+  };
+  summary: {
+    monetized_engagements: number;
+    estimated_total_earnings: number;
+    currencySymbol?: string;
+    earnings_breakdown: { views: number; likes: number; comments: number };
+  };
+  stats: {
+    total_views: number;
+    monetized_likes: number;
+    total_comments: number;
+    monetized_engagement: number;
+  };
+  views: PostAnalyticsMetric;
+  likes: PostAnalyticsMetric;
+  comments: PostAnalyticsMetric;
+  revenue_breakdown: {
+    type: string;
+    label: string;
+    monetized_count: number;
+    revenue: number;
+  }[];
 };
 
 /**

@@ -4,7 +4,6 @@ import { fetchMe, login, register, resendOtp, updateOnboarding, verifyOtp } from
 import { persister } from '../api/queryClient';
 import type { LoginPayload, MeData, VerifyOtpPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
-import { useBookmarkStore } from '../stores/bookmarkStore';
 import { useEngagementStore } from '../stores/engagementStore';
 import { useFollowStore } from '../stores/followStore';
 import { useHiddenStore } from '../stores/hiddenStore';
@@ -92,7 +91,6 @@ export function useLogout() {
     // a throttle, so a quick kill could still restore it).
     useEngagementStore.getState().reset();
     useFollowStore.getState().reset();
-    useBookmarkStore.getState().reset();
     useHiddenStore.getState().reset();
     await persister.removeClient();
   };

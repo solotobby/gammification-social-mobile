@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,15 +27,17 @@ import { FONT } from '../../theme/fonts';
  * - **Your own post** — Edit, Analytics, Delete.
  * - **Someone else's** — Follow/Unfollow, Hide, Report.
  *
- * Only two of these are backed by a real endpoint. Delete hits
- * DELETE /timeline/delete/post/{id} (destructive, so it double-confirms) and
- * Follow goes through GET /user/toggle/follow mirrored into `followStore`, the
+ * All but one are backed by a real endpoint. Delete hits
+ * DELETE /timeline/delete/post/{id} (destructive, so it double-confirms),
+ * Follow goes through GET /user/toggle/follow mirrored into `followStore` — the
  * same path the profile and Discover rows use, so the state stays consistent
- * wherever the author shows up. Hide is client-side (`hiddenStore`).
+ * wherever the author shows up — and Edit and Analytics push
+ * /post/[id]/edit and /post/[id]/analytics, both API-backed. Hide is
+ * client-side (`hiddenStore`).
  *
- * Edit and Report have no endpoint yet: both render their real flow and stop
- * at the point where the request would go out, saying so plainly rather than
- * pretending the change was saved. Analytics pushes /post/[id]/analytics.
+ * Report is the exception: there is no moderation endpoint, so it renders its
+ * real flow and stops where the request would go out, saying so plainly rather
+ * than pretending something was sent.
  */
 
 const REPORT_REASONS = [
@@ -48,7 +49,7 @@ const REPORT_REASONS = [
   'Something else',
 ];
 
-type View_ = 'menu' | 'confirmDelete' | 'edit' | 'report';
+type View_ = 'menu' | 'confirmDelete' | 'report';
 
 export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
   const { colors, radius, spacing } = useTheme();
@@ -58,7 +59,6 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
 
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View_>('menu');
-  const [draft, setDraft] = useState(post.body);
   const [reason, setReason] = useState<string | null>(null);
 
   const deletePost = useDeletePost();
@@ -77,7 +77,6 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
     setOpen(false);
     setView('menu');
     setReason(null);
-    setDraft(post.body);
   };
 
   const onDelete = () => {
@@ -119,12 +118,6 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
     close();
     // No moderation endpoint yet — say what actually happened.
     showToast('Reporting isn’t wired up yet — nothing was sent.', 'info');
-  };
-
-  const onSaveEdit = () => {
-    close();
-    // There is no update-post endpoint; don't imply the edit persisted.
-    showToast('Editing isn’t available yet — your post is unchanged.', 'info');
   };
 
   const row = (
@@ -185,7 +178,10 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
               <View style={styles.menuWrap}>
                 {isMine ? (
                   <>
-                    {row('create-outline', 'Edit post', () => setView('edit'))}
+                    {row('create-outline', 'Edit post', () => {
+                      close();
+                      router.push(`/post/${post.id}/edit`);
+                    })}
                     {row('stats-chart-outline', 'View analytics', () => {
                       close();
                       router.push(`/post/${post.id}/analytics`);
@@ -232,44 +228,6 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
                   style={[styles.cancelBtn, { backgroundColor: colors.surfaceAlt }]}
                 >
                   <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
-                </Pressable>
-              </View>
-            ) : view === 'edit' ? (
-              <View style={styles.paneWrap}>
-                <Text style={[styles.paneTitle, { color: colors.text }]}>Edit post</Text>
-                <TextInput
-                  value={draft}
-                  onChangeText={setDraft}
-                  multiline
-                  maxLength={160}
-                  style={[
-                    styles.editInput,
-                    {
-                      backgroundColor: colors.surfaceAlt,
-                      color: colors.text,
-                      borderRadius: radius.md,
-                    },
-                  ]}
-                />
-                <Text style={[styles.paneNote, { color: colors.textMuted }]}>
-                  The API has no update-post endpoint yet, so saving won't change anything
-                  server-side.
-                </Text>
-                <Pressable
-                  onPress={onSaveEdit}
-                  accessibilityRole="button"
-                  accessibilityLabel="Save changes"
-                  style={[styles.destructiveBtn, { backgroundColor: colors.brand }]}
-                >
-                  <Text style={styles.destructiveText}>Save changes</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setView('menu')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Back"
-                  style={[styles.cancelBtn, { backgroundColor: colors.surfaceAlt }]}
-                >
-                  <Text style={[styles.cancelText, { color: colors.text }]}>Back</Text>
                 </Pressable>
               </View>
             ) : (
@@ -370,16 +328,6 @@ const styles = StyleSheet.create({
   confirmText: { fontFamily: FONT, fontSize: 14, fontWeight: '500', marginBottom: 4 },
   paneWrap: { gap: 12, paddingHorizontal: 4, paddingTop: 2 },
   paneTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
-  paneNote: { fontFamily: FONT, fontSize: 13, fontWeight: '500', lineHeight: 18 },
-  editInput: {
-    fontFamily: FONT,
-    minHeight: 108,
-    maxHeight: 180,
-    padding: 14,
-    fontSize: 15,
-    lineHeight: 21,
-    textAlignVertical: 'top',
-  },
   reasonList: { maxHeight: 260 },
   reasonRow: {
     flexDirection: 'row',

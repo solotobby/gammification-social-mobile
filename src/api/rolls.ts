@@ -5,9 +5,12 @@ import { timeAgo, tintFor } from './timeline';
 import type {
   ApiEnvelope,
   ApiRoll,
+  ApiTopRoll,
   Paginated,
   RollDetailData,
   RollMedia,
+  RollPlayData,
+  RollWatchData,
 } from './types';
 import type { Comment, Member } from '../data/community';
 
@@ -54,6 +57,52 @@ export async function fetchRolls(page: number): Promise<Paginated<ApiRoll>> {
 export async function fetchRoll(videoId: string): Promise<RollDetailData> {
   const { data } = await api.get<ApiEnvelope<RollDetailData>>(`/rolls/${videoId}`);
   return data.data;
+}
+
+/**
+ * GET /rolls/top — the ranked list behind Discover's rail. A plain array, not a
+ * paginator, and a leaner row than the pager's: rank, ids, author and media.
+ */
+export async function fetchTopRolls(): Promise<ApiTopRoll[]> {
+  const { data } = await api.get<ApiEnvelope<ApiTopRoll[]>>('/rolls/top');
+  return data.data;
+}
+
+/**
+ * POST /rolls/{videoId}/play — one call the first time a roll starts playing.
+ *
+ * Telemetry, so failures are swallowed: a dropped play count is not worth
+ * interrupting playback with an error, and these fire while the user is
+ * swiping.
+ */
+export async function recordRollPlay(videoId: string): Promise<RollPlayData | null> {
+  try {
+    const { data } = await api.post<ApiEnvelope<RollPlayData>>(`/rolls/${videoId}/play`);
+    return data.data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * POST /rolls/{videoId}/watch — seconds actually watched, sent when playback
+ * stops (pause, swipe away, unmount). Swallows failures for the same reason as
+ * `recordRollPlay`.
+ */
+export async function recordRollWatch(
+  videoId: string,
+  watchTime: number,
+  isFirstPlay: boolean,
+): Promise<RollWatchData | null> {
+  try {
+    const { data } = await api.post<ApiEnvelope<RollWatchData>>(`/rolls/${videoId}/watch`, {
+      watch_time: Number(watchTime.toFixed(2)),
+      is_first_play: isFirstPlay,
+    });
+    return data.data;
+  } catch {
+    return null;
+  }
 }
 
 /** GET /rolls/{videoId}/comments — Laravel paginator of comments. */
@@ -136,6 +185,42 @@ export type Roll = {
 
 function hashtagsIn(content: string): string[] {
   return Array.from(content.matchAll(/#([\p{L}\p{N}_]+)/gu)).map((m) => m[1]);
+}
+
+/** One row of Discover's ranked rail. */
+export type TopRoll = {
+  rank: number;
+  id: string;
+  postId: string;
+  author: Member;
+  /** Null when no rendition plays on this platform (see `playableUri`). */
+  uri: string | null;
+  poster?: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+};
+
+export function toTopRoll(api: ApiTopRoll): TopRoll {
+  return {
+    rank: api.rank,
+    id: api.video_id,
+    postId: api.post_id,
+    author: {
+      id: api.user.id,
+      name: api.user.name,
+      handle: api.user.username,
+      tint: tintFor(api.user.id),
+      engagements: 0,
+      followers: 0,
+      following: 0,
+    },
+    uri: playableUri(api.media),
+    poster: api.media?.thumbnail_url ?? undefined,
+    width: api.media?.width ?? undefined,
+    height: api.media?.height ?? undefined,
+    duration: api.media?.duration ?? undefined,
+  };
 }
 
 export function toRoll(api: ApiRoll): Roll {

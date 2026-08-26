@@ -32,7 +32,16 @@ function formatDuration(seconds: number): string {
  * tap-to-unmute control, and falls back to the poster plus a readable message
  * when the source won't decode on this platform.
  */
-export function FeedVideo({ item, onExpand }: { item: MediaItem; onExpand?: () => void }) {
+export function FeedVideo({
+  item,
+  onExpand,
+  fullBleed,
+}: {
+  item: MediaItem;
+  onExpand?: () => void;
+  /** Feed default: run the full width of the screen, square corners. */
+  fullBleed?: boolean;
+}) {
   const { colors, radius } = useTheme();
   const [started, setStarted] = useState(false);
 
@@ -63,7 +72,12 @@ export function FeedVideo({ item, onExpand }: { item: MediaItem; onExpand?: () =
     <View
       style={[
         styles.frame,
-        { aspectRatio: ratio, maxHeight: MAX_HEIGHT, borderRadius: radius.md },
+        { aspectRatio: ratio },
+        // Full-bleed keeps the width and lets the ratio set the height — a
+        // maxHeight would shrink the frame off both edges instead (aspectRatio
+        // beats width:'100%' once the height is capped). MIN_RATIO already
+        // stops portrait clips at 4:5, so the height stays sane without it.
+        fullBleed ? null : { maxHeight: MAX_HEIGHT, borderRadius: radius.md },
       ]}
     >
       {/* Poster sits under the player so there's never a blank frame while the

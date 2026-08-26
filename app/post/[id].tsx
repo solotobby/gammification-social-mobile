@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { mergeComments, tintFor, toPostDetail } from '../../src/api/timeline';
-import { PostCard } from '../../src/components/feed/PostCard';
+import { FEED_GUTTER, PostCard } from '../../src/components/feed/PostCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { HashtagText } from '../../src/components/ui/HashtagText';
@@ -102,29 +102,25 @@ export default function PostDetailScreen() {
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
+          // No horizontal padding here: the post itself runs full-bleed like
+          // it does in the feed, so each section applies its own gutter.
           contentContainerStyle={{
             paddingTop: insets.top + spacing.lg,
             paddingBottom: spacing.lg,
-            paddingHorizontal: spacing.xl,
             gap: spacing.xl,
           }}
         >
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, styles.gutter]}>
             <BackButton onPress={() => router.back()} />
             <Text style={[styles.headerTitle, { color: colors.text }]}>Post</Text>
             <View style={{ width: 44 }} />
           </View>
 
-          <View
-            style={[
-              styles.postCard,
-              { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
-            ]}
-          >
+          <View style={[styles.postWrap, { borderBottomColor: colors.border }]}>
             <PostCard post={post} bare />
           </View>
 
-          <View style={{ gap: spacing.md }}>
+          <View style={[styles.gutter, { gap: spacing.md }]}>
             <Text style={[styles.commentsTitle, { color: colors.text }]}>
               Comments ({commentCount})
             </Text>
@@ -222,10 +218,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
-  postCard: {
-    padding: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+  gutter: { paddingHorizontal: FEED_GUTTER },
+  // The post is card-less here too — a hairline closes it off above the
+  // comment thread instead of a bordered surface.
+  postWrap: { paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   commentsTitle: { fontFamily: FONT, fontSize: 17, fontWeight: '800' },
   commentRow: {
     flexDirection: 'row',

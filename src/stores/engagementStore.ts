@@ -13,11 +13,15 @@ import type { Comment } from '../data/community';
  * `myComments` is persisted so a comment written offline still shows after an
  * app restart, alongside the paused mutation that will send it. `liked` is
  * NOT: it re-seeds from the server's `is_liked_by_viewer` on each fetch, and a
- * stored value would shadow server truth permanently.
+ * stored value would shadow server truth permanently. `bookmarked` follows the
+ * same rule — /timeline/bookmark/toggle is a toggle, not a set, and every post
+ * endpoint now sends `is_bookmarked` to re-seed from.
  */
 
 type EngagementState = {
   liked: Record<string, boolean>;
+  /** Optimistic bookmark flags, seeded from the server's `is_bookmarked`. */
+  bookmarked: Record<string, boolean>;
   /** Comments the signed-in user posted this session, keyed by post id. */
   myComments: Record<string, Comment[]>;
   setLiked: (postId: string, liked: boolean) => void;
@@ -27,6 +31,9 @@ type EngagementState = {
    * is never clobbered when the list refetches).
    */
   seedLiked: (postId: string, liked: boolean) => void;
+  setBookmarked: (postId: string, bookmarked: boolean) => void;
+  /** Same "server unless the user already touched it" rule as `seedLiked`. */
+  seedBookmarked: (postId: string, bookmarked: boolean) => void;
   addComment: (postId: string, comment: Comment) => void;
   removeComment: (postId: string, commentId: string) => void;
   /**
@@ -42,6 +49,7 @@ export const useEngagementStore = create<EngagementState>()(
   persist(
     (set) => ({
       liked: {},
+      bookmarked: {},
       myComments: {},
 
       setLiked: (postId, liked) =>
@@ -52,6 +60,16 @@ export const useEngagementStore = create<EngagementState>()(
           Object.prototype.hasOwnProperty.call(state.liked, postId)
             ? state
             : { liked: { ...state.liked, [postId]: liked } },
+        ),
+
+      setBookmarked: (postId, bookmarked) =>
+        set((state) => ({ bookmarked: { ...state.bookmarked, [postId]: bookmarked } })),
+
+      seedBookmarked: (postId, bookmarked) =>
+        set((state) =>
+          Object.prototype.hasOwnProperty.call(state.bookmarked, postId)
+            ? state
+            : { bookmarked: { ...state.bookmarked, [postId]: bookmarked } },
         ),
 
       addComment: (postId, comment) =>
@@ -70,7 +88,7 @@ export const useEngagementStore = create<EngagementState>()(
           },
         })),
 
-      reset: () => set({ liked: {}, myComments: {} }),
+      reset: () => set({ liked: {}, bookmarked: {}, myComments: {} }),
     }),
     {
       name: 'payhankey.engagement',

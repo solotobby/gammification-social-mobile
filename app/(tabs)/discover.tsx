@@ -24,10 +24,10 @@ import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
 import { TextField } from '../../src/components/ui/TextField';
 import { trendingCommunities } from '../../src/data/communities';
-import { toRoll } from '../../src/api/rolls';
+import { toTopRoll } from '../../src/api/rolls';
 import { useDebouncedValue } from '../../src/hooks/useDebouncedValue';
 import { useTrending } from '../../src/hooks/useExplore';
-import { useRollsFeed } from '../../src/hooks/useRolls';
+import { useTopRolls } from '../../src/hooks/useRolls';
 import { useSearchUsers } from '../../src/hooks/useUser';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { FONT } from '../../src/theme/fonts';
@@ -47,10 +47,6 @@ const OPPORTUNITIES: {
 
 /** The Rolls rail shows a handful — the tab itself has the rest. */
 const POPULAR_ROLLS_SHOWN = 6;
-
-function compact(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K` : `${n}`;
-}
 
 /**
  * Discover tab — people search (/user/search) plus the reasons to open this
@@ -79,14 +75,12 @@ export default function DiscoverScreen() {
     [trending.data],
   );
 
-  // Same ['rolls'] query the Rolls tab pages through, so tapping a card opens a
-  // pager that already has this roll cached and keeps going from there.
-  const rollsFeed = useRollsFeed();
+  // GET /rolls/top — a genuinely ranked list, unlike the randomised pager this
+  // rail used to slice its first page from. Tapping a card still opens the
+  // pager at that video and keeps paging from there.
+  const rollsFeed = useTopRolls();
   const popularRolls = useMemo(
-    () =>
-      (rollsFeed.data?.pages[0]?.data ?? [])
-        .map(toRoll)
-        .slice(0, POPULAR_ROLLS_SHOWN),
+    () => (rollsFeed.data ?? []).map(toTopRoll).slice(0, POPULAR_ROLLS_SHOWN),
     [rollsFeed.data],
   );
 
@@ -223,9 +217,10 @@ export default function DiscoverScreen() {
                       colors={['transparent', 'rgba(10,7,26,0.85)']}
                       style={StyleSheet.absoluteFill}
                     />
+                    {/* /rolls/top sends no counts, so the badge is the play
+                        affordance alone rather than an invented number. */}
                     <View style={styles.rollPlay}>
                       <Ionicons name="play" size={13} color="#FFFFFF" />
-                      <Text style={styles.rollPlayText}>{compact(roll.likes)}</Text>
                     </View>
                     <Text style={styles.rollHandle} numberOfLines={1}>
                       @{roll.author.handle}
@@ -368,7 +363,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(10,7,26,0.55)',
   },
-  rollPlayText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   rollHandle: { fontFamily: FONT, color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   emptyRail: { fontFamily: FONT, fontSize: 13, fontWeight: '600', paddingVertical: 12 },
   communityRow: {

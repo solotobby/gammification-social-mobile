@@ -59,7 +59,13 @@ function MediaCell({ item, onPress, overflow, style }: CellProps) {
  * 4+ grid with a "+N" spill). Tapping any tile opens the full-screen carousel
  * at that item.
  */
-export function MediaGrid({ media }: { media: MediaItem[] }) {
+/**
+ * `fullBleed` drops the rounded frame so the media can run the full width of
+ * the screen — the feed's default now that posts are not cards. Anywhere media
+ * still sits inside a bordered container (the edit screen's existing-media
+ * preview) leaves it off and keeps the rounded frame.
+ */
+export function MediaGrid({ media, fullBleed }: { media: MediaItem[]; fullBleed?: boolean }) {
   const { radius } = useTheme();
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
@@ -73,9 +79,17 @@ export function MediaGrid({ media }: { media: MediaItem[] }) {
   if (media.length === 1 && media[0].type === 'video') {
     // A lone video is the shape the API actually sends (posts carry images OR
     // one video), so it gets a real inline player rather than a poster tile.
-    layout = <FeedVideo item={media[0]} onExpand={open(0)} />;
+    layout = <FeedVideo item={media[0]} onExpand={open(0)} fullBleed={fullBleed} />;
   } else if (media.length === 1) {
-    layout = <MediaCell item={media[0]} onPress={open(0)} style={styles.single} />;
+    layout = (
+      <MediaCell
+        item={media[0]}
+        onPress={open(0)}
+        // Edge to edge, a fixed 220pt height would crop hard on a phone — give
+        // a lone image a real aspect ratio instead.
+        style={fullBleed ? [styles.single, styles.singleFullBleed] : styles.single}
+      />
+    );
   } else if (media.length === 2) {
     layout = (
       <View style={styles.row}>
@@ -111,7 +125,7 @@ export function MediaGrid({ media }: { media: MediaItem[] }) {
 
   return (
     <>
-      <View style={[styles.frame, { borderRadius: radius.md }]}>{layout}</View>
+      <View style={[styles.frame, !fullBleed && { borderRadius: radius.md }]}>{layout}</View>
       <MediaViewer
         media={media}
         initialIndex={viewerIndex ?? 0}
@@ -124,8 +138,9 @@ export function MediaGrid({ media }: { media: MediaItem[] }) {
 
 const styles = StyleSheet.create({
   frame: { overflow: 'hidden' },
-  cell: { overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(120,120,140,0.15)' },
+  cell: { overflow: 'hidden', backgroundColor: 'rgba(120,120,140,0.15)' },
   single: { height: 220 },
+  singleFullBleed: { aspectRatio: 4 / 3, height: undefined },
   row: { flexDirection: 'row', gap: GAP },
   half: { flex: 1, height: 175 },
   lead: { flex: 1.55, height: 240 },

@@ -1,8 +1,10 @@
 import { api, UPLOAD_TIMEOUT } from './client';
 import type {
   ApiEnvelope,
+  BookmarkToggleData,
   CreatePostData,
   Paginated,
+  PostAnalyticsData,
   TimelineComment,
   TimelineMedia,
   TimelineMediaItem,
@@ -10,10 +12,10 @@ import type {
   TimelinePostDetail,
   TimelinePostDetailResponse,
   TimelineUser,
+  UpdatePostData,
 } from './types';
 import type { Comment, Member, MemberTint, Post } from '../data/community';
 import type { MediaItem } from '../data/media';
-import { estimateEarnings } from '../data/postEarnings';
 
 export async function fetchFeed(page: number): Promise<Paginated<TimelinePost>> {
   const { data } = await api.get<ApiEnvelope<Paginated<TimelinePost>>>('/timeline/feed', {
@@ -57,9 +59,94 @@ export async function createPost(
   return data.data;
 }
 
+/** What an edit can change. Everything is optional — only what's set is sent. */
+export type PostEdit = {
+  content?: string;
+  /** **Appended** to the post's existing images, not a replacement set. */
+  images?: NewPostImage[];
+  /** Replaces the post's video. */
+  video?: NewPostVideo | null;
+  removeVideo?: boolean;
+};
+
+/**
+ * Edit a post. Two transports, and the choice is not cosmetic:
+ *
+ * - **Caption only → JSON `PUT`.** Verified live 2026-08-26.
+ * - **Anything with media → `POST` with a `_method=PUT` part.** A real multipart
+ *   `PUT` comes back 422 "Nothing to update" because PHP doesn't parse
+ *   multipart bodies on PUT — every field arrives empty. The method override is
+ *   the only way to send files to this route.
+ *
+ * Backend rules worth knowing before calling (all confirmed by probing, none of
+ * them documented): `images[]` **appends** to what the post already has and the
+ * account's tier cap counts existing + new ("Image count exceeds your account
+ * limit"); and media can't be touched at all while `media_status` is
+ * "processing" ("Media cannot be changed while processing is in progress").
+ *
+ * There is deliberately no per-image removal: no endpoint returns image ids any
+ * more (`media.items[]` carries URLs only, and the detail response's old
+ * `images[]` array is now null), so `remove_image_ids[]` cannot be populated.
+ */
+export async function updatePost(postId: string, edit: PostEdit): Promise<UpdatePostData> {
+  const hasMedia = !!edit.images?.length || !!edit.video || !!edit.removeVideo;
+
+  if (!hasMedia) {
+    const { data } = await api.put<ApiEnvelope<UpdatePostData>>(`/timeline/post/${postId}`, {
+      content: edit.content,
+    });
+    return data.data;
+  }
+
+  const form = new FormData();
+  form.append('_method', 'PUT');
+  if (edit.content != null) form.append('content', edit.content);
+  for (const image of edit.images ?? []) {
+    form.append('images[]', image as unknown as Blob);
+  }
+  if (edit.video) form.append('video', edit.video as unknown as Blob);
+  if (edit.removeVideo) form.append('remove_video', '1');
+
+  const { data } = await api.post<ApiEnvelope<UpdatePostData>>(
+    `/timeline/post/${postId}`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' }, timeout: UPLOAD_TIMEOUT },
+  );
+  return data.data;
+}
+
 /** Fire-and-forget toggle — the backend queues it (202) and settles counts async. */
 export async function toggleLike(postId: string): Promise<void> {
   await api.post('/timeline/like/toggle', { post_id: postId });
+}
+
+/**
+ * POST /timeline/bookmark/toggle — returns the resulting state. Bookmarking your
+ * own post is rejected with a 422 ("You cannot bookmark your own post"), so the
+ * action isn't offered there.
+ */
+export async function toggleBookmark(postId: string): Promise<BookmarkToggleData> {
+  const { data } = await api.post<ApiEnvelope<BookmarkToggleData>>(
+    '/timeline/bookmark/toggle',
+    { post_id: postId },
+  );
+  return data.data;
+}
+
+/** GET /timeline/bookmarks — full post objects, newest save first. */
+export async function fetchBookmarks(page: number): Promise<Paginated<TimelinePost>> {
+  const { data } = await api.get<ApiEnvelope<Paginated<TimelinePost>>>('/timeline/bookmarks', {
+    params: { page },
+  });
+  return data.data;
+}
+
+/** GET /timeline/post/{id}/analytics — the author's per-post breakdown. */
+export async function fetchPostAnalytics(postId: string): Promise<PostAnalyticsData> {
+  const { data } = await api.get<ApiEnvelope<PostAnalyticsData>>(
+    `/timeline/post/${postId}/analytics`,
+  );
+  return data.data;
 }
 
 export async function postComment(postId: string, comment: string): Promise<void> {
@@ -139,14 +226,16 @@ function toMediaItem(item: TimelineMediaItem, type: string, index: number, postI
  * the full-screen viewer prefers HD.
  */
 function videoMediaItem(media: TimelineMedia, postId: string): MediaItem | null {
-  const uri = media.sd_url ?? media.hd_url;
+  const uri = media.sd_url ?? media.hd_url ?? media.url;
   if (!uri) return null;
   return {
     id: `${postId}-video`,
     type: 'video',
     uri,
     hdUri: media.hd_url ?? undefined,
-    poster: media.poster_url ?? undefined,
+    // The live payload names the poster `thumbnail_url` (as the rolls media
+    // block always did); `poster_url` is the older name.
+    poster: media.thumbnail_url ?? media.poster_url ?? undefined,
     width: media.width ?? undefined,
     height: media.height ?? undefined,
     duration: media.duration ?? undefined,
@@ -201,34 +290,29 @@ function toComment(raw: TimelineComment, postId: string, index: number): Comment
  * (with `latest_comments` / an embedded-array `comments` kept as fallbacks).
  */
 /**
- * Per-post earnings, if the backend ever sends them.
+ * Per-post earnings. The backend ships them as `estimatedEarnings` (live since
+ * 2026-08-26 on every post endpoint — feed, detail, profile and hashtag posts);
+ * the other key names are kept as cheap insurance against a rename.
  *
- * **Confirmed live 2026-08-25: it does not.** GET /timeline/feed and
- * GET /timeline/post/{id} both return exactly:
- * `id, user_id, content, views, likes, comments, has_video, has_images,
- * media_status, created_at, is_liked_by_viewer, media, comments_preview,
- * likers_preview, user` — no earnings column under any name. The earned pill
- * that used to show on every card came from the dummy feed in
- * `src/data/community.ts`, which hardcodes an `earned` value per post.
- *
- * This reads the field defensively across the names the backend is most likely
- * to pick, so the pill switches to real numbers the moment the column ships.
- * Until then it falls back to the placeholder estimate in
- * `src/data/postEarnings.ts` — the same rates the analytics screen uses, so
- * the pill and that screen always agree for a given post.
+ * Returns **undefined** when no figure came back, and the card then shows no
+ * earned pill. Do not substitute a derived estimate here: an invented number on
+ * a money surface is worse than no badge.
  */
-function earnedOf(
-  apiPost: Record<string, unknown>,
-  views: number,
-  likes: number,
-  comments: number,
-): number {
-  for (const key of ['earned', 'earning', 'earnings', 'estimated_earning', 'amount_earned']) {
+function earnedOf(apiPost: Record<string, unknown>): number | undefined {
+  for (const key of [
+    'estimatedEarnings',
+    'estimated_earnings',
+    'earned',
+    'earning',
+    'earnings',
+    'estimated_earning',
+    'amount_earned',
+  ]) {
     const raw = apiPost[key];
     const n = typeof raw === 'string' ? Number(raw) : typeof raw === 'number' ? raw : NaN;
     if (Number.isFinite(n)) return n;
   }
-  return estimateEarnings(views, likes, comments).total;
+  return undefined;
 }
 
 export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
@@ -263,12 +347,10 @@ export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
       tint: tintFor(liker.id),
     })),
     views: apiPost.views,
-    earned: earnedOf(
-      apiPost as unknown as Record<string, unknown>,
-      apiPost.views,
-      apiPost.likes ?? apiPost.likers_preview?.length ?? 0,
-      commentCount,
-    ),
+    earned: earnedOf(apiPost as unknown as Record<string, unknown>),
+    earnedSymbol: apiPost.currencySymbol,
+    // Seeds the bookmark icon the way `likedByViewer` seeds the heart.
+    bookmarkedByViewer: apiPost.is_bookmarked,
     comments,
     commentCount,
     media,

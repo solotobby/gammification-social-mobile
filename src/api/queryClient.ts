@@ -18,9 +18,14 @@ const MAX_AGE = 24 * 60 * 60 * 1000;
  *   entry instead (see `usePost`).
  * - `user-search` / `hashtag-posts` — transient query-scoped results that would
  *   just accumulate keys in storage.
+ * - `post-analytics` — money that changes server-side; a stale snapshot of
+ *   someone's earnings is worse than a spinner.
  */
 const PERSISTED_KEYS = new Set([
   'feed',
+  'bookmarks',
+  'wallet',
+  'top-rolls',
   'me',
   'profile',
   'earnings-yearly',

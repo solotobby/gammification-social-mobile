@@ -43,7 +43,14 @@
 /** The family to put on text styles. Weight still comes from `fontWeight`. */
 export const FONT = 'Plus Jakarta Sans';
 
-/** Money figures, matching the web's `--ph-mono`. */
+/**
+ * Space Mono, matching the web's `--ph-mono`.
+ *
+ * **Not used for money any more.** The face has no ₦ glyph (and a narrow $),
+ * so a formatted amount rendered its symbol through a fallback font at a
+ * visibly different size from the digits next to it — browsers fall back per
+ * glyph at a matched size, React Native does not. Money now uses `FONT`.
+ */
 export const FONT_MONO = 'Space Mono';
 
 /**

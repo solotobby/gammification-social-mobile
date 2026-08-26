@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
-import { fetchRoll, fetchRollComments, fetchRolls } from '../api/rolls';
+import { fetchRoll, fetchRollComments, fetchRolls, fetchTopRolls } from '../api/rolls';
 import { useAuthStore } from '../stores/authStore';
 
 /** GET /rolls — the randomised rolls pager, paged as you swipe. */
@@ -11,6 +11,19 @@ export function useRollsFeed() {
     queryFn: ({ pageParam }) => fetchRolls(pageParam),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.next_page_url ? last.current_page + 1 : undefined),
+    enabled: !!token,
+  });
+}
+
+/**
+ * GET /rolls/top — the ranked rail on Discover. Its own query key, not page 1 of
+ * ['rolls']: the ranking is the point, and the pager is randomised.
+ */
+export function useTopRolls() {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: ['top-rolls'],
+    queryFn: fetchTopRolls,
     enabled: !!token,
   });
 }

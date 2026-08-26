@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { toPost } from '../../src/api/timeline';
-import { PostCard } from '../../src/components/feed/PostCard';
+import { FEED_GUTTER, PostCard } from '../../src/components/feed/PostCard';
 import { HomeHeader } from '../../src/components/home/HomeHeader';
 import { type FeedTab } from '../../src/components/home/FeedTabs';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
@@ -130,7 +130,12 @@ export default function HomeScreen() {
                 <ActivityIndicator size="large" color={colors.brand} />
               </View>
             ) : null}
-            <HomeHeader feedTab={feedTab} onChangeFeedTab={setFeedTab} />
+            {/* The list itself no longer pads horizontally — posts run
+                full-bleed — so the header re-applies the gutter for its own
+                content. */}
+            <View style={styles.headerWrap}>
+              <HomeHeader feedTab={feedTab} onChangeFeedTab={setFeedTab} />
+            </View>
           </>
         }
         ListEmptyComponent={
@@ -183,8 +188,6 @@ export default function HomeScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + spacing.lg,
           paddingBottom: insets.bottom + TAB_BAR_CLEARANCE,
-          paddingHorizontal: spacing.xl,
-          gap: spacing.lg,
         }}
       />
     </View>
@@ -193,6 +196,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  headerWrap: { paddingHorizontal: FEED_GUTTER, paddingBottom: 18 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

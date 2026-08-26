@@ -5,6 +5,7 @@ import {
   fetchReferrals,
   fetchSocials,
   fetchTransactions,
+  fetchWallet,
   saveBank,
   updateProfile,
   updateSocials,
@@ -19,6 +20,16 @@ export function useBank() {
   return useQuery({
     queryKey: ['bank'],
     queryFn: fetchBank,
+    enabled: !!token,
+  });
+}
+
+/** GET /user/wallet — main / referral / promotion balances and their total. */
+export function useWallet() {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: ['wallet'],
+    queryFn: fetchWallet,
     enabled: !!token,
   });
 }

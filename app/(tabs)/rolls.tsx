@@ -15,7 +15,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { toRoll, type Roll } from '../../src/api/rolls';
+import {
+  recordRollPlay,
+  recordRollWatch,
+  toRoll,
+  type Roll,
+} from '../../src/api/rolls';
 import { RollCommentsSheet } from '../../src/components/rolls/RollCommentsSheet';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { GhostButton } from '../../src/components/ui/GhostButton';
@@ -128,6 +133,64 @@ function RollItem({
   useEffect(() => {
     if (!active) setPaused(false);
   }, [active]);
+
+  // --- Play count & watch time -------------------------------------------
+  // POST /rolls/{id}/play once, the first time this roll actually starts, and
+  // POST /rolls/{id}/watch with the seconds watched whenever playback stops —
+  // a pause, a swipe away, or the page unmounting. Both calls swallow their own
+  // errors (see src/api/rolls.ts): telemetry must never interrupt playback.
+  const playSent = useRef(false);
+  const watchSent = useRef(false);
+  /** Seconds watched but not yet reported. */
+  const watched = useRef(0);
+  /** `player.currentTime` at the previous sample. */
+  const lastTime = useRef<number | null>(null);
+
+  useEffect(() => {
+    playSent.current = false;
+    watchSent.current = false;
+    watched.current = 0;
+  }, [roll.id]);
+
+  const flushWatch = useCallback(() => {
+    const seconds = watched.current;
+    watched.current = 0;
+    // Sub-second blips are scroll noise, not viewing.
+    if (seconds < 0.5) return;
+    const isFirstPlay = !watchSent.current;
+    watchSent.current = true;
+    void recordRollWatch(roll.id, seconds, isFirstPlay);
+  }, [roll.id]);
+
+  // Nothing plays when `roll.uri` is null (a format this platform can't decode),
+  // so there is no play to report either.
+  const isPlaying = active && !paused && !!roll.uri;
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    if (!playSent.current) {
+      playSent.current = true;
+      void recordRollPlay(roll.id);
+    }
+    // Time comes from the player's own clock rather than wall time, so a
+    // backgrounded app doesn't keep accruing seconds nobody watched.
+    lastTime.current = player.currentTime;
+    const sample = () => {
+      const now = player.currentTime;
+      const previous = lastTime.current ?? now;
+      // Rolls loop, and a loop rewinds the clock — a negative delta means the
+      // video wrapped, so the new position *is* the elapsed time.
+      watched.current += now >= previous ? now - previous : now;
+      lastTime.current = now;
+    };
+    const timer = setInterval(sample, 500);
+    return () => {
+      clearInterval(timer);
+      sample();
+      lastTime.current = null;
+      flushWatch();
+    };
+  }, [isPlaying, player, roll.id, flushWatch]);
 
   // Double-tap likes, the way every short-form player does. A single tap has to
   // wait out the double-tap window before it can pause, otherwise the first tap

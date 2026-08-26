@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { Avatar } from '../../src/components/ui/Avatar';
+import { ProfileCover } from '../../src/components/profile/ProfileCover';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
 import { currentUser, referral } from '../../src/data/community';
@@ -47,7 +47,7 @@ const MENU: MenuItem[] = [
  * account screens from the web sidebar.
  */
 export default function MeScreen() {
-  const { colors, brand, radius, spacing } = useTheme();
+  const { colors, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const logout = useLogout();
@@ -101,12 +101,9 @@ export default function MeScreen() {
             },
           ]}
         >
-          <LinearGradient
-            colors={[brand.violetBright, brand.violet, brand.indigo]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.cover}
-          />
+          {/* Same default banner as the profile screen, so the two surfaces
+              read as one account rather than two different places. */}
+          <ProfileCover fadeTo={colors.surface} height={120} />
           <View style={styles.identityBody}>
             <View style={[styles.avatarRing, { borderColor: colors.surface }]}>
               <Avatar name={displayName} tint={myTint} size={76} />
@@ -215,7 +212,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
-  cover: { height: 96 },
   identityBody: {
     alignItems: 'center',
     paddingHorizontal: 20,

@@ -4,7 +4,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { toPost } from '../../src/api/timeline';
-import { PostCard } from '../../src/components/feed/PostCard';
+import { FEED_GUTTER, PostCard } from '../../src/components/feed/PostCard';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
@@ -34,7 +34,9 @@ export default function HashtagScreen() {
   const openPost = useCallback((post: Post) => router.push(`/post/${post.id}`), [router]);
 
   const header = (
-    <View style={{ gap: spacing.lg }}>
+    // Posts run full-bleed, so the list has no horizontal padding — everything
+    // that isn't a post re-applies the gutter itself.
+    <View style={[styles.gutter, { gap: spacing.lg, paddingBottom: spacing.lg }]}>
       <View style={styles.headerRow}>
         <BackButton onPress={() => router.back()} />
         <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
@@ -86,8 +88,6 @@ export default function HashtagScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + spacing.lg,
           paddingBottom: insets.bottom + spacing.xl,
-          paddingHorizontal: spacing.xl,
-          gap: spacing.lg,
         }}
       />
     </View>
@@ -96,6 +96,7 @@ export default function HashtagScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  gutter: { paddingHorizontal: FEED_GUTTER },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',

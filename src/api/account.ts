@@ -9,6 +9,7 @@ import type {
   Socials,
   TransactionsResponse,
   UpdateProfilePayload,
+  WalletBalancesData,
   WithdrawalMethod,
 } from './types';
 import type { MemberTint } from '../data/community';
@@ -26,6 +27,16 @@ import type { MemberTint } from '../data/community';
  */
 export async function fetchBank(): Promise<BankData> {
   const { data } = await api.get<ApiEnvelope<BankData>>('/user/bank');
+  return data.data;
+}
+
+/**
+ * GET /user/wallet — the balance breakdown (main / referral / promoter) plus the
+ * total, each with a `formatted` string the backend has already stamped with the
+ * account's currency symbol.
+ */
+export async function fetchWallet(): Promise<WalletBalancesData> {
+  const { data } = await api.get<ApiEnvelope<WalletBalancesData>>('/user/wallet');
   return data.data;
 }
 

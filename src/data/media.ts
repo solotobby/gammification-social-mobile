@@ -22,6 +22,13 @@ export type MediaItem = {
   duration?: number;
 };
 
+/**
+ * The default profile banner, shared by the Me tab and the profile screen.
+ * A fixed picsum *id* rather than a seed, so it is the same photo everywhere
+ * and for every account until the backend serves a real cover.
+ */
+export const DEFAULT_COVER = 'https://picsum.photos/id/1018/1200/400';
+
 /** Stable dummy image URL for a seed word. */
 export function sampleImage(seed: string, w = 900, h = 675): string {
   return `https://picsum.photos/seed/${seed}/${w}/${h}`;

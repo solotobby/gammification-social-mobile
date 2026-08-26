@@ -2,28 +2,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { toPost } from '../../../src/api/timeline';
+import { GhostButton } from '../../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../../src/components/ui/ScreenBackground';
-import { estimateEarnings } from '../../../src/data/postEarnings';
-import { useCurrency } from '../../../src/hooks/useCurrency';
-import { useMe } from '../../../src/hooks/useMe';
-import { usePost } from '../../../src/hooks/useTimeline';
+import { formatMoney, resolveSymbol, useCurrency } from '../../../src/hooks/useCurrency';
+import { usePostAnalytics } from '../../../src/hooks/useTimeline';
 import { useTheme } from '../../../src/theme/ThemeProvider';
 import { brand } from '../../../src/theme/colors';
-import { FONT, FONT_MONO } from '../../../src/theme/fonts';
+import { FONT } from '../../../src/theme/fonts';
 
 /**
- * Per-post analytics — the mobile version of the web's
- * `/post/timeline/{id}/analytics` page.
+ * Per-post analytics — GET /timeline/post/{id}/analytics, the mobile version of
+ * the web's `/post/timeline/{id}/analytics` page.
  *
- * **There is no per-post analytics endpoint yet.** The engagement counts here
- * are real (they come from the post itself), but every money figure is the
- * placeholder estimate from `src/data/postEarnings.ts` — shared with the feed's
- * earned pill so the two never disagree about the same post. The footnote says
- * plainly that these are estimates.
+ * Everything here is the server's: the monetized/unmonetized split (which the
+ * client could never have derived), the per-metric revenue, and the currency
+ * symbol the money is printed with. It still says *estimated* because the API
+ * does — payouts settle at month end — but the numbers are no longer invented.
  *
  * The web page ends with the full plan checkout; on mobile the plan cards live
  * on /upgrade only, so this screen links there instead of duplicating them.
@@ -32,24 +29,21 @@ import { FONT, FONT_MONO } from '../../../src/theme/fonts';
 export default function PostAnalyticsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors, radius, spacing } = useTheme();
-  const { format } = useCurrency();
+  const { symbol: accountSymbol } = useCurrency();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const { data: me } = useMe();
-  const query = usePost(id);
-  const post = query.data ? toPost(query.data.post) : undefined;
+  const query = usePostAnalytics(id);
+  const data = query.data;
 
-  const views = post?.views ?? 0;
-  const likes = post?.likes ?? 0;
-  const comments = post?.commentCount ?? post?.comments.length ?? 0;
+  // Money prints in the symbol the endpoint sent, falling back to the account's
+  // — a post's earnings must never be relabelled into another currency.
+  const symbol = resolveSymbol(data?.summary.currencySymbol) ?? accountSymbol;
+  const format = (amount: number) => formatMoney(amount, symbol);
 
-  // Without an endpoint there's nothing that distinguishes monetized from
-  // unmonetized engagement, so every interaction counts as monetized — which
-  // is what the web sample showed too (1 view, 1 monetized).
-  const revenue = estimateEarnings(views, likes, comments);
-  const total = revenue.total;
-  const monetizedEngagement = views + likes + comments;
+  const stats = data?.stats;
+  const summary = data?.summary;
+  const monetizedEngagement = stats?.monetized_engagement ?? 0;
 
   const tile = (
     icon: keyof typeof Ionicons.glyphMap,
@@ -119,6 +113,35 @@ export default function PostAnalyticsScreen() {
           <Text style={[styles.backText, { color: colors.textMuted }]}>Back to post</Text>
         </Pressable>
 
+        {/* This screen has no local fallback to render any more — every figure
+            comes from the endpoint, so say what's happening rather than paint a
+            page of zeros. */}
+        {query.isLoading ? (
+          <View style={styles.stateWrap}>
+            <ActivityIndicator color={colors.brand} />
+            <Text style={[styles.cellLabel, { color: colors.textMuted }]}>
+              Loading analytics…
+            </Text>
+          </View>
+        ) : null}
+
+        {query.isError ? (
+          <View
+            style={[
+              styles.groupCard,
+              { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
+            ]}
+          >
+            <Text style={[styles.groupTitle, { color: colors.text }]}>
+              Couldn't load analytics
+            </Text>
+            <Text style={[styles.cellLabel, { color: colors.textMuted }]}>
+              Check your connection and try again.
+            </Text>
+            <GhostButton label="Retry" onPress={() => void query.refetch()} />
+          </View>
+        ) : null}
+
         {/* Hero */}
         <LinearGradient
           colors={[brand.violetBright, brand.violet]}
@@ -132,22 +155,22 @@ export default function PostAnalyticsScreen() {
             Engagement breakdown and estimated earnings for this post. Payouts are validated at
             month end.
           </Text>
-          {me?.user ? (
+          {data?.post.account_level ? (
             <View style={styles.heroBadge}>
               <Text style={styles.heroBadgeText}>
-                {(me.level ?? 'Basic').toUpperCase()} ACCOUNT
+                {data.post.account_level.toUpperCase()} ACCOUNT
               </Text>
             </View>
           ) : null}
-          {post ? (
+          {data ? (
             <View style={styles.heroQuote}>
               <Text style={styles.heroQuoteText} numberOfLines={3}>
-                {post.body}
+                {data.post.content}
               </Text>
             </View>
           ) : null}
           <Text style={styles.heroMeta}>
-            {post ? `Posted ${post.timeAgo}` : 'Loading…'}
+            {data ? `Posted ${data.post.posted_ago}` : 'Loading…'}
             {'   '}
             {monetizedEngagement} monetized engagement{monetizedEngagement === 1 ? '' : 's'}
           </Text>
@@ -174,26 +197,29 @@ export default function PostAnalyticsScreen() {
         {/* Estimated total */}
         <View style={[styles.totalCard, { borderRadius: radius.lg }]}>
           <Text style={styles.totalEyebrow}>ESTIMATED TOTAL EARNINGS</Text>
-          <Text style={[styles.totalValue, { color: colors.mintBright }]}>{format(total)}</Text>
+          <Text style={[styles.totalValue, { color: colors.mintBright }]}>
+            {format(summary?.estimated_total_earnings ?? 0)}
+          </Text>
           <Text style={styles.totalSplit}>
-            Views {format(revenue.views)} · Likes {format(revenue.likes)} · Comments{' '}
-            {format(revenue.comments)}
+            Views {format(summary?.earnings_breakdown.views ?? 0)} · Likes{' '}
+            {format(summary?.earnings_breakdown.likes ?? 0)} · Comments{' '}
+            {format(summary?.earnings_breakdown.comments ?? 0)}
           </Text>
         </View>
 
         {/* Headline tiles */}
         <View style={styles.tileGrid}>
-          {tile('eye-outline', colors.brand, String(views), 'Total views')}
-          {tile('heart-outline', colors.mint, String(likes), 'Monetized likes')}
-          {tile('chatbubble-outline', colors.pink, String(comments), 'Total comments')}
+          {tile('eye-outline', colors.brand, String(stats?.total_views ?? 0), 'Total views')}
+          {tile('heart-outline', colors.mint, String(stats?.monetized_likes ?? 0), 'Monetized likes')}
+          {tile('chatbubble-outline', colors.pink, String(stats?.total_comments ?? 0), 'Total comments')}
           {tile('trending-up', colors.gold, String(monetizedEngagement), 'Monetized engagement')}
         </View>
 
         {/* Per-metric breakdowns */}
         {[
-          { title: 'Views', monetized: views, total: views, rev: revenue.views },
-          { title: 'Likes', monetized: likes, total: likes, rev: revenue.likes },
-          { title: 'Comments', monetized: comments, total: comments, rev: revenue.comments },
+          { title: 'Views', metric: data?.views },
+          { title: 'Likes', metric: data?.likes },
+          { title: 'Comments', metric: data?.comments },
         ].map((group) => (
           <View
             key={group.title}
@@ -204,10 +230,10 @@ export default function PostAnalyticsScreen() {
           >
             <Text style={[styles.groupTitle, { color: colors.text }]}>{group.title}</Text>
             <View style={styles.cellRow}>
-              {cell(String(group.monetized), 'Monetized')}
-              {cell(String(group.total - group.monetized), 'Unmonetized')}
-              {cell(String(group.total), 'Total')}
-              {cell(format(group.rev), 'Revenue')}
+              {cell(String(group.metric?.monetized ?? 0), 'Monetized')}
+              {cell(String(group.metric?.unmonetized ?? 0), 'Unmonetized')}
+              {cell(String(group.metric?.total ?? 0), 'Total')}
+              {cell(format(group.metric?.revenue ?? 0), 'Revenue')}
             </View>
           </View>
         ))}
@@ -220,9 +246,9 @@ export default function PostAnalyticsScreen() {
           ]}
         >
           <Text style={[styles.groupTitle, { color: colors.text }]}>Revenue breakdown</Text>
-          {breakdownRow('Views', `${views} monetized`, revenue.views)}
-          {breakdownRow('Likes', `${likes} monetized`, revenue.likes)}
-          {breakdownRow('Comments', `${comments} monetized`, revenue.comments)}
+          {(data?.revenue_breakdown ?? []).map((row) =>
+            breakdownRow(row.label, `${row.monetized_count} monetized`, row.revenue),
+          )}
           <Text style={[styles.footnote, { color: colors.textMuted }]}>
             Figures are estimates based on current monetized engagement. Final payout may differ
             after validation.
@@ -262,6 +288,7 @@ export default function PostAnalyticsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stateWrap: { alignItems: 'center', gap: 12, paddingVertical: 24 },
   backText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
   hero: { padding: 20, gap: 8 },
   heroEyebrow: {
@@ -305,7 +332,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
-  totalValue: { fontFamily: FONT_MONO, fontSize: 30, fontWeight: '700' },
+  // Not Space Mono: it has no ₦ glyph, so the symbol fell back to another
+  // font and rendered smaller than the digits beside it.
+  totalValue: { fontFamily: FONT, fontSize: 30, fontWeight: '800' },
   totalSplit: { fontFamily: FONT, color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600' },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: {

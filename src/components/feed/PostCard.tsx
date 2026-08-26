@@ -4,9 +4,13 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { mergeComments } from "../../api/timeline";
-import { newCommentId, useAddComment, useToggleLike } from "../../hooks/useTimeline";
+import {
+  newCommentId,
+  useAddComment,
+  useToggleBookmark,
+  useToggleLike,
+} from "../../hooks/useTimeline";
 import { useAuthStore } from "../../stores/authStore";
-import { useBookmarkStore } from "../../stores/bookmarkStore";
 import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
 import { useCurrency } from "../../hooks/useCurrency";
 import { useTheme } from "../../theme/ThemeProvider";
@@ -15,7 +19,14 @@ import { HashtagText } from "../ui/HashtagText";
 import { MediaGrid } from "./MediaGrid";
 import { PostMenu } from "./PostMenu";
 import type { Comment, Post } from "../../data/community";
-import { FONT, FONT_MONO } from '../../theme/fonts';
+import { FONT } from '../../theme/fonts';
+
+/**
+ * Horizontal inset for a post's text rows. Media deliberately ignores it and
+ * runs full-bleed. Lists that render `PostCard` set their content padding to 0
+ * and re-apply this to their own headers/empty states so everything lines up.
+ */
+export const FEED_GUTTER = 16;
 
 type Props = {
   post: Post;
@@ -32,7 +43,9 @@ function CommentRow({ comment }: { comment: Comment }) {
     <View
       style={[
         styles.commentRow,
-        { backgroundColor: colors.surfaceAlt, borderRadius: radius.md },
+        // Not surfaceAlt: in light mode it is the same value as the page
+        // background, which was invisible once the white card went away.
+        { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
       ]}
     >
       <Avatar name={comment.author.name} tint={comment.author.tint} size={28} />
@@ -88,7 +101,7 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
         autoFocus={autoFocus}
         style={[
           styles.composerInput,
-          { backgroundColor: colors.surfaceAlt, color: colors.text, borderColor: colors.border },
+          { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
         ]}
       />
       <Pressable
@@ -99,7 +112,9 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
         accessibilityLabel="Send comment"
         style={[
           styles.composerSend,
-          { backgroundColor: canSend ? colors.brand : colors.surfaceAlt },
+          canSend
+            ? { backgroundColor: colors.brand, borderColor: colors.brand }
+            : { backgroundColor: colors.surface, borderColor: colors.border },
         ]}
       >
         <Ionicons
@@ -127,7 +142,7 @@ function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>;
   const others = Math.max(0, count - names.length);
 
   return (
-    <View style={styles.likedByRow}>
+    <View style={[styles.likedByRow, styles.gutter]}>
       <View style={styles.likedAvatars}>
         {avatars.map((liker, i) => (
           <View
@@ -166,11 +181,18 @@ function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>;
 }
 
 /**
- * A feed post: author row with earned badge, body, hashtags, and the
- * like / comment / views / share action row. API posts (`post.remote`) like
- * optimistically through the timeline API and grow a comment strip: any
- * comments the backend embeds on the post, the ones you write this session,
- * and an inline composer.
+ * A feed post, laid out the way a photo feed is: **no card**. The post fills
+ * the screen's width, media goes edge to edge, and only the text-ish rows are
+ * inset by `FEED_GUTTER`. Posts are separated by a hairline rather than by
+ * floating on their own rounded surface, so a column of them reads as one
+ * continuous feed.
+ *
+ * That means every list rendering `PostCard` must **not** add horizontal
+ * padding of its own — the card owns its gutters. See `FEED_GUTTER` below.
+ *
+ * API posts (`post.remote`) like optimistically through the timeline API and
+ * grow a comment strip: any comments the backend embeds on the post, the ones
+ * you write this session, and an inline composer.
  */
 export function PostCard({ post, onOpen, bare }: Props) {
   const { colors, radius } = useTheme();
@@ -209,13 +231,22 @@ export function PostCard({ post, onOpen, bare }: Props) {
   const myUserId = useAuthStore((s) => s.user?.id);
   const isMine = !!post.remote && !!post.ownerId && post.ownerId === myUserId;
 
-  // Bookmarks are local-only (no endpoint yet) — see src/stores/bookmarkStore.ts.
-  const bookmarked = useBookmarkStore((s) => s.posts.some((p) => p.id === post.id));
-  const toggleBookmark = useBookmarkStore((s) => s.toggle);
+  // Bookmarks go through POST /timeline/bookmark/toggle. The flag is seeded
+  // from the server's `is_bookmarked` and held in the engagement store while a
+  // toggle is in flight, exactly like the heart. The backend rejects
+  // bookmarking your own post (422), so the action isn't offered there.
+  const toggleBookmark = useToggleBookmark();
+  const storedBookmarked = useEngagementStore((s) => s.bookmarked[post.id]);
+  const bookmarked = storedBookmarked ?? !!post.bookmarkedByViewer;
+  useEffect(() => {
+    if (post.remote && post.bookmarkedByViewer != null) {
+      useEngagementStore.getState().seedBookmarked(post.id, post.bookmarkedByViewer);
+    }
+  }, [post.id, post.remote, post.bookmarkedByViewer]);
 
   const content = (
     <>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, styles.gutter]}>
         {/* Author → their profile */}
         <Pressable
           onPress={() => router.push(`/member/${post.author.handle}`)}
@@ -248,8 +279,11 @@ export function PostCard({ post, onOpen, bare }: Props) {
             ]}
           >
             <Ionicons name="trending-up" size={12} color={colors.mint} />
+            {/* One Text, one family. Money used to render in Space Mono, which
+                has no ₦ glyph — the symbol fell back to the system font and
+                came out visibly smaller than the digits beside it. */}
             <Text style={[styles.earnedText, { color: colors.mint }]}>
-              {format(post.earned)}
+              {format(post.earned, post.earnedSymbol)}
             </Text>
           </View>
         ) : null}
@@ -259,11 +293,18 @@ export function PostCard({ post, onOpen, bare }: Props) {
       </View>
 
       {/* Feed cards clamp to 3 lines; the detail screen (bare) shows it all. */}
-      <HashtagText style={[styles.body, { color: colors.text }]} numberOfLines={bare ? undefined : 3}>
-        {post.body}
-      </HashtagText>
+      {post.body?.trim() ? (
+        <HashtagText
+          style={[styles.body, styles.gutter, { color: colors.text }]}
+          numberOfLines={bare ? undefined : 3}
+        >
+          {post.body}
+        </HashtagText>
+      ) : null}
 
-      {post.media?.length ? <MediaGrid media={post.media} /> : null}
+      {/* Full-bleed: no gutter, no corner radius — the media is the width of
+          the screen, as it is in a photo feed. */}
+      {post.media?.length ? <MediaGrid media={post.media} fullBleed /> : null}
 
       {/* Freshly posted media is transcoding server-side — say so rather than
           leaving a gap where the video will land. The feed doesn't poll for
@@ -272,6 +313,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
         <View
           style={[
             styles.pendingMedia,
+            styles.gutter,
             { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: radius.md },
           ]}
         >
@@ -283,7 +325,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
       ) : null}
 
       {post.hashtags?.length ? (
-        <View style={styles.tagRow}>
+        <View style={[styles.tagRow, styles.gutter]}>
           {post.hashtags.map((tag) => (
             <Text
               key={tag}
@@ -299,7 +341,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
 
       {post.likedBy?.length ? <LikedByRow likedBy={post.likedBy} count={likeCount} /> : null}
 
-      <View style={[styles.actionRow, { borderTopColor: colors.border }]}>
+      <View style={[styles.actionRow, styles.gutter]}>
         <Pressable
           onPress={onLike}
           hitSlop={8}
@@ -346,19 +388,21 @@ export function PostCard({ post, onOpen, bare }: Props) {
           </Text>
         </View>
 
-        <Pressable
-          onPress={() => toggleBookmark(post)}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={bookmarked ? "Remove bookmark" : "Bookmark"}
-          style={styles.action}
-        >
-          <Ionicons
-            name={bookmarked ? "bookmark" : "bookmark-outline"}
-            size={18}
-            color={bookmarked ? colors.brand : colors.textMuted}
-          />
-        </Pressable>
+        {post.remote && isMine ? null : (
+          <Pressable
+            onPress={() => (post.remote ? toggleBookmark.mutate(post.id) : undefined)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={bookmarked ? "Remove bookmark" : "Bookmark"}
+            style={styles.action}
+          >
+            <Ionicons
+              name={bookmarked ? "bookmark" : "bookmark-outline"}
+              size={18}
+              color={bookmarked ? colors.brand : colors.textMuted}
+            />
+          </Pressable>
+        )}
 
         <Pressable
           hitSlop={8}
@@ -377,7 +421,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
       {/* Comment strip + inline composer — API-backed feed cards only. The
           detail screen (bare) renders the full thread + its own input bar. */}
       {post.remote && !bare ? (
-        <View style={styles.commentStrip}>
+        <View style={[styles.commentStrip, styles.gutter]}>
           {stripComments.map((comment) => (
             <CommentRow key={comment.id} comment={comment} />
           ))}
@@ -392,19 +436,14 @@ export function PostCard({ post, onOpen, bare }: Props) {
   }
 
   return (
-    // No accessibilityRole here: the card holds real buttons (like/share), and
+    // No accessibilityRole here: the post holds real buttons (like/share), and
     // nesting <button> elements is invalid on web. The comment action is the
     // accessible route into the detail screen.
     <Pressable
       onPress={() => onOpen?.(post)}
       style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-          borderRadius: radius.lg,
-          opacity: pressed ? 0.92 : 1,
-        },
+        styles.post,
+        { borderBottomColor: colors.border, opacity: pressed ? 0.94 : 1 },
       ]}
     >
       {content}
@@ -413,12 +452,19 @@ export function PostCard({ post, onOpen, bare }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 18,
-    borderWidth: StyleSheet.hairlineWidth,
+  /**
+   * One feed post. Vertical padding only — horizontal insets live on
+   * `gutter`, which media deliberately skips. The hairline underneath is what
+   * separates one post from the next now that there is no card edge.
+   */
+  post: {
+    paddingTop: 14,
+    paddingBottom: 12,
     gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   bare: { gap: 12 },
+  gutter: { paddingHorizontal: FEED_GUTTER },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -442,7 +488,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  earnedText: { fontFamily: FONT_MONO, fontSize: 12, fontWeight: "700" },
+  // Plus Jakarta Sans, not Space Mono: the mono face has no ₦ (and a narrow
+  // $), so the currency symbol fell back to another font and read a size
+  // smaller than the amount next to it.
+  earnedText: { fontFamily: FONT, fontSize: 12, fontWeight: "800" },
   body: { fontFamily: FONT, fontSize: 15, lineHeight: 22, fontWeight: "400" },
   pendingMedia: {
     flexDirection: "row",
@@ -471,9 +520,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 12,
-    paddingRight: 6,
+    paddingRight: FEED_GUTTER + 6,
   },
   action: {
     flexDirection: "row",
@@ -487,6 +534,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     padding: 10,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   commentBody: { flex: 1, gap: 2 },
   commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -518,5 +566,6 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });

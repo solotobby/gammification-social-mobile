@@ -43,9 +43,11 @@ function CommentRow({ comment }: { comment: Comment }) {
     <View
       style={[
         styles.commentRow,
-        // Not surfaceAlt: in light mode it is the same value as the page
-        // background, which was invisible once the white card went away.
-        { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
+        // surfaceAlt on purpose: this is an *inset*, and the post behind it is
+        // an opaque surface again, which is the relationship the palette was
+        // sampled for (see colors.ts) — page shell, card on it, inset back at
+        // the shell colour. No border needed; the tone step does the work.
+        { backgroundColor: colors.surfaceAlt, borderRadius: radius.md },
       ]}
     >
       <Avatar name={comment.author.name} tint={comment.author.tint} size={28} />
@@ -101,7 +103,8 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
         autoFocus={autoFocus}
         style={[
           styles.composerInput,
-          { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
+          // Inset inside the post surface, same as the comment rows above it.
+          { backgroundColor: colors.surfaceAlt, color: colors.text },
         ]}
       />
       <Pressable
@@ -113,8 +116,8 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
         style={[
           styles.composerSend,
           canSend
-            ? { backgroundColor: colors.brand, borderColor: colors.brand }
-            : { backgroundColor: colors.surface, borderColor: colors.border },
+            ? { backgroundColor: colors.brand }
+            : { backgroundColor: colors.surfaceAlt },
         ]}
       >
         <Ionicons
@@ -181,11 +184,12 @@ function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>;
 }
 
 /**
- * A feed post, laid out the way a photo feed is: **no card**. The post fills
- * the screen's width, media goes edge to edge, and only the text-ish rows are
- * inset by `FEED_GUTTER`. Posts are separated by a hairline rather than by
- * floating on their own rounded surface, so a column of them reads as one
- * continuous feed.
+ * A feed post, laid out the way a photo feed is: full-bleed, **not a floating
+ * card**. The post fills the screen's width, media goes edge to edge, and only
+ * the text-ish rows are inset by `FEED_GUTTER`. It sits on an opaque surface
+ * and posts are separated by a strip of page showing through between them —
+ * no radius, no shadow, so the column still reads as one continuous feed
+ * rather than a stack of tiles. See `styles.post` for why it isn't a hairline.
  *
  * That means every list rendering `PostCard` must **not** add horizontal
  * padding of its own — the card owns its gutters. See `FEED_GUTTER` below.
@@ -443,7 +447,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
       onPress={() => onOpen?.(post)}
       style={({ pressed }) => [
         styles.post,
-        { borderBottomColor: colors.border, opacity: pressed ? 0.94 : 1 },
+        { backgroundColor: colors.surface, opacity: pressed ? 0.94 : 1 },
       ]}
     >
       {content}
@@ -454,14 +458,25 @@ export function PostCard({ post, onOpen, bare }: Props) {
 const styles = StyleSheet.create({
   /**
    * One feed post. Vertical padding only — horizontal insets live on
-   * `gutter`, which media deliberately skips. The hairline underneath is what
-   * separates one post from the next now that there is no card edge.
+   * `gutter`, which media deliberately skips.
+   *
+   * The post is an **opaque, full-width surface** and the separator is the
+   * `marginBottom` strip of page showing through between two of them. It
+   * replaced a hairline, which measured ~1.04:1 against the page and was
+   * simply not visible — and could never be made reliable, because
+   * `ScreenBackground`'s gradient shifts hue as the feed scrolls past it, so a
+   * fixed line colour reads in one position and disappears in the next. A
+   * figure/ground step doesn't care what's behind it.
+   *
+   * Still not a *card*: no radius, no shadow, no horizontal inset, so media
+   * stays edge to edge and the column reads as one feed rather than a stack of
+   * floating tiles.
    */
   post: {
     paddingTop: 14,
-    paddingBottom: 12,
+    paddingBottom: 14,
     gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 10,
   },
   bare: { gap: 12 },
   gutter: { paddingHorizontal: FEED_GUTTER },
@@ -534,7 +549,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     padding: 10,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   commentBody: { flex: 1, gap: 2 },
   commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -558,7 +572,6 @@ const styles = StyleSheet.create({
     textAlignVertical: "center",
     fontSize: 13,
     fontWeight: "500",
-    borderWidth: StyleSheet.hairlineWidth,
   },
   composerSend: {
     width: 34,
@@ -566,6 +579,5 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });

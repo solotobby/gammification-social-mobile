@@ -720,3 +720,66 @@ export type YearlyAnalytics = {
   total_estimated_earning: number;
   months: MonthlyAnalytics[];
 };
+
+/**
+ * GET /earnings/overview — the "how am I doing" signal, already worded by the
+ * backend. Both halves carry a display `message`, and the money half ships a
+ * pre-`formatted` string so the client never re-derives a currency symbol.
+ */
+export type EarningsOverview = {
+  /** ISO timestamps; the server recomputes hourly (`refresh_after`). */
+  generated_at: string;
+  refresh_after: string;
+  /** Window the reach figure covers (24 at the time of writing). */
+  period_hours: number;
+  reach: {
+    people: number;
+    hours: number;
+    message: string;
+  };
+  monthly_earnings: {
+    amount: number;
+    currency: string;
+    currency_symbol: string;
+    formatted: string;
+    message: string;
+  };
+  /** Both messages in display order, for surfaces that just want the copy. */
+  messages: string[];
+};
+
+// ---------------------------------------------------------------------------
+// Blog
+// ---------------------------------------------------------------------------
+
+/**
+ * One row of GET /blogs (and the payload of GET /blogs/{slug}).
+ *
+ * The endpoint was empty on every environment when this was written
+ * (`total: 0`), so the field names below are **inference** from the rest of the
+ * API's conventions, and every one of them is optional. `toBlogPost` reads a
+ * few aliases per field rather than betting on a single spelling — tighten this
+ * up once real content exists to check against.
+ */
+export type ApiBlogPost = {
+  id?: string | number;
+  slug?: string;
+  title?: string;
+  excerpt?: string | null;
+  summary?: string | null;
+  description?: string | null;
+  body?: string | null;
+  content?: string | null;
+  category?: string | { name?: string; title?: string } | null;
+  image?: string | null;
+  cover_image?: string | null;
+  banner?: string | null;
+  thumbnail?: string | null;
+  featured_image?: string | null;
+  read_time?: number | string | null;
+  read_minutes?: number | null;
+  published_at?: string | null;
+  created_at?: string | null;
+  date?: string | null;
+  author?: string | { name?: string } | null;
+};

@@ -407,58 +407,6 @@ export const referredUsers: ReferredUser[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Blog
-// ---------------------------------------------------------------------------
-
-export type BlogPost = {
-  id: string;
-  title: string;
-  excerpt: string;
-  category: string;
-  readMinutes: number;
-  date: string;
-};
-
-export const blogPosts: BlogPost[] = [
-  {
-    id: 'b1',
-    title: '5 posting habits of top Payhankey earners',
-    excerpt:
-      'We asked the leaderboard regulars how they stay consistent. Their answers come down to timing, replies, and one underrated trick.',
-    category: 'Growth',
-    readMinutes: 4,
-    date: 'Jun 24, 2026',
-  },
-  {
-    id: 'b2',
-    title: 'How engagement validation actually works',
-    excerpt:
-      'Every like, comment, and view is checked before it pays. Here is what counts, what gets filtered, and why validation runs at month end.',
-    category: 'Product',
-    readMinutes: 3,
-    date: 'Jun 10, 2026',
-  },
-  {
-    id: 'b3',
-    title: 'From Basic to Creator: when upgrading pays for itself',
-    excerpt:
-      'Creator costs ₦1,800 a month and unlocks withdrawals. We did the math on the engagement level where it becomes a no-brainer.',
-    category: 'Monetization',
-    readMinutes: 5,
-    date: 'May 28, 2026',
-  },
-  {
-    id: 'b4',
-    title: 'Referrals 101: grow your circle, grow your payout',
-    excerpt:
-      'Your referral link is a second income stream. How invites turn into bonuses, and how to share yours without spamming.',
-    category: 'Community',
-    readMinutes: 4,
-    date: 'May 15, 2026',
-  },
-];
-
-// ---------------------------------------------------------------------------
 // Account tiers
 // ---------------------------------------------------------------------------
 

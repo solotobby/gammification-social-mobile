@@ -1,0 +1,22 @@
+name: Publish Android
+
+# Change the branch below if you'd rather release from `develop` or `staging`.
+# You can also run this manually from the EAS dashboard or with:
+#   eas workflow:run publish-android.yml
+on:
+  push:
+    branches: ['develop']
+
+jobs:
+  build_android:
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  submit_android:
+    needs: [build_android]
+    type: submit
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      profile: production

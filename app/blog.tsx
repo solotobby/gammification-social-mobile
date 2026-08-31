@@ -1,89 +1,171 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { toBlogPost, type BlogPost } from '../src/api/blog';
 import { BackButton } from '../src/components/ui/BackButton';
+import { GhostButton } from '../src/components/ui/GhostButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
-import { blogPosts } from '../src/data/community';
+import { useBlogs } from '../src/hooks/useBlog';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
 
 /**
- * Blog — tips & product stories as a card list. The newest story gets the
- * featured gradient treatment; detail screens arrive with the API.
+ * Blog — tips & product stories from GET /blogs (paginated). The newest story
+ * gets the featured gradient treatment; every card opens `/blog/[slug]`.
  */
 export default function BlogScreen() {
   const { colors, brand, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [featured, ...rest] = blogPosts;
+  const query = useBlogs();
+  const posts = useMemo(
+    () => query.data?.pages.flatMap((page) => page.data.map(toBlogPost)) ?? [],
+    [query.data],
+  );
+
+  const [featured, ...rest] = posts;
+
+  const loadMore = useCallback(() => {
+    if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
+  }, [query]);
+
+  const open = useCallback(
+    (post: BlogPost) => {
+      if (post.slug) router.push(`/blog/${encodeURIComponent(post.slug)}`);
+    },
+    [router],
+  );
+
+  const header = (
+    <View style={{ gap: spacing.xl }}>
+      <View style={styles.headerRow}>
+        <BackButton onPress={() => router.back()} />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Blog</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      {featured ? (
+        <Pressable
+          onPress={() => open(featured)}
+          accessibilityRole="button"
+          accessibilityLabel={`Read ${featured.title}`}
+          style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
+        >
+          <LinearGradient
+            colors={[brand.violetBright, brand.violet, brand.indigo]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.featured, { borderRadius: radius.lg, shadowColor: brand.violet }]}
+          >
+            <View style={styles.featuredPill}>
+              <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+              <Text style={styles.featuredPillText}>Latest · {featured.category}</Text>
+            </View>
+            <Text style={styles.featuredTitle}>{featured.title}</Text>
+            {featured.excerpt ? (
+              <Text style={styles.featuredExcerpt} numberOfLines={3}>
+                {featured.excerpt}
+              </Text>
+            ) : null}
+            <Text style={styles.featuredMeta}>
+              {[featured.date, `${featured.readMinutes} min read`].filter(Boolean).join(' · ')}
+            </Text>
+          </LinearGradient>
+        </Pressable>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenBackground />
-      <ScrollView
+      <FlatList
+        data={rest}
+        keyExtractor={(post, index) => post.slug || `blog-${index}`}
+        ListHeaderComponent={header}
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => open(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`Read ${item.title}`}
+            style={({ pressed }) => [
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderRadius: radius.lg,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            {item.image ? (
+              <Image
+                source={{ uri: item.image }}
+                style={[styles.cardImage, { borderRadius: radius.md }]}
+                contentFit="cover"
+                transition={180}
+              />
+            ) : null}
+            <View style={[styles.categoryPill, { backgroundColor: colors.surfaceAlt }]}>
+              <Text style={[styles.categoryText, { color: colors.brand }]}>{item.category}</Text>
+            </View>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{item.title}</Text>
+            {item.excerpt ? (
+              <Text style={[styles.cardExcerpt, { color: colors.textSecondary }]} numberOfLines={3}>
+                {item.excerpt}
+              </Text>
+            ) : null}
+            <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
+              {[item.date, `${item.readMinutes} min read`].filter(Boolean).join(' · ')}
+            </Text>
+          </Pressable>
+        )}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.6}
+        ListEmptyComponent={
+          // The featured card already covers the one-story case, so this only
+          // shows when there is genuinely nothing (or nothing yet).
+          featured ? null : query.isLoading ? (
+            <View style={styles.stateWrap}>
+              <ActivityIndicator color={colors.brand} />
+            </View>
+          ) : query.isError ? (
+            <View style={styles.stateWrap}>
+              <Text style={[styles.stateText, { color: colors.textMuted }]}>
+                Couldn't load the blog.
+              </Text>
+              <GhostButton label="Retry" onPress={() => void query.refetch()} />
+            </View>
+          ) : (
+            <View style={styles.stateWrap}>
+              <Ionicons name="newspaper-outline" size={26} color={colors.textMuted} />
+              <Text style={[styles.stateText, { color: colors.textMuted }]}>
+                No stories published yet. Check back soon.
+              </Text>
+            </View>
+          )
+        }
+        ListFooterComponent={
+          query.isFetchingNextPage ? (
+            <ActivityIndicator color={colors.brand} style={{ paddingVertical: 16 }} />
+          ) : null
+        }
+        refreshing={query.isRefetching && !query.isFetchingNextPage}
+        onRefresh={() => void query.refetch()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: insets.top + spacing.lg,
           paddingBottom: insets.bottom + spacing.xl,
           paddingHorizontal: spacing.xl,
-          gap: spacing.xl,
+          gap: spacing.md,
         }}
-      >
-        <View style={styles.headerRow}>
-          <BackButton onPress={() => router.back()} />
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Blog</Text>
-          <View style={{ width: 44 }} />
-        </View>
-
-        {/* Featured story */}
-        <LinearGradient
-          colors={[brand.violetBright, brand.violet, brand.indigo]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.featured, { borderRadius: radius.lg, shadowColor: brand.violet }]}
-        >
-          <View style={styles.featuredPill}>
-            <Ionicons name="sparkles" size={12} color="#FFFFFF" />
-            <Text style={styles.featuredPillText}>Latest · {featured.category}</Text>
-          </View>
-          <Text style={styles.featuredTitle}>{featured.title}</Text>
-          <Text style={styles.featuredExcerpt}>{featured.excerpt}</Text>
-          <Text style={styles.featuredMeta}>
-            {featured.date} · {featured.readMinutes} min read
-          </Text>
-        </LinearGradient>
-
-        {/* The rest */}
-        <View style={{ gap: spacing.md }}>
-          {rest.map((post) => (
-            <View
-              key={post.id}
-              style={[
-                styles.card,
-                { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
-              ]}
-            >
-              <View style={[styles.categoryPill, { backgroundColor: colors.surfaceAlt }]}>
-                <Text style={[styles.categoryText, { color: colors.brand }]}>
-                  {post.category}
-                </Text>
-              </View>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>{post.title}</Text>
-              <Text style={[styles.cardExcerpt, { color: colors.textSecondary }]}>
-                {post.excerpt}
-              </Text>
-              <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
-                {post.date} · {post.readMinutes} min read
-              </Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -136,6 +218,7 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  cardImage: { width: '100%', height: 150, marginBottom: 2 },
   categoryPill: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
@@ -152,4 +235,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: FONT, fontSize: 17, lineHeight: 22, fontWeight: '800' },
   cardExcerpt: { fontFamily: FONT, fontSize: 13, lineHeight: 19, fontWeight: '500' },
   cardMeta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
+  stateWrap: { alignItems: 'center', gap: 14, paddingVertical: 34, paddingHorizontal: 24 },
+  stateText: { fontFamily: FONT, fontSize: 14, fontWeight: '600', textAlign: 'center' },
 });

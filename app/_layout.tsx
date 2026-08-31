@@ -11,6 +11,7 @@ import { ErrorModalHost } from '../src/components/feedback/ErrorModal';
 import { OfflineBanner } from '../src/components/feedback/OfflineBanner';
 import { ToastHost } from '../src/components/feedback/Toast';
 import { registerMutationDefaults } from '../src/hooks/useTimeline';
+import { useUpdateCheck } from '../src/hooks/useInAppUpdate';
 import { useAuthStore } from '../src/stores/authStore';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 
@@ -26,12 +27,22 @@ SplashScreen.setOptions({ duration: 350, fade: true });
 function ThemedStack() {
   const { colors, isDark } = useTheme();
   const status = useAuthStore((s) => s.status);
+  const { checkForUpdate } = useUpdateCheck();
 
   // Hold the splash until the persisted session loads, so launch lands
   // directly on the right side of the auth guard with no flash.
   useEffect(() => {
     if (status !== 'hydrating') void SplashScreen.hideAsync();
   }, [status]);
+
+  // Ask Play for a newer build once the first route is up — the same beat
+  // Freebyz checks on, right after its splash animation finishes. Delayed a
+  // little so the launch route settles before /app-update can push over it.
+  useEffect(() => {
+    if (status === 'hydrating') return;
+    const timer = setTimeout(() => void checkForUpdate(), 600);
+    return () => clearTimeout(timer);
+  }, [status, checkForUpdate]);
 
   if (status === 'hydrating') return null;
 
@@ -71,6 +82,8 @@ function ThemedStack() {
         {/* Reachable in both states: verification navigates here in the same
             beat that it activates the session, which flips the guards. */}
         <Stack.Screen name="get-started" />
+        {/* Play in-app update prompt — reachable signed in or out. */}
+        <Stack.Screen name="app-update" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       <OfflineBanner />
       <ToastHost />

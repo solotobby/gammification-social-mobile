@@ -783,3 +783,209 @@ export type ApiBlogPost = {
   date?: string | null;
   author?: string | { name?: string } | null;
 };
+
+// ---------------------------------------------------------------------------
+// Communities
+//
+// The Postman collection documents 10 community endpoints but omits three
+// things the app depends on, all established by probing the live API
+// (2026-09-02) — see "Communities" in AGENTS.md:
+//   1. POST /communities/{id}/join and /leave exist but are undocumented.
+//   2. Paid communities carry a `pricing` block the docs never show.
+//   3. `access` gates the feed, and the backend writes the gate copy.
+// ---------------------------------------------------------------------------
+
+/** The four community types, as the `type` field spells them. */
+export type ApiCommunityType = 'public' | 'private' | 'paid' | 'approval';
+
+/** Who absorbs the platform fee on a paid community. */
+export type ApiFeePayer = 'members' | 'creator';
+
+/** One-time payment vs a recurring subscription. */
+export type ApiBillingType = 'one_off' | 'subscription';
+
+/** Subscription cadence. `yearly`/`daily` are rejected by the API. */
+export type ApiBillingInterval = 'monthly' | 'weekly' | 'quarterly';
+
+export type ApiCommunityCategory = {
+  id: string;
+  name: string;
+};
+
+export type ApiCommunityUser = {
+  id: string;
+  username: string;
+  name: string;
+  avatar: string | null;
+};
+
+/**
+ * Pricing on a paid community — **computed by the backend**, including the
+ * platform-fee split and a written `billing_label`. Render these rather than
+ * re-deriving them, exactly like `/user/wallet`'s `formatted` strings.
+ *
+ * `fee_payer: 'creator'` → the member pays `list_price` and the creator
+ * receives it minus the fee. `fee_payer: 'members'` → the fee is added on top,
+ * so `member_charge` exceeds `list_price` and the creator receives it whole.
+ */
+export type ApiCommunityPricing = {
+  list_price: number;
+  fee_payer: ApiFeePayer;
+  billing_type: ApiBillingType;
+  billing_interval: ApiBillingInterval | null;
+  /** Backend-written copy: "One-off payment", "Billed monthly", … */
+  billing_label: string;
+  platform_fee_percent: number;
+  /** What a joining member is actually charged. */
+  member_charge: number;
+  platform_fee: number;
+  /** What the owner receives per payment. */
+  creator_payout: number;
+};
+
+export type ApiCommunityMembership = {
+  is_owner: boolean;
+  is_admin: boolean;
+  is_member: boolean;
+  role: 'owner' | 'admin' | 'member' | null;
+  pending_join_request: boolean;
+  pending_invite: boolean;
+  subscription_status: string | null;
+};
+
+/**
+ * Feed/member gating. `feed_gate_message` is the backend's own explanation of
+ * *why* the feed is closed and differs per type, so the screen prints it
+ * verbatim instead of inventing copy per status.
+ */
+export type ApiCommunityAccess = {
+  can_view_feed: boolean;
+  can_view_members: boolean;
+  feed_gate_message: string | null;
+};
+
+/** A community row. List rows omit `membership` / `access` / `posts_count`. */
+export type ApiCommunity = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  type: ApiCommunityType;
+  currency: string;
+  image: string | null;
+  banner: string | null;
+  members_count: number;
+  posts_count?: number;
+  category: ApiCommunityCategory | null;
+  owner: ApiCommunityUser;
+  pricing?: ApiCommunityPricing | null;
+  membership?: ApiCommunityMembership | null;
+  access?: ApiCommunityAccess | null;
+  share_slug?: string | null;
+  share_url?: string | null;
+  created_at: string;
+};
+
+/** `GET /communities` breaks the envelope: `currency` sits beside `data`. */
+export type CommunityListResponse = ApiEnvelope<Paginated<ApiCommunity>> & {
+  currency?: string;
+};
+
+/** What `POST /communities/{id}/join` and `/leave` answer with. */
+export type ApiCommunityJoinData = {
+  /** `joined` | `left` | `request_sent` | `request_pending`. */
+  action: string;
+  community: ApiCommunity;
+};
+
+export type ApiCommunityPostUser = ApiCommunityUser;
+
+export type ApiCommunityPostMedia = {
+  url?: string | null;
+  full_url?: string | null;
+  type?: string | null;
+  thumbnail_url?: string | null;
+};
+
+export type ApiCommunityComment = {
+  id: string;
+  content: string;
+  user: ApiCommunityPostUser;
+  created_at: string;
+};
+
+export type ApiCommunityPost = {
+  id: string;
+  community_id: string;
+  content: string;
+  word_count: number;
+  likes_count: number;
+  comments_count: number;
+  views_count: number;
+  is_liked: boolean;
+  user: ApiCommunityPostUser;
+  media: ApiCommunityPostMedia[] | null;
+  created_at: string;
+  /** Present on the list endpoint only, like the timeline's comments_preview. */
+  comments?: {
+    preview: ApiCommunityComment[];
+    total: number;
+    has_more: boolean;
+  } | null;
+};
+
+export type ApiCommunityLikeData = { liked: boolean; likes_count: number };
+export type ApiCommunityViewData = { recorded: boolean; views_count: number };
+
+/** Body for `POST /communities`. Paid types carry the four extra fields. */
+export type CreateCommunityPayload = {
+  name: string;
+  description: string;
+  community_categories_id: string;
+  type: ApiCommunityType;
+  monthly_fee?: number;
+  fee_payer?: ApiFeePayer;
+  billing_type?: ApiBillingType;
+  billing_interval?: ApiBillingInterval;
+};
+
+/** Query params `GET /communities` actually validates. */
+export type CommunityListParams = {
+  page?: number;
+  /** The search field is `search` — a `q` param is silently ignored. */
+  search?: string;
+  /** Enum-validated: anything but these three 422s. */
+  filter?: 'all' | 'joined' | 'mine';
+  category_id?: string;
+};
+
+/**
+ * Invites on a private community — `GET /communities/{id}/invites` (owner or
+ * admin only). Undocumented, and the only way a private community can be
+ * joined: `link_invite.token` is passed back as `invite_token` on join.
+ *
+ * There is no POST route, so the link invite can't be created, rotated or
+ * revoked from the app — the backend issues one per community and this reads it.
+ */
+export type ApiCommunityInvites = {
+  link_invite: {
+    id: string;
+    type: string;
+    token: string;
+    status: string;
+    uses_count: number;
+    expires_at: string | null;
+    user: ApiCommunityUser | null;
+  } | null;
+  direct_invites: unknown[];
+};
+
+/** One pending request on an `approval` community. */
+export type ApiCommunityJoinRequest = {
+  id: string;
+  status: string;
+  reason: string | null;
+  user: ApiCommunityUser;
+  reviewed_at: string | null;
+  created_at: string;
+};

@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { STATUS_META, type CommunityStatus } from '../../data/communities';
+import type { ApiCommunityType } from '../../api/types';
 import { useTheme } from '../../theme/ThemeProvider';
+import { STATUS_META } from './communityMeta';
 import { FONT } from '../../theme/fonts';
 
 /**
@@ -14,7 +15,7 @@ export function CommunityBadge({
   status,
   long,
 }: {
-  status: CommunityStatus;
+  status: ApiCommunityType;
   /** Use the full label ("Approval required") instead of the short one. */
   long?: boolean;
 }) {

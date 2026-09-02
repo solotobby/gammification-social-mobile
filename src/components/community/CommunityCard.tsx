@@ -1,51 +1,66 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import {
-  membershipOf,
-  toggleMembership,
-  type Community,
-} from '../../data/communities';
+import type { Community } from '../../api/communities';
+import { useJoinCommunity } from '../../hooks/useCommunities';
+import { formatMoney, symbolFor } from '../../hooks/useCurrency';
+import { useMe } from '../../hooks/useMe';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { CommunityBadge } from './CommunityBadge';
+import { joinActionFor } from './communityMeta';
 import { FONT } from '../../theme/fonts';
 
 /**
  * One community in a list — avatar, name, category · members, description, and
- * the membership action. The button's wording follows the status: open
- * communities Join outright, gated ones Request to join.
+ * the membership action.
  *
- * Membership lives in the shared session store (src/data/communities.ts) so the
- * card, the detail screen, and the Discover rail never disagree.
+ * The button's wording follows the community's type: public ones Join outright,
+ * approval ones Request to join, private ones can't be joined from the app at
+ * all. Paid ones show what a member would actually be charged, which is *not*
+ * the list price when the owner has chosen to pass the platform fee on — so it
+ * reads `pricing.memberCharge`, the figure the backend computed.
+ *
+ * Membership is server state: every community response carries the viewer's own
+ * block, so joining just writes the returned community back into the caches.
  */
 export function CommunityCard({ community }: { community: Community }) {
   const { colors, radius } = useTheme();
   const router = useRouter();
-  const [membership, setMembership] = useState(() => membershipOf(community));
+  const join = useJoinCommunity();
+  const { data: me } = useMe();
 
-  const memberCount = community.people.length;
-  const gated = community.status === 'approval' || community.status === 'private';
+  /**
+   * List rows omit the `membership` block the detail endpoint sends, so a
+   * community you own would otherwise offer you a "Join" button. There's no
+   * `is_owner` flag either, so ownership is derived the same way post ownership
+   * is: compare the owner's id against the signed-in user's.
+   */
+  const membership =
+    community.membership === 'none' && me?.user.id && community.owner.id === me.user.id
+      ? 'owner'
+      : community.membership;
 
-  const actionLabel =
-    membership === 'joined'
-      ? 'Joined'
-      : membership === 'requested'
-        ? 'Requested'
-        : gated
-          ? 'Request to join'
-          : community.status === 'paid'
-            ? `Join · ₦${community.price?.toLocaleString()}`
-            : 'Join';
+  const action = joinActionFor(community.type, membership);
+  const filled = membership === 'none' && !action.blocked;
 
-  const filled = membership === 'none';
+  // Each community prices in its own currency — never relabel it with the
+  // account default.
+  const symbol = symbolFor(community.currency);
+  const priceLabel =
+    community.type === 'paid' && community.pricing
+      ? formatMoney(community.pricing.memberCharge, symbol)
+      : null;
+
+  const label =
+    priceLabel && membership === 'none' ? `${action.label} · ${priceLabel}` : action.label;
 
   return (
     // No accessibilityRole on the row: it holds the join button, and nested
     // <button> elements are invalid on web.
     <Pressable
-      onPress={() => router.push(`/community/${community.slug}`)}
+      onPress={() => router.push(`/community/${community.id}`)}
       style={({ pressed }) => [
         styles.card,
         {
@@ -57,16 +72,17 @@ export function CommunityCard({ community }: { community: Community }) {
       ]}
     >
       <View style={styles.headerRow}>
-        <Avatar name={community.name} tint={community.tint} size={44} />
+        <Avatar name={community.name} tint={community.owner.tint} size={44} />
         <View style={styles.headerText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
             {community.name}
           </Text>
           <Text style={[styles.meta, { color: colors.textMuted }]} numberOfLines={1}>
-            {community.category} · {memberCount} {memberCount === 1 ? 'member' : 'members'}
+            {community.categoryName ? `${community.categoryName} · ` : ''}
+            {community.members} {community.members === 1 ? 'member' : 'members'}
           </Text>
         </View>
-        <CommunityBadge status={community.status} />
+        <CommunityBadge status={community.type} />
       </View>
 
       {community.description ? (
@@ -76,28 +92,39 @@ export function CommunityCard({ community }: { community: Community }) {
       ) : null}
 
       <View style={styles.footerRow}>
-        <Text style={[styles.postCount, { color: colors.textMuted }]}>
-          {community.posts.length} {community.posts.length === 1 ? 'post' : 'posts'}
+        <Text style={[styles.billing, { color: colors.textMuted }]} numberOfLines={1}>
+          {/* The backend writes this label ("One-off payment", "Billed monthly"). */}
+          {community.pricing?.billingLabel ?? `@${community.owner.handle}`}
         </Text>
         <Pressable
-          onPress={() => setMembership(toggleMembership(community))}
+          onPress={() => {
+            if (action.blocked || join.isPending) return;
+            join.mutate({ id: community.id });
+          }}
+          disabled={action.blocked || join.isPending}
           accessibilityRole="button"
-          accessibilityLabel={`${actionLabel} ${community.name}`}
+          accessibilityLabel={`${label} ${community.name}`}
+          accessibilityState={{ disabled: action.blocked }}
           style={[
             styles.joinBtn,
             filled
               ? { backgroundColor: colors.brand, borderColor: colors.brand }
               : { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            action.blocked ? { opacity: 0.6 } : null,
           ]}
         >
-          <Text
-            style={[
-              styles.joinText,
-              { color: filled ? colors.onBrand : colors.textSecondary },
-            ]}
-          >
-            {actionLabel}
-          </Text>
+          {join.isPending ? (
+            <ActivityIndicator size="small" color={filled ? colors.onBrand : colors.textSecondary} />
+          ) : (
+            <Text
+              style={[
+                styles.joinText,
+                { color: filled ? colors.onBrand : colors.textSecondary },
+              ]}
+            >
+              {label}
+            </Text>
+          )}
         </Pressable>
       </View>
     </Pressable>
@@ -115,10 +142,11 @@ const styles = StyleSheet.create({
   name: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   meta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   description: { fontFamily: FONT, fontSize: 13, lineHeight: 19, fontWeight: '500' },
-  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  postCount: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
+  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  billing: { fontFamily: FONT, flex: 1, fontSize: 12, fontWeight: '700' },
   joinBtn: {
     paddingHorizontal: 16,
+    minWidth: 88,
     height: 36,
     borderRadius: 999,
     alignItems: 'center',

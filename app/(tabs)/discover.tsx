@@ -23,7 +23,8 @@ import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
 import { TextField } from '../../src/components/ui/TextField';
-import { trendingCommunities } from '../../src/data/communities';
+import { toCommunity } from '../../src/api/communities';
+import { useCommunityList } from '../../src/hooks/useCommunities';
 import { toTopRoll } from '../../src/api/rolls';
 import { useDebouncedValue } from '../../src/hooks/useDebouncedValue';
 import { useTrending } from '../../src/hooks/useExplore';
@@ -66,6 +67,18 @@ export default function DiscoverScreen() {
   const results = useMemo(
     () => search.data?.pages.flatMap((page) => page.data.map(toMemberFromSearch)) ?? [],
     [search.data],
+  );
+
+  // GET /communities — the API has no ranked/trending communities endpoint, so
+  // this rail is the first page ordered by member count and titled accordingly.
+  const communityList = useCommunityList({ filter: 'all' });
+  const popularCommunities = useMemo(
+    () =>
+      (communityList.data?.pages[0]?.page.data ?? [])
+        .map(toCommunity)
+        .sort((a, b) => b.members - a.members)
+        .slice(0, 5),
+    [communityList.data],
   );
 
   const trending = useTrending();
@@ -238,10 +251,10 @@ export default function DiscoverScreen() {
                 icon="people-circle"
                 onSeeAll={() => router.push('/communities')}
               />
-              {trendingCommunities.map((community) => (
+              {popularCommunities.map((community) => (
                 <Pressable
                   key={community.id}
-                  onPress={() => router.push(`/community/${community.slug}`)}
+                  onPress={() => router.push(`/community/${community.id}`)}
                   accessibilityRole="button"
                   accessibilityLabel={community.name}
                   style={({ pressed }) => [
@@ -254,7 +267,7 @@ export default function DiscoverScreen() {
                     },
                   ]}
                 >
-                  <Avatar name={community.name} tint={community.tint} size={42} />
+                  <Avatar name={community.name} tint={community.owner.tint} size={42} />
                   <View style={styles.communityText}>
                     <Text style={[styles.communityName, { color: colors.text }]} numberOfLines={1}>
                       {community.name}
@@ -263,10 +276,11 @@ export default function DiscoverScreen() {
                       style={[styles.communityMeta, { color: colors.textMuted }]}
                       numberOfLines={1}
                     >
-                      {community.category} · {community.people.length} members
+                      {community.categoryName ? `${community.categoryName} · ` : ''}
+                      {community.members} {community.members === 1 ? 'member' : 'members'}
                     </Text>
                   </View>
-                  <CommunityBadge status={community.status} />
+                  <CommunityBadge status={community.type} />
                 </Pressable>
               ))}
             </View>

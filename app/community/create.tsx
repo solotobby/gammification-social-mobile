@@ -33,6 +33,19 @@ const TYPES: ApiCommunityType[] = ['public', 'private', 'paid', 'approval'];
  */
 const PLATFORM_FEE_PERCENT = 10;
 
+/**
+ * Currencies whose paid communities can be billed on a repeat cycle.
+ *
+ * Recurring billing is only wired up on the dollar rail: creating a paid
+ * community with `billing_type: "subscription"` on a naira account is rejected
+ * outright — 422, `billing_type`: "Subscription billing is not available for
+ * NGN communities. Use one_off." (verified live 2026-09-03). No endpoint
+ * reports which currencies *do* support it, so this is an allowlist rather than
+ * a naira exclusion: a currency we haven't confirmed is offered one-off only,
+ * which is always accepted. Add a code here once the backend takes it.
+ */
+const SUBSCRIPTION_CURRENCIES = ['USD'];
+
 const BILLING_TYPES: { value: ApiBillingType; label: string; blurb: string }[] = [
   {
     value: 'one_off',
@@ -88,6 +101,10 @@ const FEE_PAYERS: { value: ApiFeePayer; label: string; blurb: string }[] = [
  * rather than round-tripping one missing field at a time. The price is in the
  * account's wallet currency — its **minimum is currency-dependent** and only the
  * server knows it, so a too-low price is left to come back as a field error.
+ *
+ * The billing-type branch is **currency-gated**: subscriptions are dollar-only
+ * (see `SUBSCRIPTION_CURRENCIES`), so on a naira account the paid branch stops
+ * at one-off and the choice isn't offered.
  */
 export default function CreateCommunityScreen() {
   const { colors, radius, spacing } = useTheme();
@@ -102,7 +119,7 @@ export default function CreateCommunityScreen() {
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [type, setType] = useState<ApiCommunityType>('public');
-  const [billingType, setBillingType] = useState<ApiBillingType>('one_off');
+  const [pickedBillingType, setPickedBillingType] = useState<ApiBillingType>('one_off');
   const [billingInterval, setBillingInterval] = useState<ApiBillingInterval>('monthly');
   const [feePayer, setFeePayer] = useState<ApiFeePayer>('creator');
   const [price, setPrice] = useState('');
@@ -113,6 +130,14 @@ export default function CreateCommunityScreen() {
   const descriptionRef = useRef<TextInput>(null);
 
   const isPaid = type === 'paid';
+  /**
+   * Whether this account may bill on a cycle at all. `currencyCode` arrives with
+   * `/user/me`, so the billing type is *derived* rather than held in state —
+   * picking Subscription before the currency lands could otherwise leave a
+   * value the server rejects sitting in a form that no longer shows the choice.
+   */
+  const supportsSubscription = SUBSCRIPTION_CURRENCIES.includes(currencyCode.toUpperCase());
+  const billingType: ApiBillingType = supportsSubscription ? pickedBillingType : 'one_off';
   const isSubscription = isPaid && billingType === 'subscription';
   const intervalMeta = BILLING_INTERVALS.find((i) => i.value === billingInterval)!;
 
@@ -337,13 +362,31 @@ export default function CreateCommunityScreen() {
                     },
                   ]}
                 >
-                  <FieldLabel>How should members pay?</FieldLabel>
-                  {BILLING_TYPES.map((billing) => {
+                  {/* One option is not a choice: where the currency can't be
+                      billed on a cycle, the picker is replaced by a line saying
+                      so, rather than offering a radio the server would 422. */}
+                  {!supportsSubscription ? (
+                    <View
+                      style={[
+                        styles.feeNote,
+                        { backgroundColor: colors.surfaceAlt, borderRadius: radius.sm },
+                      ]}
+                    >
+                      <Ionicons name="repeat-outline" size={15} color={colors.textMuted} />
+                      <Text style={[styles.feeNoteText, { color: colors.textMuted }]}>
+                        Members pay once and keep access. Recurring subscriptions aren't
+                        available for {currencyCode} communities yet.
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {supportsSubscription ? <FieldLabel>How should members pay?</FieldLabel> : null}
+                  {(supportsSubscription ? BILLING_TYPES : []).map((billing) => {
                     const on = billing.value === billingType;
                     return (
                       <Pressable
                         key={billing.value}
-                        onPress={() => setBillingType(billing.value)}
+                        onPress={() => setPickedBillingType(billing.value)}
                         accessibilityRole="radio"
                         accessibilityState={{ selected: on }}
                         accessibilityLabel={billing.label}

@@ -42,8 +42,10 @@ export type {
  *   change membership. Join branches on the community type — see `joinCommunity`.
  * - Paid communities carry a `pricing` block with the platform-fee split
  *   already computed and a written `billing_label`.
- * - A community resolves by **id only**; `GET /communities/{slug}` 404s. The
- *   slug is display/share metadata, so every route keys on the id.
+ * - A community resolves by id via `/communities/{id}` **or** by slug via
+ *   `/communities/c/{slug}` (the latter added 2026-09-03). `fetchCommunity`
+ *   picks the route from the value it's given, so `/community/<slug>` links
+ *   work alongside `/community/<uuid>`.
  */
 
 /** Membership as the UI thinks about it, collapsed from the API's flags. */
@@ -285,9 +287,26 @@ export async function fetchCommunities(
   return { page: data.data, currency: data.currency };
 }
 
-/** `GET /communities/{id}` — by id; a slug 404s. */
-export async function fetchCommunity(id: string): Promise<Community> {
-  const { data } = await api.get<ApiEnvelope<ApiCommunity>>(`/communities/${id}`);
+/** A v4 UUID — how `/communities/{id}` expects to be addressed. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isCommunityId(value: string): boolean {
+  return UUID.test(value);
+}
+
+/**
+ * One community, by **id or slug**.
+ *
+ * `GET /communities/{id}` takes a UUID and `GET /communities/c/{slug}` (added
+ * 2026-09-03) takes a slug — a slug on the id route still 404s, so the two are
+ * separate endpoints and the caller's value decides which is used. That makes
+ * the backend's own share link (`/c/<slug>`) resolvable, which it wasn't before.
+ */
+export async function fetchCommunity(idOrSlug: string): Promise<Community> {
+  const path = isCommunityId(idOrSlug)
+    ? `/communities/${idOrSlug}`
+    : `/communities/c/${encodeURIComponent(idOrSlug)}`;
+  const { data } = await api.get<ApiEnvelope<ApiCommunity>>(path);
   return toCommunity(data.data);
 }
 

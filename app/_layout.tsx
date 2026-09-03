@@ -10,6 +10,7 @@ import { persistOptions, queryClient } from '../src/api/queryClient';
 import { ErrorModalHost } from '../src/components/feedback/ErrorModal';
 import { OfflineBanner } from '../src/components/feedback/OfflineBanner';
 import { ToastHost } from '../src/components/feedback/Toast';
+import { PaymentSheet } from '../src/components/payments/PaymentSheet';
 import { registerMutationDefaults } from '../src/hooks/useTimeline';
 import { useUpdateCheck } from '../src/hooks/useInAppUpdate';
 import { useAuthStore } from '../src/stores/authStore';
@@ -86,6 +87,9 @@ function ThemedStack() {
         <Stack.Screen name="app-update" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       <OfflineBanner />
+      {/* Checkout runs above every screen: a payment must not be cancelled by
+          navigating, and only one can ever be in flight. */}
+      <PaymentSheet />
       <ToastHost />
       <ErrorModalHost />
     </>

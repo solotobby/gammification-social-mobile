@@ -284,6 +284,12 @@ export type ApiReferralUser = {
 
 export type ApiTransaction = {
   id?: string;
+  /**
+   * The payment reference. Live rows send **`ref`** — `reference` is kept as an
+   * alias in case the field is ever renamed to match the checkout response,
+   * which calls the same value `reference`.
+   */
+  ref?: string;
   reference?: string;
   /** Human-readable line; `narration` / `title` are accepted fallbacks. */
   description?: string;
@@ -315,8 +321,8 @@ export type TransactionsResponse = {
   success?: boolean;
   message: string;
   data: Paginated<ApiTransaction>;
-  /** Empty array on the test account, so the entry shape is still unknown. */
-  stats?: unknown[];
+  /** Counts keyed by status, e.g. `{initiated: 7}`. Confirmed live 2026-09-03. */
+  stats?: Record<string, number>;
 };
 
 // ---------------------------------------------------------------------------
@@ -880,6 +886,13 @@ export type ApiCommunity = {
   owner: ApiCommunityUser;
   pricing?: ApiCommunityPricing | null;
   membership?: ApiCommunityMembership | null;
+  /**
+   * List rows only. Added by the backend 2026-09-03 so a joined community stops
+   * offering a "Join" button; the detail endpoint sends the full `membership`
+   * block instead and omits this. True for owners as well as plain members, so
+   * it answers "am I in?" — not "what am I?".
+   */
+  is_member?: boolean | null;
   access?: ApiCommunityAccess | null;
   share_slug?: string | null;
   share_url?: string | null;
@@ -988,4 +1001,111 @@ export type ApiCommunityJoinRequest = {
   user: ApiCommunityUser;
   reviewed_at: string | null;
   created_at: string;
+};
+
+// ---------------------------------------------------------------------------
+// Subscription levels (Basic / Creator / Influencer)
+//
+// `GET /user/levels` + `POST /user/levels/{id}/checkout`, added 2026-09-03.
+// This replaces the hardcoded tier cards on /upgrade: the backend now owns the
+// prices, the copy, the per-level limits and whether a level can be paid for.
+// ---------------------------------------------------------------------------
+
+export type ApiLevelPricing = {
+  list_price: number;
+  /** What a subscription actually costs, after `subscription_discount_percent`. */
+  subscription_price: number;
+  currency: string;
+  currency_symbol: string;
+  interval: string;
+  /** Signup bonus credited on this level. */
+  reg_bonus: number;
+  ref_bonus: number;
+  min_withdrawal: number;
+  subscription_discount_percent: number;
+};
+
+export type ApiLevelEarnings = {
+  per_view: number;
+  per_like: number;
+  per_comment: number;
+};
+
+export type ApiLevelMedia = {
+  images: { allowed: boolean; max: number };
+  video: { allowed: boolean; max_seconds: number };
+};
+
+/**
+ * How this level can be paid for. `available` is false for the free level and
+ * for anything that isn't an upgrade from where you are, so it — not
+ * `is_selectable` — is what gates the checkout button.
+ */
+export type ApiLevelPayment = {
+  provider: string | null;
+  available: boolean;
+  checkout_method: string;
+  /**
+   * Absolute path including the `/v1` prefix, e.g.
+   * `/v1/user/levels/{id}/checkout`. The client builds its own URL from the
+   * axios base instead of using this, so the two can't disagree about hosts.
+   */
+  checkout_path: string | null;
+  public_key: string | null;
+};
+
+export type ApiLevel = {
+  id: string;
+  name: string;
+  rank: number;
+  /** "Most popular", or null. Backend-written. */
+  badge: string | null;
+  tagline: string;
+  features: string[];
+  is_current: boolean;
+  is_free: boolean;
+  is_upgrade: boolean;
+  is_downgrade: boolean;
+  is_selectable: boolean;
+  pricing: ApiLevelPricing;
+  earnings: ApiLevelEarnings;
+  media: ApiLevelMedia;
+  payment: ApiLevelPayment;
+};
+
+export type ApiLevelsData = {
+  current_level: string;
+  currency: string;
+  currency_symbol: string;
+  subscription: {
+    plan_name: string;
+    status: string;
+    start_date: string | null;
+    next_payment_date: string | null;
+  } | null;
+  /**
+   * Which billing modes the account can use. Currently `["subscription"]` only,
+   * so the screen hides its mode toggle rather than offering a single choice.
+   */
+  billing: {
+    supports_subscription_discount: boolean;
+    modes: string[];
+    default_mode: string;
+    subscription_discount_percent: number;
+  };
+  levels: ApiLevel[];
+};
+
+/** What `POST /user/levels/{id}/checkout` answers with. */
+export type ApiLevelCheckout = {
+  provider: string;
+  billing_mode: string;
+  /** Hosted payment page — opened in the system browser. */
+  checkout_url: string;
+  reference: string;
+  transaction_id: string;
+  amount: number;
+  currency: string;
+  level: { id: string; name: string };
+  public_key: string | null;
 };

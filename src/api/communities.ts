@@ -42,8 +42,10 @@ export type {
  *   change membership. Join branches on the community type — see `joinCommunity`.
  * - Paid communities carry a `pricing` block with the platform-fee split
  *   already computed and a written `billing_label`.
- * - A community resolves by **id only**; `GET /communities/{slug}` 404s. The
- *   slug is display/share metadata, so every route keys on the id.
+ * - A community resolves by id via `/communities/{id}` **or** by slug via
+ *   `/communities/c/{slug}` (the latter added 2026-09-03). `fetchCommunity`
+ *   picks the route from the value it's given, so `/community/<slug>` links
+ *   work alongside `/community/<uuid>`.
  */
 
 /** Membership as the UI thinks about it, collapsed from the API's flags. */
@@ -156,13 +158,27 @@ function toPricing(pricing: ApiCommunityPricing | null | undefined): CommunityPr
   };
 }
 
-function toMembership(membership: ApiCommunityMembership | null | undefined): MembershipState {
-  if (!membership) return 'none';
-  if (membership.is_owner) return 'owner';
-  if (membership.is_admin) return 'admin';
-  if (membership.is_member) return 'member';
-  if (membership.pending_join_request) return 'requested';
-  return 'none';
+/**
+ * Membership, from whichever signal the endpoint provided.
+ *
+ * The detail endpoint sends the full `membership` block. **List rows send only
+ * `is_member`** (added 2026-09-03), which is true for owners too — so it can
+ * only ever resolve to `member`, and `CommunityCard` upgrades that to `owner`
+ * by comparing ids. A *pending* approval request still isn't visible on a list
+ * row, so those read as `none` there until the backend sends the full block.
+ */
+function toMembership(
+  membership: ApiCommunityMembership | null | undefined,
+  isMember?: boolean | null,
+): MembershipState {
+  if (membership) {
+    if (membership.is_owner) return 'owner';
+    if (membership.is_admin) return 'admin';
+    if (membership.is_member) return 'member';
+    if (membership.pending_join_request) return 'requested';
+    return 'none';
+  }
+  return isMember ? 'member' : 'none';
 }
 
 /**
@@ -206,7 +222,7 @@ export function toCommunity(community: ApiCommunity): Community {
     categoryName: community.category?.name ?? null,
     owner: toMember(community.owner),
     pricing: toPricing(community.pricing),
-    membership: toMembership(community.membership),
+    membership: toMembership(community.membership, community.is_member),
     pendingRequest: community.membership?.pending_join_request ?? false,
     pendingInvite: community.membership?.pending_invite ?? false,
     subscriptionStatus: community.membership?.subscription_status ?? null,
@@ -271,9 +287,26 @@ export async function fetchCommunities(
   return { page: data.data, currency: data.currency };
 }
 
-/** `GET /communities/{id}` — by id; a slug 404s. */
-export async function fetchCommunity(id: string): Promise<Community> {
-  const { data } = await api.get<ApiEnvelope<ApiCommunity>>(`/communities/${id}`);
+/** A v4 UUID — how `/communities/{id}` expects to be addressed. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isCommunityId(value: string): boolean {
+  return UUID.test(value);
+}
+
+/**
+ * One community, by **id or slug**.
+ *
+ * `GET /communities/{id}` takes a UUID and `GET /communities/c/{slug}` (added
+ * 2026-09-03) takes a slug — a slug on the id route still 404s, so the two are
+ * separate endpoints and the caller's value decides which is used. That makes
+ * the backend's own share link (`/c/<slug>`) resolvable, which it wasn't before.
+ */
+export async function fetchCommunity(idOrSlug: string): Promise<Community> {
+  const path = isCommunityId(idOrSlug)
+    ? `/communities/${idOrSlug}`
+    : `/communities/c/${encodeURIComponent(idOrSlug)}`;
+  const { data } = await api.get<ApiEnvelope<ApiCommunity>>(path);
   return toCommunity(data.data);
 }
 

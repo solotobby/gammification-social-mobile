@@ -55,8 +55,11 @@ export function joinActionFor(
   membership: 'owner' | 'admin' | 'member' | 'requested' | 'none',
 ): { label: string; blocked: boolean } {
   if (membership === 'owner') return { label: 'Owner', blocked: true };
+  // Blocked, not because joining is impossible, but because there's nothing left
+  // to do here: re-joining is a no-op and leaving is a decision that belongs on
+  // the community itself, not a one-tap action in a list.
   if (membership === 'admin' || membership === 'member')
-    return { label: 'Joined', blocked: false };
+    return { label: 'Joined', blocked: true };
   if (membership === 'requested') return { label: 'Requested', blocked: true };
 
   switch (type) {

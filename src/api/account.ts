@@ -152,8 +152,9 @@ export async function fetchTransactions(): Promise<AccountTransaction[]> {
   const rows = data.data?.data ?? [];
 
   return rows.map((row, index): AccountTransaction => ({
-    id: row.id ?? row.reference ?? `tx-${index}`,
-    reference: row.reference ?? '',
+    id: row.id ?? row.ref ?? row.reference ?? `tx-${index}`,
+    // Live rows call it `ref`; `reference` is the checkout response's name.
+    reference: row.ref ?? row.reference ?? '',
     description: row.description ?? row.narration ?? row.title ?? 'Transaction',
     amount: num(row.amount),
     date: formatDate(row.created_at ?? row.date),

@@ -44,8 +44,9 @@ type Tab = (typeof TABS)[number];
 /**
  * Community detail — `GET /communities/{id}`.
  *
- * Keyed on the **id**, not the slug: `GET /communities/{slug}` 404s, so the slug
- * is share metadata only.
+ * The route param accepts an **id or a slug** — `fetchCommunity` picks
+ * `/communities/{id}` or `/communities/c/{slug}` from its shape — so a shared
+ * `payhankey.com/c/<slug>` link resolves here as well as an in-app id push.
  *
  * The feed is gated by the API's own `access` block rather than by inspecting
  * the type here. `GET /communities/{id}/posts` 422s for a viewer who isn't
@@ -65,9 +66,18 @@ export default function CommunityScreen() {
   const { id, invite } = useLocalSearchParams<{ id: string; invite?: string }>();
 
   const { data: community, isLoading, isError } = useCommunity(id);
+  /**
+   * The route param may be a **slug**, but every sub-resource endpoint
+   * (`/posts`, `/comments`, `/like/toggle`, `/view`, `/invites`,
+   * `/join-requests`) is addressed by **id** only — there is no `/c/{slug}/...`
+   * family. So everything below keys off the resolved community's id and stays
+   * disabled until the detail request has produced one. Passing `id` straight
+   * through silently 404s the feed on a slug deep link.
+   */
+  const communityId = community?.id;
   const join = useJoinCommunity();
   const leave = useLeaveCommunity();
-  const createPost = useCreateCommunityPost(id);
+  const createPost = useCreateCommunityPost(communityId);
 
   const [tab, setTab] = useState<Tab>('Feed');
   const [draft, setDraft] = useState('');
@@ -83,7 +93,7 @@ export default function CommunityScreen() {
     isFetchingNextPage,
     refetch: refetchPosts,
     isRefetching,
-  } = useCommunityPosts(id, canViewFeed);
+  } = useCommunityPosts(communityId, canViewFeed);
 
   const posts = postsData?.posts ?? [];
 
@@ -91,12 +101,15 @@ export default function CommunityScreen() {
   // rather than fetched-and-caught.
   const isAdminOf =
     community?.membership === 'owner' || community?.membership === 'admin';
-  const { data: invites } = useCommunityInvites(id, !!isAdminOf && community?.type === 'private');
+  const { data: invites } = useCommunityInvites(
+    communityId,
+    !!isAdminOf && community?.type === 'private',
+  );
   const { data: joinRequests } = useJoinRequests(
-    id,
+    communityId,
     !!isAdminOf && community?.type === 'approval',
   );
-  const reviewRequest = useReviewJoinRequest(id);
+  const reviewRequest = useReviewJoinRequest(communityId);
 
   if (isLoading) {
     return (

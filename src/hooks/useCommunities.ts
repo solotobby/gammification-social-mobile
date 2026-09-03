@@ -149,15 +149,24 @@ export function useJoinCommunity() {
     onSuccess: (result) => {
       const community = toCommunity(result.community);
       queryClient.setQueryData(['community', community.id], community);
+      // A screen reached through a share link is cached under the *slug*, not
+      // the id, so writing the id entry alone would leave it stale.
+      queryClient.invalidateQueries({ queryKey: ['community'] });
       queryClient.invalidateQueries({ queryKey: ['communities'] });
-      showToast(
+      // `action` is one of joined | already_member | request_sent |
+      // request_pending — each needs its own wording, and anything unrecognised
+      // falls back to the server's own message rather than a guess.
+      const message =
         result.action === 'joined'
           ? `You joined ${community.name}.`
-          : result.action === 'request_pending'
-            ? 'Your join request is still pending.'
-            : 'Join request sent to the admins.',
-        result.action === 'joined' ? 'success' : 'info',
-      );
+          : result.action === 'already_member'
+            ? `You're already in ${community.name}.`
+            : result.action === 'request_sent'
+              ? 'Join request sent to the admins.'
+              : result.action === 'request_pending'
+                ? 'Your join request is still pending.'
+                : `Updated ${community.name}.`;
+      showToast(message, result.action === 'joined' ? 'success' : 'info');
     },
     onError: (error) => {
       // Private ("an invite token is required") and paid ("payment is
@@ -176,6 +185,7 @@ export function useLeaveCommunity() {
     onSuccess: (result) => {
       const community = toCommunity(result.community);
       queryClient.setQueryData(['community', community.id], community);
+      queryClient.invalidateQueries({ queryKey: ['community'] });
       queryClient.invalidateQueries({ queryKey: ['communities'] });
       // Leaving can close the feed behind you, so drop its pages too.
       queryClient.removeQueries({ queryKey: ['community-posts', community.id] });

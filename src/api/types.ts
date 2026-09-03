@@ -880,6 +880,13 @@ export type ApiCommunity = {
   owner: ApiCommunityUser;
   pricing?: ApiCommunityPricing | null;
   membership?: ApiCommunityMembership | null;
+  /**
+   * List rows only. Added by the backend 2026-09-03 so a joined community stops
+   * offering a "Join" button; the detail endpoint sends the full `membership`
+   * block instead and omits this. True for owners as well as plain members, so
+   * it answers "am I in?" — not "what am I?".
+   */
+  is_member?: boolean | null;
   access?: ApiCommunityAccess | null;
   share_slug?: string | null;
   share_url?: string | null;

@@ -156,13 +156,27 @@ function toPricing(pricing: ApiCommunityPricing | null | undefined): CommunityPr
   };
 }
 
-function toMembership(membership: ApiCommunityMembership | null | undefined): MembershipState {
-  if (!membership) return 'none';
-  if (membership.is_owner) return 'owner';
-  if (membership.is_admin) return 'admin';
-  if (membership.is_member) return 'member';
-  if (membership.pending_join_request) return 'requested';
-  return 'none';
+/**
+ * Membership, from whichever signal the endpoint provided.
+ *
+ * The detail endpoint sends the full `membership` block. **List rows send only
+ * `is_member`** (added 2026-09-03), which is true for owners too — so it can
+ * only ever resolve to `member`, and `CommunityCard` upgrades that to `owner`
+ * by comparing ids. A *pending* approval request still isn't visible on a list
+ * row, so those read as `none` there until the backend sends the full block.
+ */
+function toMembership(
+  membership: ApiCommunityMembership | null | undefined,
+  isMember?: boolean | null,
+): MembershipState {
+  if (membership) {
+    if (membership.is_owner) return 'owner';
+    if (membership.is_admin) return 'admin';
+    if (membership.is_member) return 'member';
+    if (membership.pending_join_request) return 'requested';
+    return 'none';
+  }
+  return isMember ? 'member' : 'none';
 }
 
 /**
@@ -206,7 +220,7 @@ export function toCommunity(community: ApiCommunity): Community {
     categoryName: community.category?.name ?? null,
     owner: toMember(community.owner),
     pricing: toPricing(community.pricing),
-    membership: toMembership(community.membership),
+    membership: toMembership(community.membership, community.is_member),
     pendingRequest: community.membership?.pending_join_request ?? false,
     pendingInvite: community.membership?.pending_invite ?? false,
     subscriptionStatus: community.membership?.subscription_status ?? null,

@@ -32,13 +32,20 @@ export function CommunityCard({ community }: { community: Community }) {
   const { data: me } = useMe();
 
   /**
-   * List rows omit the `membership` block the detail endpoint sends, so a
-   * community you own would otherwise offer you a "Join" button. There's no
-   * `is_owner` flag either, so ownership is derived the same way post ownership
-   * is: compare the owner's id against the signed-in user's.
+   * List rows carry `is_member` but not the full `membership` block, and
+   * `is_member` is true for owners too — so a community you own arrives here as
+   * `member` and would read "Joined" instead of "Owner". There's still no
+   * `is_owner` flag on a list row, so ownership is derived the same way post
+   * ownership is: compare the owner's id against the signed-in user's.
+   *
+   * Only ever an upgrade — a real `owner`/`admin` from the detail endpoint is
+   * left alone.
    */
   const membership =
-    community.membership === 'none' && me?.user.id && community.owner.id === me.user.id
+    community.membership !== 'owner' &&
+    community.membership !== 'admin' &&
+    me?.user.id &&
+    community.owner.id === me.user.id
       ? 'owner'
       : community.membership;
 

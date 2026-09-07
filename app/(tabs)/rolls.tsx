@@ -44,6 +44,46 @@ import { FONT } from '../../src/theme/fonts';
  * there's no roll-comment write endpoint.
  */
 
+/**
+ * How many pages of the randomised feed to walk looking for a roll opened by id
+ * or by post. Bounded so a video that simply isn't in Rolls can't march through
+ * the whole catalogue.
+ */
+const MAX_SEEK_PAGES = 5;
+
+/**
+ * Read `player.currentTime` without ever throwing.
+ *
+ * `expo-video` releases a player's **native** object when its owner unmounts,
+ * and the JS handle outlives it — touching one afterwards throws
+ * `NativeSharedObjectNotFoundException` ("Unable to find the native shared
+ * object associated with given JavaScript object"), which surfaces as a red
+ * render error over the pager.
+ *
+ * The pager unmounts rolls constantly (`windowSize={3}`), so a sampling
+ * interval or an effect cleanup can easily land on the far side of a release.
+ * Telemetry must never interrupt playback — the same rule the `/play` and
+ * `/watch` calls already follow — so every access goes through here and a
+ * released player simply reports nothing.
+ */
+function readCurrentTime(player: { currentTime: number }): number | null {
+  try {
+    const value = player.currentTime;
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Same guard, for the writes and transport calls. */
+function withPlayer(run: () => void) {
+  try {
+    run();
+  } catch {
+    // The player was released — nothing to drive any more.
+  }
+}
+
 function formatCount(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K` : `${n}`;
 }
@@ -124,9 +164,11 @@ function RollItem({
 
   useEffect(() => {
     if (!roll.uri) return;
-    player.muted = muted;
-    if (active && !paused) player.play();
-    else player.pause();
+    withPlayer(() => {
+      player.muted = muted;
+      if (active && !paused) player.play();
+      else player.pause();
+    });
   }, [player, active, paused, muted, roll.uri]);
 
   // Scrolling away resets the manual pause so the roll plays on return.
@@ -174,9 +216,12 @@ function RollItem({
     }
     // Time comes from the player's own clock rather than wall time, so a
     // backgrounded app doesn't keep accruing seconds nobody watched.
-    lastTime.current = player.currentTime;
+    lastTime.current = readCurrentTime(player);
     const sample = () => {
-      const now = player.currentTime;
+      const now = readCurrentTime(player);
+      // Released player: there is no clock left to read, so stop accruing and
+      // keep whatever was measured up to this point.
+      if (now == null) return;
       const previous = lastTime.current ?? now;
       // Rolls loop, and a loop rewinds the clock — a negative delta means the
       // video wrapped, so the new position *is* the elapsed time.
@@ -186,6 +231,8 @@ function RollItem({
     const timer = setInterval(sample, 500);
     return () => {
       clearInterval(timer);
+      // One last sample so the seconds since the previous tick aren't lost.
+      // Guarded like the rest: on unmount the player may already be gone.
       sample();
       lastTime.current = null;
       flushWatch();
@@ -426,10 +473,16 @@ export default function RollsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // Discover's "Popular Rolls" links in with ?start=<videoId>. The pager opens
-  // on that roll and keeps paging through the rest of the feed from there,
-  // rather than treating it as a one-off detail screen.
-  const { start } = useLocalSearchParams<{ start?: string }>();
+  // Two ways in besides the tab itself:
+  //   ?start=<videoId> — Discover's "Popular Rolls" rail, which already knows
+  //     the video id.
+  //   ?post=<postId>   — a video post tapped in the timeline. The feed only
+  //     knows the *post*, because no post endpoint carries the roll's
+  //     `video_id` and no route resolves one to the other (`/rolls/{postId}`
+  //     404s, `?post_id=` is ignored). So the pager finds it itself, below.
+  // Either way the pager opens on that roll and keeps paging the rest of the
+  // feed from there, rather than acting as a one-off detail screen.
+  const { start, post } = useLocalSearchParams<{ start?: string; post?: string }>();
 
   // The tab bar is hidden here, so the header's back button is the only exit.
   // Rolls is a tab rather than a pushed route, so there isn't always something
@@ -460,13 +513,55 @@ export default function RollsScreen() {
   );
 
   // Where the pager opens. FlatList reads `initialScrollIndex` on mount only,
-  // and the list doesn't mount until the first page has loaded, so recomputing
-  // this as later pages arrive can't yank the user back.
-  const startIndex = useMemo(() => {
-    if (!start) return 0;
-    const i = rolls.findIndex((r) => r.id === start);
-    return i > 0 ? i : 0;
-  }, [start, rolls]);
+  // and the list doesn't mount until the target has been resolved, so
+  // recomputing this as later pages arrive can't yank the user back.
+  const targetIndex = useMemo(() => {
+    if (start) return rolls.findIndex((r) => r.id === start);
+    if (post) return rolls.findIndex((r) => r.postId === post);
+    return 0;
+  }, [start, post, rolls]);
+  const startIndex = targetIndex > 0 ? targetIndex : 0;
+
+  /**
+   * **Rolls is a tab, so the screen stays mounted** once it has been opened —
+   * arriving a second time with a different `?post=`/`?start=` changes the
+   * params but remounts nothing, and `initialScrollIndex` is only ever read on
+   * mount. Without this, a second video tapped in the timeline would open the
+   * pager on whatever the first one left on screen.
+   *
+   * So the seek is also done imperatively, keyed on the target itself: it runs
+   * once per distinct param and never again, which is what keeps it from
+   * fighting the user's own scrolling afterwards.
+   */
+  const listRef = useRef<FlatList<Roll>>(null);
+  const seekedTo = useRef<string | null>(null);
+  const seekTarget = start ?? post ?? null;
+  useEffect(() => {
+    if (!seekTarget || targetIndex < 0) return;
+    if (seekedTo.current === seekTarget) return;
+    // The list has to exist and know its page height before it can scroll.
+    if (!pageHeight) return;
+    seekedTo.current = seekTarget;
+    setActiveIndex(targetIndex);
+    listRef.current?.scrollToIndex({ index: targetIndex, animated: false });
+  }, [seekTarget, targetIndex, pageHeight]);
+
+  // A roll arrived at by id may not be on the first page, and the feed is
+  // randomised, so there's no page it's guaranteed to be on. Walk forward a
+  // bounded number of pages looking for it; past the cap the pager gives up and
+  // says so rather than silently opening on a different video.
+  const seeking = !!(start || post) && targetIndex < 0;
+  const pagesWalked = useRef(0);
+  useEffect(() => {
+    if (!seeking) return;
+    if (pagesWalked.current >= MAX_SEEK_PAGES) return;
+    if (!feed.hasNextPage || feed.isFetchingNextPage) return;
+    pagesWalked.current += 1;
+    void feed.fetchNextPage();
+  }, [seeking, feed]);
+
+  // Out of pages (or out of patience) and still nothing — the handoff failed.
+  const seekFailed = seeking && (!feed.hasNextPage || pagesWalked.current >= MAX_SEEK_PAGES);
 
   // Pause everything when the tab loses focus.
   useFocusEffect(
@@ -509,8 +604,22 @@ export default function RollsScreen() {
           <Ionicons name="film-outline" size={34} color="rgba(255,255,255,0.6)" />
           <Text style={styles.stateText}>No rolls yet.</Text>
         </View>
+      ) : seekFailed ? (
+        // Opening on an arbitrary video would be worse than saying nothing was
+        // found — the user tapped one specific thing.
+        <View style={styles.stateWrap}>
+          <Ionicons name="videocam-off-outline" size={34} color="rgba(255,255,255,0.6)" />
+          <Text style={styles.stateText}>We couldn't find that video in Rolls.</Text>
+          <GhostButton label="Back" onPress={onBack} />
+        </View>
+      ) : seeking ? (
+        <View style={styles.stateWrap}>
+          <ActivityIndicator color="#FFFFFF" />
+          <Text style={styles.stateText}>Finding that video…</Text>
+        </View>
       ) : pageHeight > 0 ? (
         <FlatList
+          ref={listRef}
           data={rolls}
           keyExtractor={(roll) => roll.id}
           renderItem={({ item, index }) => (

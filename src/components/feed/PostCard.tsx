@@ -308,7 +308,9 @@ export function PostCard({ post, onOpen, bare }: Props) {
 
       {/* Full-bleed: no gutter, no corner radius — the media is the width of
           the screen, as it is in a photo feed. */}
-      {post.media?.length ? <MediaGrid media={post.media} fullBleed /> : null}
+      {post.media?.length ? (
+        <MediaGrid media={post.media} fullBleed postId={post.id} />
+      ) : null}
 
       {/* Freshly posted media is transcoding server-side — say so rather than
           leaving a gap where the video will land. The feed doesn't poll for

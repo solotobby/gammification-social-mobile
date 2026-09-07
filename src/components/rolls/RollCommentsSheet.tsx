@@ -3,7 +3,6 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -17,6 +16,7 @@ import { toRollComment } from '../../api/rolls';
 import { mergeComments } from '../../api/timeline';
 import { useRollComments } from '../../hooks/useRolls';
 import { useAddComment } from '../../hooks/useTimeline';
+import { keyboardInset, useKeyboard } from '../../hooks/useKeyboard';
 import { useEngagementStore } from '../../stores/engagementStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
@@ -44,6 +44,7 @@ export function RollCommentsSheet({
 }) {
   const { colors, radius, spacing } = useTheme();
   const insets = useSafeAreaInsets();
+  const { visible: keyboardUp, height: keyboardHeight } = useKeyboard();
 
   const [draft, setDraft] = useState('');
   const clientSeq = useRef(0);
@@ -75,9 +76,18 @@ export function RollCommentsSheet({
 
   return (
     <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close comments">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.avoider}
+      {/* The measured keyboard height, not KeyboardAvoidingView.
+          KAV estimates from its own layout and lands ~a safe-area inset short
+          here, leaving a strip of video between the composer and the keys.
+          `endCoordinates.height` is the keyboard's true height, so padding by
+          it puts the composer exactly on top of the keyboard.
+          Android is excluded: `adjustResize` already shrinks the window, and
+          padding as well would push the sheet up twice. */}
+      <View
+        style={[
+          styles.avoider,
+          Platform.OS === 'ios' ? { paddingBottom: keyboardHeight } : null,
+        ]}
         pointerEvents="box-none"
       >
         <Pressable
@@ -146,7 +156,10 @@ export function RollCommentsSheet({
           <View
             style={[
               styles.composer,
-              { borderTopColor: colors.border, paddingBottom: insets.bottom + 10 },
+              {
+                borderTopColor: colors.border,
+                paddingBottom: keyboardInset(insets.bottom, keyboardUp) + 10,
+              },
             ]}
           >
             <TextInput
@@ -185,7 +198,7 @@ export function RollCommentsSheet({
             </Pressable>
           </View>
         </Pressable>
-      </KeyboardAvoidingView>
+      </View>
     </Pressable>
   );
 }
@@ -202,7 +215,10 @@ const styles = StyleSheet.create({
   },
   avoider: { flex: 1, justifyContent: 'flex-end' },
   // Tall enough to read a thread, short enough to keep the video visible.
-  sheet: { height: '68%', paddingHorizontal: 18, paddingTop: 8 },
+  // maxHeight, not height: with the keyboard up the sheet has to be able to
+  // shrink, or KeyboardAvoidingView pushes a rigid 68% box off the top of the
+  // screen and takes the thread's first comments with it.
+  sheet: { maxHeight: '68%', minHeight: '45%', paddingHorizontal: 18, paddingTop: 8 },
   handle: {
     alignSelf: 'center',
     width: 40,

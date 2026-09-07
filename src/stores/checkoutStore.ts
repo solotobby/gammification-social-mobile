@@ -1,13 +1,28 @@
 import { create } from 'zustand';
 
+/**
+ * What is being paid for. The sheet is identical for all three — the provider's
+ * hosted page in a WebView — but *confirming* the outcome differs, because each
+ * one has a different endpoint that can say whether it landed.
+ */
+export type CheckoutKind = 'level' | 'paykoin' | 'community';
+
 /** One payment in flight: what the sheet needs to show it and confirm it. */
 export type CheckoutSession = {
+  kind: CheckoutKind;
   /** The provider's hosted page. */
   url: string;
-  /** The backend's own reference, used to confirm the outcome afterwards. */
+  /**
+   * The backend's own reference, used to confirm the outcome afterwards. Empty
+   * when the initialising endpoint doesn't return one — `POST /paykoin/topup`
+   * currently sends back a `checkout_url` and nothing else — in which case the
+   * sheet skips confirmation and just refetches the affected balances.
+   */
   reference: string;
-  /** Level being bought — shown in the sheet header and in the result toast. */
-  levelName: string;
+  /** What's being bought — sheet subtitle and result copy. */
+  label: string;
+  /** For `kind: 'community'`, whose subscription to re-read on the way out. */
+  communityId?: string;
 };
 
 type CheckoutState = {

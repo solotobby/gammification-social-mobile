@@ -31,6 +31,7 @@ const MENU: MenuItem[] = [
   // Communities is a bottom tab now — no need for a second way in from here.
   { icon: 'bookmark-outline', label: 'Bookmarks', sub: 'Posts you saved', route: '/bookmarks' },
   { icon: 'wallet-outline', label: 'Wallets', sub: 'Balance & withdrawals', route: '/wallet' },
+  { icon: 'diamond-outline', label: 'PayKoin', sub: 'Coins for gifting creators', route: '/paykoin' },
   { icon: 'card-outline', label: 'Bank information', sub: 'Payout account & currency', route: '/bank-info' },
   { icon: 'swap-horizontal-outline', label: 'Transactions', sub: 'Payout & earning history', route: '/transactions' },
   // { icon: 'trophy-outline', label: 'Top earners', sub: 'Monthly leaderboard', route: '/top-earners' },

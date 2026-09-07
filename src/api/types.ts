@@ -369,7 +369,12 @@ export type RollMedia = {
   sd_url?: string | null;
   hd_url?: string | null;
   low_url?: string | null;
-  quality_versions?: unknown[];
+  /**
+   * Renditions by name. **Not a consistent shape**: a WebM roll sends an empty
+   * array, an MP4 one sends `{high, medium, low}` — so it is typed as either
+   * and read through `sd_url`/`hd_url`/`low_url`, which both shapes provide.
+   */
+  quality_versions?: unknown[] | Record<string, string>;
   thumbnail_url?: string | null;
   duration?: number | null;
   width?: number | null;
@@ -1108,4 +1113,237 @@ export type ApiLevelCheckout = {
   currency: string;
   level: { id: string; name: string };
   public_key: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// Notifications
+//
+// Added to the collection 2026-09-07. Every route answers 200, but no
+// engagement writes a row on staging, so the row fields below are inference —
+// see the caveat at the top of src/api/notifications.ts.
+// ---------------------------------------------------------------------------
+
+/**
+ * One notification row. Deliberately loose: the backend may flatten its payload
+ * onto the row or nest it under `data`/`payload` (Laravel's own column), so
+ * `toAppNotification` reads both and this type permits both.
+ */
+export type ApiNotification = {
+  id?: string;
+  type?: string;
+  kind?: string;
+  event?: string;
+  message?: string;
+  text?: string;
+  title?: string;
+  body?: string;
+  created_at?: string;
+  read_at?: string | null;
+  is_read?: boolean;
+  read?: boolean;
+  post_id?: string;
+  community_id?: string;
+  amount?: number | string;
+  currency_symbol?: string;
+  actor?: ApiCommunityUser | null;
+  user?: ApiCommunityUser | null;
+  sender?: ApiCommunityUser | null;
+  from?: ApiCommunityUser | null;
+  /** Laravel nests the payload here; an API resource usually flattens it. */
+  data?: Record<string, unknown> | null;
+  payload?: Record<string, unknown> | null;
+};
+
+/** `unread_count` sits *beside* `data`, not inside it. */
+export type NotificationListResponse = ApiEnvelope<Paginated<ApiNotification>> & {
+  unread_count?: number;
+};
+
+// ---------------------------------------------------------------------------
+// PayKoin
+//
+// The in-app coin used for gifting. Top-up runs through the same hosted
+// checkout as a level upgrade (Korapay/Flutterwave), so `ApiPayKoinTopUp`
+// deliberately mirrors `ApiLevelCheckout`'s `checkout_url`.
+// ---------------------------------------------------------------------------
+
+export type ApiPayKoinBalance = {
+  /** Coins bought, and so spendable on gifts. */
+  paykoin_spendable: number;
+  /** Coins received as gifts — the only balance `convert` will take. */
+  paykoin_earned: number;
+  currency: string;
+  min_top_up: number;
+  /** `list` = fiat per coin when buying, `convert` = fiat per coin cashing out. */
+  rates: { list: number; convert: number };
+};
+
+export type ApiPayKoinTopUp = {
+  checkout_url: string;
+  reference?: string;
+  amount?: number;
+  currency?: string;
+};
+
+export type ApiPayKoinTopUpStatus = {
+  status?: string;
+  reference?: string;
+  amount?: number;
+  paykoin?: number;
+  paid?: boolean;
+  created_at?: string;
+};
+
+export type ApiPayKoinTransaction = {
+  id?: string;
+  type?: string;
+  status?: string;
+  amount?: number | string;
+  paykoin?: number | string;
+  coins?: number | string;
+  currency?: string;
+  reference?: string;
+  description?: string;
+  narration?: string;
+  created_at?: string;
+  user?: ApiCommunityUser | null;
+};
+
+// ---------------------------------------------------------------------------
+// Community — members, moderation, analytics, earnings, subscriptions
+//
+// All added to the collection 2026-09-07. Unlike the notification routes these
+// return real data on staging and were each verified live.
+// ---------------------------------------------------------------------------
+
+export type ApiCommunityMemberRole = 'owner' | 'admin' | 'member';
+
+/** A row of `GET /communities/{id}/members` (and `/members/banned`). */
+export type ApiCommunityMemberRow = ApiCommunityUser & {
+  role: ApiCommunityMemberRole;
+  status: string;
+  joined_at?: string;
+  banned_at?: string;
+};
+
+/** `GET /communities/{id}/analytics`. */
+export type ApiCommunityAnalytics = {
+  community_id: string;
+  community_name: string;
+  stats: {
+    members_total: number;
+    members_7d: number;
+    members_30d: number;
+    posts_total: number;
+    posts_7d: number;
+    posts_30d: number;
+    likes_total: number;
+    comments_total: number;
+    views_total: number;
+    pending_requests: number;
+    active_subscribers: number;
+    invite_link_uses: number;
+  };
+  top_posts: ApiCommunityPost[];
+  recent_members: (ApiCommunityUser & {
+    pivot?: { role?: string; status?: string; created_at?: string };
+  })[];
+};
+
+/** `GET /communities/{id}/earnings` — stats beside a paginator of payments. */
+export type ApiCommunityEarnings = {
+  stats: {
+    period: string;
+    gross: number;
+    platform_fee: number;
+    creator_amount: number;
+    count: number;
+    active_subscribers_count: number;
+    platform_fee_percent: number;
+    currency: string;
+  };
+  payments: Paginated<ApiCommunityPayment>;
+};
+
+export type ApiCommunityPayment = {
+  id?: string;
+  amount?: number | string;
+  platform_fee?: number | string;
+  creator_amount?: number | string;
+  currency?: string;
+  status?: string;
+  created_at?: string;
+  user?: ApiCommunityUser | null;
+};
+
+/** `GET /communities/{id}/subscription/status`. */
+export type ApiCommunitySubscriptionStatus = {
+  has_subscription: boolean;
+  is_active: boolean;
+  status: string | null;
+  billing_type: string | null;
+  billing_interval: string | null;
+  amount: number;
+  starts_at: string | null;
+  expires_at: string | null;
+};
+
+/**
+ * `POST /communities/{id}/subscribe` — the paid-community join that did not
+ * exist when communities were first integrated. Answers a hosted `checkout_url`
+ * exactly like a level upgrade, so `PaymentSheet` renders it unchanged.
+ */
+export type ApiCommunitySubscribe = {
+  checkout_url?: string;
+  reference?: string;
+  amount?: number;
+  currency?: string;
+  provider?: string;
+  /** Set when the backend settles the join without a payment page. */
+  subscribed?: boolean;
+  status?: string;
+};
+
+/**
+ * `POST /communities/fee-preview` — the split, computed server-side.
+ *
+ * Note the **camelCase** money keys: this endpoint does not follow the
+ * snake_case convention the `pricing` block on a community uses
+ * (`member_charge` / `platform_fee` / `creator_payout`), so the two shapes are
+ * deliberately not shared. Verified live 2026-09-07.
+ */
+export type ApiCommunityFeePreview = {
+  memberCharge: number;
+  platformCut: number;
+  creatorPayout: number;
+  platform_fee_percent: number;
+  billing_type?: ApiBillingType;
+  billing_interval?: ApiBillingInterval | null;
+  /** Written by the backend: "/mo", "/wk", or "" for a one-off. */
+  suffix?: string;
+};
+
+/** What `PUT /communities/{id}` accepts. Every field is optional. */
+export type UpdateCommunityPayload = {
+  name?: string;
+  description?: string;
+  community_categories_id?: string;
+  type?: ApiCommunityType;
+  monthly_fee?: number;
+  fee_payer?: ApiFeePayer;
+  billing_type?: ApiBillingType;
+  billing_interval?: ApiBillingInterval;
+};
+
+/**
+ * A gift artifact from `GET /gifts` — undocumented, found by probing. `price`
+ * is in PayKoin, and `tier` groups the catalog ("classic", "fashion",
+ * "payhankey", "premium").
+ */
+export type ApiGiftArtifact = {
+  id: string;
+  name: string;
+  emoji: string;
+  price: number;
+  tier: string;
 };

@@ -58,6 +58,10 @@ export default function HashtagScreen() {
         onEndReached={loadMore}
         onEndReachedThreshold={0.6}
         keyboardShouldPersistTaps="handled"
+        // iOS: scroll a focused input clear of the keyboard. These lists carry
+        // inline composers (a post's comment box, the community composer), and
+        // without this the keyboard simply covers whichever one you tapped.
+        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           query.isLoading ? (

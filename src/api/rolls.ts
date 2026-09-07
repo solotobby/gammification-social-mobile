@@ -15,14 +15,18 @@ import type {
 import type { Comment, Member } from '../data/community';
 
 /**
- * Container formats AVFoundation cannot decode. The backend currently
- * transcodes rolls to **WebM** (VP8/VP9), which iOS has no decoder for — the
- * player logs `AVFoundationErrorDomain Code=-11828 "Cannot Open"` and shows
- * nothing. Rather than render a black rectangle, `playableUri` returns null for
- * these and the roll falls back to its poster frame.
+ * Container formats AVFoundation cannot decode.
  *
- * Android plays WebM natively, so this only gates iOS. Remove the gate once the
- * backend emits H.264/MP4 renditions.
+ * **The backend now transcodes uploads to MP4** (fixed 2026-09-07), so new
+ * videos play on iOS and Android alike. A tail of **WebM** rolls uploaded
+ * before that fix is still in the catalogue, and iOS has no VP8/VP9 decoder —
+ * the player logs `AVFoundationErrorDomain Code=-11828 "Cannot Open"` and shows
+ * nothing. So this gate stays as a *legacy* path: `playableUri` returns null
+ * for those and the roll falls back to its poster frame with an explanation,
+ * rather than rendering a black rectangle.
+ *
+ * Android plays WebM natively, so it only ever gated iOS. Remove the gate once
+ * the last pre-fix upload has aged out.
  */
 const UNPLAYABLE_ON_IOS = ['.webm'];
 
@@ -35,7 +39,8 @@ function isPlayable(uri: string | null | undefined): boolean {
 
 /**
  * The best URL this platform can actually play, or null when every rendition is
- * in a format it can't decode. Prefers SD for the pager (smaller, starts fast).
+ * in a format it can't decode (only legacy WebM uploads, on iOS). Prefers SD
+ * for the pager — smaller, starts fast.
  */
 export function playableUri(media: RollMedia | null | undefined): string | null {
   if (!media) return null;

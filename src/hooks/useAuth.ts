@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useEngagementStore } from '../stores/engagementStore';
 import { useFollowStore } from '../stores/followStore';
 import { useHiddenStore } from '../stores/hiddenStore';
+import { useViewedStore } from '../stores/viewedStore';
 
 /**
  * Persist and activate a session. Flipping the auth store also flips the
@@ -92,6 +93,7 @@ export function useLogout() {
     useEngagementStore.getState().reset();
     useFollowStore.getState().reset();
     useHiddenStore.getState().reset();
+    useViewedStore.getState().reset();
     await persister.removeClient();
   };
 }

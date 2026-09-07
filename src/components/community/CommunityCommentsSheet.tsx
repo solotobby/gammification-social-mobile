@@ -19,6 +19,7 @@ import {
   useAddCommunityPostComment,
   useCommunityPostComments,
 } from '../../hooks/useCommunities';
+import { keyboardInset, useKeyboard } from '../../hooks/useKeyboard';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { HashtagText } from '../ui/HashtagText';
@@ -49,6 +50,7 @@ export function CommunityCommentsSheet({
 }) {
   const { colors, radius, spacing } = useTheme();
   const insets = useSafeAreaInsets();
+  const { visible: keyboardUp } = useKeyboard();
   const [draft, setDraft] = useState('');
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -81,7 +83,7 @@ export function CommunityCommentsSheet({
               backgroundColor: colors.surface,
               borderTopLeftRadius: radius.lg,
               borderTopRightRadius: radius.lg,
-              paddingBottom: insets.bottom + spacing.md,
+              paddingBottom: keyboardInset(insets.bottom, keyboardUp) + spacing.md,
             },
           ]}
         >

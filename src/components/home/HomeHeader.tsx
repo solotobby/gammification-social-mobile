@@ -3,8 +3,9 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { currentUser, notifications } from '../../data/community';
+import { currentUser } from '../../data/community';
 import { useMe, useMyTint } from '../../hooks/useMe';
+import { useUnreadNotificationCount } from '../../hooks/useNotifications';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/ThemeProvider';
 // import { StoriesRail } from '../stories/StoriesRail';
@@ -34,8 +35,10 @@ export function HomeHeader({
 }) {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
-  const hasUnread = notifications.some((n) => n.unread);
   const greeting = getGreeting();
+
+  // GET /notifications/unread-count, polled while the app is focused.
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
 
   // Signed-in identity from /user/me; the session snapshot bridges the gap
   // while the query loads, and the dummy user covers logged-out previews.
@@ -81,8 +84,17 @@ export function HomeHeader({
           style={iconButton}
         >
           <Ionicons name="notifications-outline" size={22} color={colors.text} />
-          {hasUnread ? (
-            <View style={[styles.bellDot, { backgroundColor: colors.pink, borderColor: colors.surface }]} />
+          {unreadCount > 0 ? (
+            <View
+              style={[
+                styles.bellBadge,
+                { backgroundColor: colors.pink, borderColor: colors.surface },
+              ]}
+            >
+              <Text style={styles.bellBadgeText} numberOfLines={1}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
+            </View>
           ) : null}
         </Pressable>
       </View>
@@ -136,14 +148,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
-  bellDot: {
+  // Sits half off the bell's top-right. minWidth (not width) lets "99+" widen
+  // the pill instead of clipping, while a single digit stays a circle.
+  bellBadge: {
     position: 'absolute',
-    top: 10,
-    right: 11,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
+    top: 4,
+    right: 3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
+  },
+  bellBadgeText: {
+    fontFamily: FONT,
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
   },
   composerCard: {
     flexDirection: 'row',

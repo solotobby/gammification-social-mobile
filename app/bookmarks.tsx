@@ -53,6 +53,10 @@ export default function BookmarksScreen() {
         onEndReached={loadMore}
         onEndReachedThreshold={0.6}
         keyboardShouldPersistTaps="handled"
+        // iOS: scroll a focused input clear of the keyboard. These lists carry
+        // inline composers (a post's comment box, the community composer), and
+        // without this the keyboard simply covers whichever one you tapped.
+        automaticallyAdjustKeyboardInsets
         ListHeaderComponent={
           // Posts run full-bleed, so the list has no horizontal padding and
           // everything that isn't a post re-applies the gutter itself.

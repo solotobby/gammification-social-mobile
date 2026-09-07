@@ -15,6 +15,14 @@ import type {
   ApiCommunityType,
   ApiCommunityUser,
   ApiCommunityViewData,
+  ApiCommunityAnalytics,
+  ApiCommunityEarnings,
+  ApiCommunityFeePreview,
+  ApiCommunityMemberRole,
+  ApiCommunityMemberRow,
+  ApiCommunitySubscribe,
+  ApiCommunitySubscriptionStatus,
+  UpdateCommunityPayload,
   ApiEnvelope,
   CommunityListParams,
   CommunityListResponse,
@@ -514,4 +522,236 @@ export async function recordCommunityPostView(
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Members and moderation
+//
+// Added to the collection 2026-09-07, and the answer to the "no members
+// endpoint" gap the first integration had to work around — the web's Members
+// tab can finally be built. All verified live against a community test2 owns.
+// ---------------------------------------------------------------------------
+
+/** How a member row is rendered and what can be done to it. */
+export type CommunityMember = {
+  id: string;
+  member: Member;
+  role: ApiCommunityMemberRole;
+  status: string;
+  joinedAgo: string;
+  isOwner: boolean;
+  isAdmin: boolean;
+};
+
+export function toCommunityMember(row: ApiCommunityMemberRow): CommunityMember {
+  return {
+    id: row.id,
+    member: toMember(row),
+    role: row.role,
+    status: row.status,
+    joinedAgo: row.joined_at ? timeAgo(row.joined_at) : '',
+    isOwner: row.role === 'owner',
+    isAdmin: row.role === 'admin',
+  };
+}
+
+/** `GET /communities/{id}/members` — paginated, 15 a page, owner listed too. */
+export async function fetchCommunityMembers(
+  id: string,
+  page: number,
+): Promise<Paginated<ApiCommunityMemberRow>> {
+  const { data } = await api.get<ApiEnvelope<Paginated<ApiCommunityMemberRow>>>(
+    `/communities/${id}/members`,
+    { params: { page } },
+  );
+  return data.data;
+}
+
+/** `GET /communities/{id}/members/banned` — same row shape, banned only. */
+export async function fetchBannedMembers(
+  id: string,
+  page: number,
+): Promise<Paginated<ApiCommunityMemberRow>> {
+  const { data } = await api.get<ApiEnvelope<Paginated<ApiCommunityMemberRow>>>(
+    `/communities/${id}/members/banned`,
+    { params: { page } },
+  );
+  return data.data;
+}
+
+/**
+ * The four moderation verbs, all `POST /communities/{id}/members/{userId}/…`
+ * and all owner/admin only. The path segment is the *user's* id, which is what
+ * the member row's `id` already is.
+ */
+export type MemberAction = 'promote' | 'demote' | 'ban' | 'unban';
+
+export async function moderateMember(
+  id: string,
+  userId: string,
+  action: MemberAction,
+): Promise<void> {
+  await api.post(`/communities/${id}/members/${userId}/${action}`);
+}
+
+/** `DELETE /communities/{id}/members/{userId}` — remove without banning. */
+export async function removeMember(id: string, userId: string): Promise<void> {
+  await api.delete(`/communities/${id}/members/${userId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Analytics and earnings
+// ---------------------------------------------------------------------------
+
+/**
+ * `GET /communities/{id}/analytics` — the owner's dashboard: membership and
+ * engagement totals with 7/30-day slices, the top posts, and recent joiners.
+ */
+export async function fetchCommunityAnalytics(id: string): Promise<ApiCommunityAnalytics> {
+  const { data } = await api.get<ApiEnvelope<ApiCommunityAnalytics>>(
+    `/communities/${id}/analytics`,
+  );
+  return data.data;
+}
+
+/**
+ * `GET /communities/{id}/earnings` — subscription revenue.
+ *
+ * `stats` carries the split already computed (gross, platform fee, creator
+ * amount, and the `platform_fee_percent` behind it), so the screen renders the
+ * server's arithmetic rather than redoing it. `payments` is a paginator beside
+ * it, not nested inside — the same envelope shape as `/user/referrals`.
+ */
+export async function fetchCommunityEarnings(
+  id: string,
+  page: number,
+): Promise<ApiCommunityEarnings> {
+  const { data } = await api.get<ApiEnvelope<ApiCommunityEarnings>>(
+    `/communities/${id}/earnings`,
+    { params: { page } },
+  );
+  return data.data;
+}
+
+// ---------------------------------------------------------------------------
+// Paid communities — the join that finally exists
+// ---------------------------------------------------------------------------
+
+/**
+ * `GET /communities/{id}/subscription/status` — the viewer's own subscription
+ * to this community. Answers for any community, paid or not; a free one simply
+ * reports `has_subscription: false`.
+ */
+export async function fetchCommunitySubscriptionStatus(
+  id: string,
+): Promise<ApiCommunitySubscriptionStatus> {
+  const { data } = await api.get<ApiEnvelope<ApiCommunitySubscriptionStatus>>(
+    `/communities/${id}/subscription/status`,
+  );
+  return data.data;
+}
+
+/**
+ * `POST /communities/{id}/subscribe` — **the paid-community payment route that
+ * did not exist at the first integration**, when `/subscribe`, `/pay` and
+ * `/checkout` all 404'd and `POST /join` could only answer 422 "Payment is
+ * required to join this community."
+ *
+ * It answers a hosted `checkout_url` like a level upgrade, so the same
+ * `PaymentSheet` renders it; the caller confirms afterwards by re-reading
+ * `fetchCommunitySubscriptionStatus`. A backend that settles without a payment
+ * page (a zero-fee or already-paid case) returns no URL, which the hook treats
+ * as an immediate join.
+ */
+export async function subscribeToCommunity(id: string): Promise<ApiCommunitySubscribe> {
+  const { data } = await api.post<ApiEnvelope<ApiCommunitySubscribe>>(
+    `/communities/${id}/subscribe`,
+  );
+  return data.data;
+}
+
+/**
+ * `POST /communities/fee-preview` — the platform-fee split for a fee the user
+ * is *considering*, computed server-side.
+ *
+ * This replaces the create form's client-side 10% guess: until this endpoint
+ * existed there was nothing to read `platform_fee_percent` from before a
+ * community was created, so the preview hardcoded the web's stated rate.
+ */
+export async function previewCommunityFee(payload: {
+  monthly_fee: number;
+  fee_payer?: string;
+  billing_type?: string;
+  billing_interval?: string;
+}): Promise<ApiCommunityFeePreview> {
+  const { data } = await api.post<ApiEnvelope<ApiCommunityFeePreview>>(
+    '/communities/fee-preview',
+    payload,
+  );
+  return data.data;
+}
+
+// ---------------------------------------------------------------------------
+// Community settings (owner)
+// ---------------------------------------------------------------------------
+
+/** `PUT /communities/{id}` — partial update; every field is optional. */
+export async function updateCommunity(
+  id: string,
+  payload: UpdateCommunityPayload,
+): Promise<Community> {
+  const { data } = await api.put<ApiEnvelope<ApiCommunity>>(`/communities/${id}`, payload);
+  return toCommunity(data.data);
+}
+
+/**
+ * `DELETE /communities/{id}` — **now live.** It used to answer 405 (GET/HEAD
+ * only), which is why "a community created by mistake is permanent" was a
+ * standing gap; it isn't any more.
+ */
+export async function deleteCommunity(id: string): Promise<void> {
+  await api.delete(`/communities/${id}`);
+}
+
+/** `POST /communities/{id}/archive` and `/unarchive` — hide without deleting. */
+export async function setCommunityArchived(id: string, archived: boolean): Promise<void> {
+  await api.post(`/communities/${id}/${archived ? 'archive' : 'unarchive'}`);
+}
+
+/**
+ * `POST /communities/{id}/logo` and `/banner` — multipart, one file part named
+ * for the image. The matching `DELETE` on each route clears it.
+ */
+export async function uploadCommunityImage(
+  id: string,
+  kind: 'logo' | 'banner',
+  file: { uri: string; name: string; type: string },
+): Promise<Community> {
+  const form = new FormData();
+  form.append(kind, file as unknown as Blob);
+  const { data } = await api.post<ApiEnvelope<ApiCommunity>>(
+    `/communities/${id}/${kind}`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return toCommunity(data.data);
+}
+
+/** `DELETE /communities/{id}/logo` | `/banner`. */
+export async function deleteCommunityImage(
+  id: string,
+  kind: 'logo' | 'banner',
+): Promise<void> {
+  await api.delete(`/communities/${id}/${kind}`);
+}
+
+/**
+ * `DELETE /communities/{id}/posts/{postId}`.
+ *
+ * The collection lists "Delete Community Post" against `POST .../view` — a
+ * copy-paste error in the docs (that URL is the view recorder, and its example
+ * response is the delete one). The real route is the DELETE below.
+ */
+export async function deleteCommunityPost(id: string, postId: string): Promise<void> {
+  await api.delete(`/communities/${id}/posts/${postId}`);
 }

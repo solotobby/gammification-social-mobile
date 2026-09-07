@@ -272,6 +272,10 @@ export default function MemberProfileScreen() {
           ) : null
         }
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        // iOS: scroll a focused input clear of the keyboard — the posts here
+        // carry the same inline comment composer the feed does.
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={{
           paddingTop: insets.top + spacing.lg,
           paddingBottom: insets.bottom + spacing.xl,

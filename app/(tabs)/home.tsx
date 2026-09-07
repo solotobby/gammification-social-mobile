@@ -18,6 +18,7 @@ import { type FeedTab } from '../../src/components/home/FeedTabs';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
+import { usePostViewTracker } from '../../src/hooks/usePostViewTracker';
 import { useFeed } from '../../src/hooks/useTimeline';
 import { useFollowStore } from '../../src/stores/followStore';
 import { useHiddenStore } from '../../src/stores/hiddenStore';
@@ -98,6 +99,10 @@ export default function HomeScreen() {
 
   const openPost = useCallback((post: Post) => router.push(`/post/${post.id}`), [router]);
 
+  // Posts count as viewed once they've actually been on screen — see
+  // usePostViewTracker. Silent: nothing renders, nothing can fail loudly.
+  const viewTracker = usePostViewTracker();
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenBackground />
@@ -108,7 +113,13 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.6}
+        onViewableItemsChanged={viewTracker.onViewableItemsChanged}
+        viewabilityConfig={viewTracker.viewabilityConfig}
         keyboardShouldPersistTaps="handled"
+        // iOS: scroll a focused input clear of the keyboard. These lists carry
+        // inline composers (a post's comment box, the community composer), and
+        // without this the keyboard simply covers whichever one you tapped.
+        automaticallyAdjustKeyboardInsets
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

@@ -24,11 +24,31 @@ import {
   toCommunityComment,
   toCommunityPost,
   toggleCommunityPostLike,
+  deleteCommunity,
+  deleteCommunityImage,
+  deleteCommunityPost,
+  fetchBannedMembers,
+  fetchCommunityAnalytics,
+  fetchCommunityEarnings,
+  fetchCommunityMembers,
+  fetchCommunitySubscriptionStatus,
+  moderateMember,
+  previewCommunityFee,
+  removeMember,
+  subscribeToCommunity,
+  updateCommunity,
+  uploadCommunityImage,
   type Community,
   type CommunityPost,
+  type MemberAction,
 } from '../api/communities';
-import type { CommunityListParams, CreateCommunityPayload } from '../api/types';
+import type {
+  CommunityListParams,
+  CreateCommunityPayload,
+  UpdateCommunityPayload,
+} from '../api/types';
 import { useAuthStore } from '../stores/authStore';
+import { useCheckoutStore } from '../stores/checkoutStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 
 /**
@@ -303,3 +323,265 @@ export function useReviewJoinRequest(id: string | undefined) {
 }
 
 export type { Community, CommunityPost };
+
+// ---------------------------------------------------------------------------
+// Members and moderation
+//
+// The members endpoint arrived 2026-09-07 and closes the "no members endpoint"
+// gap the first integration had to design around — the roster can be read, so
+// the web's Members tab is buildable.
+// ---------------------------------------------------------------------------
+
+/**
+ * `GET /communities/{id}/members`, paged.
+ *
+ * Gated on `canViewMembers` for the same reason the posts query is gated on
+ * `canViewFeed`: a viewer without access gets an error, not an empty list.
+ */
+export function useCommunityMembers(id: string | undefined, canViewMembers: boolean) {
+  const token = useAuthStore((s) => s.token);
+  return useInfiniteQuery({
+    queryKey: ['community-members', id],
+    queryFn: ({ pageParam }) => fetchCommunityMembers(id!, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.next_page_url ? last.current_page + 1 : undefined),
+    enabled: !!token && !!id && canViewMembers,
+  });
+}
+
+/** `GET /communities/{id}/members/banned` — owner/admin only. */
+export function useBannedMembers(id: string | undefined, isAdmin: boolean) {
+  const token = useAuthStore((s) => s.token);
+  return useInfiniteQuery({
+    queryKey: ['community-banned-members', id],
+    queryFn: ({ pageParam }) => fetchBannedMembers(id!, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.next_page_url ? last.current_page + 1 : undefined),
+    enabled: !!token && !!id && isAdmin,
+  });
+}
+
+/** Past-tense confirmations, so the toast says what happened. */
+const MEMBER_ACTION_TOAST: Record<MemberAction | 'remove', string> = {
+  promote: 'Promoted to admin.',
+  demote: 'Removed as admin.',
+  ban: 'Member banned.',
+  unban: 'Member unbanned.',
+  remove: 'Member removed.',
+};
+
+/**
+ * Promote / demote / ban / unban / remove, as one mutation.
+ *
+ * All five change who is in the roster or what they can do, so each one
+ * refreshes the member lists *and* the community itself (its `members_count`
+ * moves on a ban or a removal). Verified live: every verb round-trips, and
+ * banning moves the row from `/members` to `/members/banned`.
+ */
+export function useModerateMember(id: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, action }: { userId: string; action: MemberAction | 'remove' }) =>
+      action === 'remove' ? removeMember(id!, userId) : moderateMember(id!, userId, action),
+    onSuccess: (_data, { action }) => {
+      queryClient.invalidateQueries({ queryKey: ['community-members', id] });
+      queryClient.invalidateQueries({ queryKey: ['community-banned-members', id] });
+      queryClient.invalidateQueries({ queryKey: ['community', id] });
+      useFeedbackStore.getState().showToast(MEMBER_ACTION_TOAST[action], 'success');
+    },
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "That didn't work.");
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Analytics and earnings (owner)
+// ---------------------------------------------------------------------------
+
+/** `GET /communities/{id}/analytics` — owner/admin only, so gated on it. */
+export function useCommunityAnalytics(id: string | undefined, isAdmin: boolean) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: ['community-analytics', id],
+    queryFn: () => fetchCommunityAnalytics(id!),
+    enabled: !!token && !!id && isAdmin,
+  });
+}
+
+/** `GET /communities/{id}/earnings` — owner/admin only. */
+export function useCommunityEarnings(id: string | undefined, isAdmin: boolean) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: ['community-earnings', id],
+    queryFn: () => fetchCommunityEarnings(id!, 1),
+    enabled: !!token && !!id && isAdmin,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Paid communities
+// ---------------------------------------------------------------------------
+
+/** `GET /communities/{id}/subscription/status` — only meaningful when paid. */
+export function useCommunitySubscription(id: string | undefined, isPaid: boolean) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: ['community-subscription', id],
+    queryFn: () => fetchCommunitySubscriptionStatus(id!),
+    enabled: !!token && !!id && isPaid,
+  });
+}
+
+/**
+ * `POST /communities/{id}/subscribe` — pay to join a paid community.
+ *
+ * Hands the returned hosted checkout to the shared `PaymentSheet`, exactly like
+ * a level upgrade; the sheet confirms afterwards by re-reading the community's
+ * subscription status. When the backend settles without a payment page (no
+ * `checkout_url`), the join is already done and the caches are just refreshed.
+ *
+ * **A dollar account cannot complete this today**: the call answers 500
+ * "Unable to initialize Flutterwave payment", the same missing-provider gap
+ * that stops USD level upgrades. Naira accounts get a working Korapay page
+ * (verified live 2026-09-07).
+ */
+export function useSubscribeToCommunity(id: string | undefined, name: string) {
+  const queryClient = useQueryClient();
+  const openCheckout = useCheckoutStore((s) => s.open);
+
+  return useMutation({
+    mutationFn: () => subscribeToCommunity(id!),
+    onSuccess: (result) => {
+      if (result.checkout_url) {
+        openCheckout({
+          kind: 'community',
+          url: result.checkout_url,
+          reference: result.reference ?? '',
+          label: name,
+          communityId: id,
+        });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['community', id] });
+      queryClient.invalidateQueries({ queryKey: ['community-subscription', id] });
+      useFeedbackStore.getState().showToast(`You're in — welcome to ${name}.`, 'success');
+    },
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "Couldn't start that payment.");
+    },
+  });
+}
+
+/**
+ * `POST /communities/fee-preview` — the real platform split for a fee the
+ * creator is still typing, replacing the create form's hardcoded 10% guess.
+ *
+ * Debouncing belongs to the caller; this is a plain query keyed on the inputs
+ * so an unchanged fee doesn't re-ask.
+ */
+export function useCommunityFeePreview(payload: {
+  monthly_fee: number;
+  fee_payer?: string;
+  billing_type?: string;
+  billing_interval?: string;
+}) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: ['community-fee-preview', payload],
+    queryFn: () => previewCommunityFee(payload),
+    enabled: !!token && payload.monthly_fee > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Owner settings
+// ---------------------------------------------------------------------------
+
+/** `PUT /communities/{id}` — partial update of the community's settings. */
+export function useUpdateCommunity(id: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateCommunityPayload) => updateCommunity(id!, payload),
+    onSuccess: (community) => {
+      queryClient.setQueryData(['community', id], community);
+      queryClient.invalidateQueries({ queryKey: ['community'] });
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+      useFeedbackStore.getState().showToast('Community updated.', 'success');
+    },
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "Couldn't save those changes.");
+    },
+  });
+}
+
+/**
+ * `DELETE /communities/{id}` — **now live.** It used to answer 405, which is
+ * why "a community created by mistake is permanent" was a standing gap.
+ * Verified live 2026-09-07: the community 404s afterwards.
+ */
+export function useDeleteCommunity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteCommunity(id),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: ['community', id] });
+      queryClient.removeQueries({ queryKey: ['community-posts', id] });
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+      useFeedbackStore.getState().showToast('Community deleted.', 'success');
+    },
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "Couldn't delete that community.");
+    },
+  });
+}
+
+/** `POST|DELETE /communities/{id}/logo` and `/banner`. */
+export function useCommunityImage(id: string | undefined) {
+  const queryClient = useQueryClient();
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['community'] });
+    queryClient.invalidateQueries({ queryKey: ['communities'] });
+  };
+
+  const upload = useMutation({
+    mutationFn: ({
+      kind,
+      file,
+    }: {
+      kind: 'logo' | 'banner';
+      file: { uri: string; name: string; type: string };
+    }) => uploadCommunityImage(id!, kind, file),
+    onSuccess: refresh,
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "Couldn't upload that image.");
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (kind: 'logo' | 'banner') => deleteCommunityImage(id!, kind),
+    onSuccess: refresh,
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "Couldn't remove that image.");
+    },
+  });
+
+  return { upload, remove };
+}
+
+/** `DELETE /communities/{id}/posts/{postId}` — owner/admin or the author. */
+export function useDeleteCommunityPost(id: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => deleteCommunityPost(id!, postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-posts', id] });
+      queryClient.invalidateQueries({ queryKey: ['community', id] });
+      useFeedbackStore.getState().showToast('Post deleted.', 'success');
+    },
+    onError: (error) => {
+      useFeedbackStore.getState().showApiError(error, "Couldn't delete that post.");
+    },
+  });
+}

@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
 import type { MediaItem } from '../../data/media';
-import { FeedVideo } from './FeedVideo';
+import { FeedVideoPoster } from './FeedVideoPoster';
 import { MediaViewer } from './MediaViewer';
 import { FONT } from '../../theme/fonts';
 
@@ -65,8 +66,21 @@ function MediaCell({ item, onPress, overflow, style }: CellProps) {
  * still sits inside a bordered container (the edit screen's existing-media
  * preview) leaves it off and keeps the rounded frame.
  */
-export function MediaGrid({ media, fullBleed }: { media: MediaItem[]; fullBleed?: boolean }) {
+export function MediaGrid({
+  media,
+  fullBleed,
+  postId,
+}: {
+  media: MediaItem[];
+  fullBleed?: boolean;
+  /**
+   * The post these media belong to. A lone video needs it to hand off to Rolls,
+   * which resolves the post to its roll — see the single-video branch below.
+   */
+  postId?: string;
+}) {
   const { radius } = useTheme();
+  const router = useRouter();
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   if (!media.length) return null;
@@ -78,8 +92,17 @@ export function MediaGrid({ media, fullBleed }: { media: MediaItem[]; fullBleed?
   let layout: React.ReactNode;
   if (media.length === 1 && media[0].type === 'video') {
     // A lone video is the shape the API actually sends (posts carry images OR
-    // one video), so it gets a real inline player rather than a poster tile.
-    layout = <FeedVideo item={media[0]} onExpand={open(0)} fullBleed={fullBleed} />;
+    // one video). It shows its thumbnail and a play button; **tapping opens
+    // Rolls**, which is where video is played now — the feed mounts no player
+    // at all. Without a postId there is nothing to hand off to, so it falls
+    // back to the full-screen viewer.
+    layout = (
+      <FeedVideoPoster
+        item={media[0]}
+        fullBleed={fullBleed}
+        onPress={postId ? () => router.push(`/rolls?post=${postId}`) : open(0)}
+      />
+    );
   } else if (media.length === 1) {
     layout = (
       <MediaCell

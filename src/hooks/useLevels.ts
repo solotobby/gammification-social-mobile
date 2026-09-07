@@ -40,9 +40,10 @@ export function useLevelCheckout() {
       startLevelCheckout(levelId, billingMode),
     onSuccess: (checkout) => {
       openCheckout({
+        kind: 'level',
         url: checkout.checkout_url,
         reference: checkout.reference,
-        levelName: checkout.level.name,
+        label: checkout.level.name,
       });
     },
     onError: (error) => {

@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { recordCommunityPostView, type CommunityPost } from '../../api/communities';
-import { useToggleCommunityPostLike } from '../../hooks/useCommunities';
+import {
+  useDeleteCommunityPost,
+  useToggleCommunityPostLike,
+} from '../../hooks/useCommunities';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { HashtagText } from '../ui/HashtagText';
@@ -23,13 +26,25 @@ export function CommunityPostCard({
   post,
   communityId,
   onOpenComments,
+  canDelete,
 }: {
   post: CommunityPost;
   communityId: string;
   onOpenComments: () => void;
+  /** The author, or an owner/admin of the community — anyone else gets 403. */
+  canDelete?: boolean;
 }) {
   const { colors, radius, spacing } = useTheme();
   const toggleLike = useToggleCommunityPostLike(communityId);
+  const remove = useDeleteCommunityPost(communityId);
+
+  /** Deleting is irreversible and there is no undo, so it confirms first. */
+  const onDelete = () => {
+    Alert.alert('Delete this post?', 'It will be removed for everyone in the community.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => remove.mutate(post.id) },
+    ]);
+  };
 
   // A view is recorded once per post per mount, like the rolls' play counter.
   const viewed = useRef(false);
@@ -60,6 +75,21 @@ export function CommunityPostCard({
             @{post.author.handle} · {post.timeAgo}
           </Text>
         </View>
+        {canDelete ? (
+          <Pressable
+            onPress={onDelete}
+            disabled={remove.isPending}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Delete post"
+          >
+            <Ionicons
+              name="trash-outline"
+              size={17}
+              color={remove.isPending ? colors.textMuted : colors.textMuted}
+            />
+          </Pressable>
+        ) : null}
       </View>
 
       {post.body ? <HashtagText style={[styles.body, { color: colors.text }]}>{post.body}</HashtagText> : null}

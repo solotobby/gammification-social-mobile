@@ -13,8 +13,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { toMember, type CommunityPost } from '../../src/api/communities';
+import {
+  toCommunityMember,
+  toMember,
+  type CommunityPost,
+  type MemberAction,
+} from '../../src/api/communities';
 import { CommunityBadge } from '../../src/components/community/CommunityBadge';
+import { CommunityMemberRow } from '../../src/components/community/CommunityMemberRow';
 import { CommunityPostCard } from '../../src/components/community/CommunityPostCard';
 import { CommunityCommentsSheet } from '../../src/components/community/CommunityCommentsSheet';
 import { joinActionFor } from '../../src/components/community/communityMeta';
@@ -26,19 +32,26 @@ import { CopyField } from '../../src/components/ui/CopyField';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import {
   useCommunity,
+  useCommunityAnalytics,
+  useCommunityEarnings,
   useCommunityInvites,
+  useCommunityMembers,
   useCommunityPosts,
+  useCommunitySubscription,
   useCreateCommunityPost,
   useJoinCommunity,
   useJoinRequests,
   useLeaveCommunity,
+  useModerateMember,
   useReviewJoinRequest,
+  useSubscribeToCommunity,
 } from '../../src/hooks/useCommunities';
 import { formatMoney, symbolFor } from '../../src/hooks/useCurrency';
+import { useAuthStore } from '../../src/stores/authStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { FONT } from '../../src/theme/fonts';
 
-const TABS = ['Feed', 'About'] as const;
+const TABS = ['Feed', 'Members', 'About'] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -53,9 +66,14 @@ type Tab = (typeof TABS)[number];
  * allowed in, so the query is disabled unless `canViewFeed`, and the backend's
  * `gateMessage` — which is written per type — is shown in the feed's place.
  *
- * There is no members endpoint on this API (`/communities/{id}/members` 404s),
- * so the web's Members tab has no data source and is left out rather than
- * faked. `access.canViewMembers` and the owner row are all the API exposes.
+ * The **Members tab is real** since `GET /communities/{id}/members` shipped
+ * (2026-09-07) — it used to 404, which is why the tab was left out rather than
+ * faked. It's gated on `access.canViewMembers`, and an owner/admin additionally
+ * gets the moderation menu on each row (promote / demote / ban / remove).
+ *
+ * Paid communities can also finally be **joined**: `POST /communities/{id}/subscribe`
+ * returns a hosted checkout, so the join button opens the shared `PaymentSheet`
+ * instead of surfacing the old "payment is required" 422 with nowhere to pay.
  */
 export default function CommunityScreen() {
   const { colors, radius, spacing } = useTheme();
@@ -111,6 +129,26 @@ export default function CommunityScreen() {
   );
   const reviewRequest = useReviewJoinRequest(communityId);
 
+  // Members — gated on the API's own `can_view_members`, the same way the feed
+  // is gated on `can_view_feed`.
+  const membersQuery = useCommunityMembers(communityId, !!community?.access.canViewMembers);
+  const members =
+    membersQuery.data?.pages.flatMap((page) => page.data.map(toCommunityMember)) ?? [];
+  const moderate = useModerateMember(communityId);
+
+  // Paid communities: the viewer's own subscription, and the checkout that
+  // creates one. Both no-ops on a free community.
+  const isPaid = community?.type === 'paid';
+  const { data: subscription } = useCommunitySubscription(communityId, isPaid);
+  const subscribe = useSubscribeToCommunity(communityId, community?.name ?? 'this community');
+
+  // Owner dashboard numbers, shown on About.
+  const { data: analytics } = useCommunityAnalytics(communityId, !!isAdminOf);
+  const { data: earnings } = useCommunityEarnings(communityId, !!isAdminOf);
+
+  // For "is this my post?" — the community post shape carries no ownership flag.
+  const myId = useAuthStore((state) => state.user?.id);
+
   if (isLoading) {
     return (
       <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
@@ -144,7 +182,7 @@ export default function CommunityScreen() {
   const isMember = community.membership === 'member' || community.membership === 'admin';
   const isOwner = community.membership === 'owner';
   const canPost = isMember || isOwner;
-  const busy = join.isPending || leave.isPending;
+  const busy = join.isPending || leave.isPending || subscribe.isPending;
 
   // Each community prices in its own currency, never the account default.
   const symbol = symbolFor(community.currency);
@@ -152,8 +190,17 @@ export default function CommunityScreen() {
 
   const onMembershipPress = () => {
     if (busy) return;
-    if (isMember) leave.mutate(community.id);
-    else if (!action.blocked) join.mutate({ id: community.id, inviteToken: invite });
+    if (isMember) {
+      leave.mutate(community.id);
+      return;
+    }
+    // A paid community is joined by paying, not by POST /join — which can only
+    // ever answer "Payment is required to join this community."
+    if (community.type === 'paid') {
+      subscribe.mutate();
+      return;
+    }
+    if (!action.blocked) join.mutate({ id: community.id, inviteToken: invite });
   };
 
   const onPost = () => {
@@ -310,8 +357,160 @@ export default function CommunityScreen() {
           })}
         </View>
 
+        {tab === 'Members' ? (
+          <View style={{ gap: spacing.md, paddingBottom: spacing.xl }}>
+            {!community.access.canViewMembers ? (
+              <Text style={[styles.gateNote, { color: colors.textMuted }]}>
+                The member list is only visible to people who've joined.
+              </Text>
+            ) : membersQuery.isLoading ? (
+              <ActivityIndicator color={colors.brand} />
+            ) : members.length === 0 ? (
+              <Text style={[styles.gateNote, { color: colors.textMuted }]}>
+                No members yet.
+              </Text>
+            ) : (
+              <>
+                {members.map((row) => (
+                  <CommunityMemberRow
+                    key={row.id}
+                    row={row}
+                    canModerate={!!isAdminOf}
+                    viewerIsOwner={isOwner}
+                    pending={moderate.isPending}
+                    onAction={(memberAction: MemberAction | 'remove') =>
+                      moderate.mutate({ userId: row.id, action: memberAction })
+                    }
+                  />
+                ))}
+                {isAdminOf ? (
+                  <Pressable
+                    onPress={() => router.push(`/community/${community.id}/banned`)}
+                    accessibilityRole="button"
+                    style={[
+                      styles.loadMore,
+                      { borderColor: colors.border, borderRadius: radius.pill },
+                    ]}
+                  >
+                    <Text style={[styles.loadMoreText, { color: colors.text }]}>
+                      View banned members
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {membersQuery.hasNextPage ? (
+                  <Pressable
+                    onPress={() => membersQuery.fetchNextPage()}
+                    accessibilityRole="button"
+                    style={[
+                      styles.loadMore,
+                      { borderColor: colors.border, borderRadius: radius.pill },
+                    ]}
+                  >
+                    <Text style={[styles.loadMoreText, { color: colors.text }]}>
+                      {membersQuery.isFetchingNextPage ? 'Loading…' : 'Load more members'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </View>
+        ) : null}
+
         {tab === 'About' ? (
           <View style={{ gap: spacing.lg, paddingBottom: spacing.xl }}>
+            {/* Owner dashboard — GET /communities/{id}/analytics. Admin-only, so
+                the query is gated and this whole block simply isn't there for
+                anyone else. */}
+            {isAdminOf && analytics ? (
+              <View style={{ gap: spacing.sm }}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Your community</Text>
+                <View style={styles.statGrid}>
+                  {[
+                    { label: 'Members', value: analytics.stats.members_total, sub: `+${analytics.stats.members_30d} in 30d` },
+                    { label: 'Posts', value: analytics.stats.posts_total, sub: `+${analytics.stats.posts_30d} in 30d` },
+                    { label: 'Views', value: analytics.stats.views_total, sub: `${analytics.stats.likes_total} likes` },
+                    { label: 'Subscribers', value: analytics.stats.active_subscribers, sub: `${analytics.stats.pending_requests} pending` },
+                  ].map((stat) => (
+                    <View
+                      key={stat.label}
+                      style={[
+                        styles.statCell,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                          borderRadius: radius.md,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.statValue, { color: colors.text }]}>
+                        {stat.value.toLocaleString()}
+                      </Text>
+                      <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+                        {stat.label}
+                      </Text>
+                      <Text style={[styles.statSub, { color: colors.textMuted }]}>{stat.sub}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Pressable
+                  onPress={() => router.push(`/community/${community.id}/settings`)}
+                  accessibilityRole="button"
+                  style={[
+                    styles.loadMore,
+                    { borderColor: colors.border, borderRadius: radius.pill },
+                  ]}
+                >
+                  <Text style={[styles.loadMoreText, { color: colors.text }]}>
+                    Community settings
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {/* Subscription revenue — the split is the server's arithmetic
+                (`platform_fee_percent` and all three amounts), not ours. */}
+            {isAdminOf && earnings && earnings.stats.count > 0 ? (
+              <View style={{ gap: spacing.sm }}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Earnings</Text>
+                <View
+                  style={[
+                    styles.pricingCard,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: radius.md,
+                    },
+                  ]}
+                >
+                  <View style={styles.pricingRow}>
+                    <Text style={[styles.pricingKey, { color: colors.textMuted }]}>
+                      Gross ({earnings.stats.count} payments)
+                    </Text>
+                    <Text style={[styles.pricingValue, { color: colors.text }]}>
+                      {formatMoney(earnings.stats.gross, symbolFor(earnings.stats.currency))}
+                    </Text>
+                  </View>
+                  <View style={styles.pricingRow}>
+                    <Text style={[styles.pricingKey, { color: colors.textMuted }]}>
+                      Platform fee ({earnings.stats.platform_fee_percent}%)
+                    </Text>
+                    <Text style={[styles.pricingValue, { color: colors.textMuted }]}>
+                      −{formatMoney(earnings.stats.platform_fee, symbolFor(earnings.stats.currency))}
+                    </Text>
+                  </View>
+                  <View style={styles.pricingRow}>
+                    <Text style={[styles.pricingKey, { color: colors.text }]}>You receive</Text>
+                    <Text style={[styles.pricingValue, { color: colors.brand }]}>
+                      {formatMoney(
+                        earnings.stats.creator_amount,
+                        symbolFor(earnings.stats.currency),
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
             <View style={{ gap: spacing.sm }}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Owner</Text>
               <Pressable
@@ -533,10 +732,10 @@ export default function CommunityScreen() {
               {community.access.gateMessage ??
                 'You need to join this community before you can see its posts.'}
             </Text>
-            {community.type === 'paid' ? (
+            {community.type === 'paid' && pricing ? (
               <Text style={[styles.gateNote, { color: colors.textMuted }]}>
-                Paying for a community isn't available in the app yet — join it on the web for
-                now.
+                {formatMoney(pricing.memberCharge, symbol)} {pricing.billingLabel.toLowerCase()} —
+                tap “{action.label}” above to pay and join.
               </Text>
             ) : null}
             {community.type === 'private' ? (
@@ -562,12 +761,19 @@ export default function CommunityScreen() {
               post={item}
               communityId={community.id}
               onOpenComments={() => setCommentsFor(item)}
+              // The backend allows the author or an owner/admin; anyone else
+              // gets a 403, so the control simply isn't offered to them.
+              canDelete={!!isAdminOf || item.author.id === myId}
             />
           </View>
         )}
         ListHeaderComponent={header}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        // iOS: scroll a focused input clear of the keyboard. These lists carry
+        // inline composers (a post's comment box, the community composer), and
+        // without this the keyboard simply covers whichever one you tapped.
+        automaticallyAdjustKeyboardInsets
         onRefresh={canViewFeed ? refetchPosts : undefined}
         refreshing={canViewFeed ? isRefetching && !isFetchingNextPage : false}
         onEndReachedThreshold={0.5}
@@ -693,6 +899,24 @@ const styles = StyleSheet.create({
   },
   actionText: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
 
+  loadMore: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  loadMoreText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statCell: {
+    width: '48.5%',
+    flexGrow: 1,
+    padding: 12,
+    gap: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  statValue: { fontFamily: FONT, fontSize: 20, fontWeight: '900' },
+  statLabel: { fontFamily: FONT, fontSize: 12, fontWeight: '800' },
+  statSub: { fontFamily: FONT, fontSize: 11, fontWeight: '600' },
   tabRow: { flexDirection: 'row', padding: 4, gap: 4 },
   tabBtn: { flex: 1, height: 38, alignItems: 'center', justifyContent: 'center' },
   tabText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },

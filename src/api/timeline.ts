@@ -169,6 +169,34 @@ export async function fetchPost(postId: string): Promise<TimelinePostDetailRespo
   return data.data;
 }
 
+/**
+ * Count a post as viewed, silently.
+ *
+ * **There is no dedicated view endpoint.** `POST /timeline/post/{id}/view`,
+ * `/timeline/views`, `/timeline/impression` and every other shape probed on
+ * 2026-09-07 all 404; community posts have `POST .../posts/{id}/view` but the
+ * timeline has no equivalent. Registering a view is a *side effect* of reading
+ * the detail endpoint, so that is what this calls — the same request the post
+ * screen makes, just with its (large) response thrown away.
+ *
+ * Verified live: three reads of one post from the same account moved its
+ * counter by exactly one, so the server dedupes per user and this can be called
+ * without the client having to be careful. `viewedStore` still gates it so a
+ * post scrolling in and out of the viewport doesn't re-request.
+ *
+ * Telemetry, so failures are swallowed: a dropped view must never surface an
+ * error over someone's feed. **Ask the backend for a cheap
+ * `POST /timeline/post/{id}/view`** — this currently pulls a whole post plus a
+ * page of its comments to increment a counter.
+ */
+export async function recordPostView(postId: string): Promise<void> {
+  try {
+    await api.get(`/timeline/post/${postId}`);
+  } catch {
+    // Intentionally ignored — see above.
+  }
+}
+
 // ---------------------------------------------------------------------------
 // API → view-model mapping
 // ---------------------------------------------------------------------------

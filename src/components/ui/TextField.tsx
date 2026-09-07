@@ -31,10 +31,17 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
 
+  // A multiline field has to grow: the single-line container is a fixed 58pt
+  // row with a vertically-centred input, which a taller input simply overflows.
+  // So multiline swaps the fixed height for a minimum, tops-aligns its content,
+  // and drops the input's `height: '100%'` so the caller's height wins.
+  const multiline = !!rest.multiline;
+
   return (
     <View
       style={[
         styles.container,
+        multiline && styles.containerMultiline,
         {
           // `surface`, not `surfaceAlt`: form fields sit directly on the page,
           // and the web's tinted input fill is the same value as the page
@@ -68,7 +75,7 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
           setFocused(false);
           onBlur?.(e);
         }}
-        style={[styles.input, { color: colors.text }, style]}
+        style={[styles.input, multiline && styles.inputMultiline, { color: colors.text }, style]}
         {...rest}
       />
 
@@ -99,6 +106,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1.5,
   },
+  containerMultiline: {
+    height: undefined,
+    minHeight: 58,
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+  },
   leading: {
     marginRight: 12,
   },
@@ -109,6 +122,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     height: '100%',
     paddingVertical: 0,
+  },
+  inputMultiline: {
+    height: undefined,
+    textAlignVertical: 'top',
   },
   trailing: {
     marginLeft: 8,

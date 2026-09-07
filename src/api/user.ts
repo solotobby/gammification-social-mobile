@@ -51,14 +51,22 @@ export async function searchUsers(
 }
 
 /**
- * GET /user/toggle/follow?id= — follow/unfollow the given user. Returns the new
+ * POST /user/toggle/follow?id= — follow/unfollow the given user. Returns the new
  * follow state and the caller's refreshed follower/following counts. A 404
  * ("User not found") surfaces as an ApiError like any other failure.
+ *
+ * **The verb changed from GET to POST** (confirmed live 2026-09-07: a GET now
+ * answers 405 "Supported methods: POST"), which silently broke every follow
+ * button in the app. The target still travels as the `?id=` **query param** —
+ * sending it in a JSON body 404s with "User not found" — so the request has a
+ * query string and no body, which reads oddly but is what the server accepts.
  */
 export async function toggleFollow(userId: string): Promise<ToggleFollowData> {
-  const { data } = await api.get<ApiEnvelope<ToggleFollowData>>('/user/toggle/follow', {
-    params: { id: userId },
-  });
+  const { data } = await api.post<ApiEnvelope<ToggleFollowData>>(
+    '/user/toggle/follow',
+    undefined,
+    { params: { id: userId } },
+  );
   return data.data;
 }
 

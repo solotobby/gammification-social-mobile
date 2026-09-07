@@ -5,8 +5,13 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 
-import { fetchCheckoutOutcome, readCheckoutReturn } from '../../api/levels';
-import { useCheckoutStore, type CheckoutSession } from '../../stores/checkoutStore';
+import { fetchCheckoutOutcome, readCheckoutReturn, type LevelPaymentStatus } from '../../api/levels';
+import { fetchCommunitySubscriptionStatus } from '../../api/communities';
+import {
+  useCheckoutStore,
+  type CheckoutKind,
+  type CheckoutSession,
+} from '../../stores/checkoutStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
@@ -21,6 +26,43 @@ const CONFIRM_TIMEOUT = 20_000;
 const CONFIRM_INTERVAL = 2_000;
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** What to say once the backend agrees the money landed. */
+const SUCCESS_COPY: Record<CheckoutKind, (label: string) => string> = {
+  level: (label) => `You're on ${label} now.`,
+  paykoin: (label) => `${label} added to your PayKoin balance.`,
+  community: (label) => `You're in — welcome to ${label}.`,
+};
+
+/**
+ * Ask the backend whether the payment actually settled. Each kind has a
+ * different place that can answer, and one of them has nowhere to ask at all:
+ *
+ * - **level** — the ledger row under the reference, plus whether `current_level`
+ *   moved (`fetchCheckoutOutcome`).
+ * - **community** — the community's own subscription status, which is the thing
+ *   the payment was for.
+ * - **paykoin** — `POST /paykoin/topup` returns no reference, so there is
+ *   nothing to look the charge up by. Rather than poll an endpoint that must
+ *   422, it reports `pending`: the caller refetches the balance and the user is
+ *   told the coins land when the payment clears, which is true.
+ */
+async function confirmCheckout(session: CheckoutSession): Promise<LevelPaymentStatus> {
+  if (session.kind === 'level') {
+    return fetchCheckoutOutcome(session.reference, session.label);
+  }
+
+  if (session.kind === 'community' && session.communityId) {
+    try {
+      const status = await fetchCommunitySubscriptionStatus(session.communityId);
+      return status.is_active ? 'success' : 'pending';
+    } catch {
+      return 'pending';
+    }
+  }
+
+  return 'pending';
+}
 
 /**
  * The in-app payment sheet — the provider's hosted checkout inside a WebView we
@@ -90,10 +132,10 @@ function PaymentSheetBody({ session }: { session: CheckoutSession }) {
       // reporting when the answer arrives.
       close();
       if (claim === 'success') {
-        showToast('Payment received — confirming your upgrade…', 'info');
+        showToast('Payment received — confirming it now…', 'info');
       }
 
-      let status = await fetchCheckoutOutcome(session.reference, session.levelName);
+      let status = await confirmCheckout(session);
 
       // Only a claimed success is worth waiting on. A dismissal is not evidence
       // of payment, so it gets one read and an honest answer.
@@ -101,7 +143,7 @@ function PaymentSheetBody({ session }: { session: CheckoutSession }) {
         const deadline = Date.now() + CONFIRM_TIMEOUT;
         while (status === 'pending' && Date.now() < deadline) {
           await delay(CONFIRM_INTERVAL);
-          status = await fetchCheckoutOutcome(session.reference, session.levelName);
+          status = await confirmCheckout(session);
         }
       }
 
@@ -109,9 +151,11 @@ function PaymentSheetBody({ session }: { session: CheckoutSession }) {
       queryClient.invalidateQueries({ queryKey: ['me'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['paykoin'] });
+      queryClient.invalidateQueries({ queryKey: ['community'] });
 
       if (status === 'success') {
-        showToast(`You're on ${session.levelName} now.`, 'success');
+        showToast(SUCCESS_COPY[session.kind](session.label), 'success');
       } else if (status === 'failed') {
         showToast("That payment didn't go through — nothing was charged.", 'error');
       } else if (claim === 'success') {
@@ -119,17 +163,17 @@ function PaymentSheetBody({ session }: { session: CheckoutSession }) {
         // moved. Say exactly that — the money is not in question, the upgrade
         // is, and inventing either answer would be worse than naming the gap.
         showToast(
-          "Payment received. We're still waiting on Payhankey to confirm the upgrade.",
+          "Payment received. We're still waiting on Payhankey to confirm it.",
           'info',
         );
       } else {
         showToast(
-          "We haven't seen that payment yet. Your level updates as soon as it clears.",
+          "We haven't seen that payment yet. Your account updates as soon as it clears.",
           'info',
         );
       }
     },
-    [close, queryClient, session.levelName, session.reference],
+    [close, queryClient, session],
   );
 
   /**
@@ -197,7 +241,7 @@ function PaymentSheetBody({ session }: { session: CheckoutSession }) {
             <View style={styles.lockRow}>
               <Ionicons name="lock-closed" size={11} color={colors.textMuted} />
               <Text style={[styles.subtitle, { color: colors.textMuted }]} numberOfLines={1}>
-                {session.levelName} · handled by our payment provider
+                {session.label} · handled by our payment provider
               </Text>
             </View>
           </View>

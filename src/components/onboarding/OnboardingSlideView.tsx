@@ -1,8 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
   Animated,
-  Image,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -10,7 +9,7 @@ import {
 } from 'react-native';
 
 import type { OnboardingSlide } from '../../data/onboarding';
-import { SlideFeatureCard } from './SlideFeatureCard';
+import { SlideVisual, VISUAL_HEIGHT } from './SlideVisual';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT, FONT_WEIGHTS } from '../../theme/fonts';
 
@@ -18,142 +17,74 @@ type Props = {
   slide: OnboardingSlide;
   index: number;
   scrollX: Animated.Value;
-  /** Space to leave clear at the top (safe area + the logo row). */
-  headerOffset: number;
-  /** Space the footer occupies, so nothing runs under the CTA. */
-  footerOffset: number;
-  /**
-   * Height of the carousel. A `flex: 1` page inside a *horizontal* FlatList
-   * collapses to its own content height rather than stretching, so the measured
-   * height is passed in.
-   */
-  pageHeight: number;
 };
 
 /**
- * Share of the screen width the artwork holds *opaquely*. The art sits beside
- * the copy rather than behind it, so this is also what's left over for the text
- * column — push it up and the headline starts wrapping mid-phrase.
- */
-const HERO_WIDTH_RATIO = 0.46;
-
-/**
- * Extra width, on top of the ratio above, over which the art's left edge fades
- * out into the page. It bleeds into the gutter rather than eating the text
- * column, so widening the fade never re-wraps a headline.
- */
-const HERO_FADE_RATIO = 0.05;
-
-/**
- * One onboarding page: copy in a left column, hero artwork as a panel bleeding
- * off the right edge.
+ * One onboarding page: a vignette of the app on top, the slide's copy under it.
  *
- * The artwork is a tall, narrow strip (aspect ~0.36), which is why it is fitted
- * into the band between the header and the footer at its own aspect rather than
- * run full-bleed. Full-bleed would force it to ~78% of the width — it would sit
- * *under* the copy, and the only way to keep text legible on top of a photo is
- * to wash the photo out. Cropping it narrower instead is not an option either:
- * every one of the four heroes loses something that matters (a face on the left,
- * the engagement chips on the right). Fitted, it stays uncropped and unfaded.
+ * Stacked rather than side-by-side on purpose. The copy is the thing being read
+ * and it gets the full width, which is what keeps a three-line headline from
+ * wrapping mid-phrase on a small phone; the illustration sits above it and
+ * shrinks (rather than reflowing) when there isn't room.
  */
-export function OnboardingSlideView({
-  slide,
-  index,
-  scrollX,
-  headerOffset,
-  footerOffset,
-  pageHeight,
-}: Props) {
-  const { colors, spacing } = useTheme();
-  const { width } = useWindowDimensions();
+export function OnboardingSlideView({ slide, index, scrollX }: Props) {
+  const { colors, spacing, brand } = useTheme();
+  const { width, height } = useWindowDimensions();
 
   const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
 
-  // The art drifts slower than the page it sits on, for depth.
-  const heroDrift = scrollX.interpolate({
+  // The visual drifts slower than the page it sits on, for depth; the copy
+  // leaves faster and fades, so two headlines are never legible at once.
+  const visualDrift = scrollX.interpolate({
     inputRange,
-    outputRange: [width * 0.16, 0, -width * 0.16],
+    outputRange: [width * 0.18, 0, -width * 0.18],
     extrapolate: 'clamp',
   });
-  const heroScale = scrollX.interpolate({
+  const visualScale = scrollX.interpolate({
     inputRange,
-    outputRange: [0.92, 1, 0.92],
+    outputRange: [0.9, 1, 0.9],
     extrapolate: 'clamp',
   });
-
-  // Copy leaves faster and fades, so two headlines are never legible at once.
-  const textDrift = scrollX.interpolate({
+  const copyDrift = scrollX.interpolate({
     inputRange,
-    outputRange: [width * 0.28, 0, -width * 0.28],
+    outputRange: [width * 0.32, 0, -width * 0.32],
     extrapolate: 'clamp',
   });
-  const textOpacity = scrollX.interpolate({
+  const copyOpacity = scrollX.interpolate({
     inputRange,
     outputRange: [0, 1, 0],
     extrapolate: 'clamp',
   });
 
-  // Flush to the top of the screen, running behind the logo row, and sized from
-  // the width at the art's own aspect so it is never cropped. Capped so it can
-  // never reach the footer.
-  const heroSolid = width * HERO_WIDTH_RATIO;
-  const heroFade = width * HERO_FADE_RATIO;
-  const heroWidth = heroSolid + heroFade;
-  const heroHeight = Math.min(
-    heroWidth / slide.aspect,
-    Math.max(pageHeight - footerOffset, 0),
-  );
+  // Small phones get the same layout at a smaller stage rather than a different
+  // one — the vignettes are compositions, so reflowing them breaks them.
+  const visualScaleFactor = Math.min(1, Math.max(0.78, (height - 560) / VISUAL_HEIGHT));
 
-  const titleSize = Math.min(27, width * 0.065);
-  const bodySize = Math.min(14.5, width * 0.036);
+  const titleSize = Math.min(30, width * 0.076);
+  const bodySize = Math.min(15, width * 0.038);
+
+  const tones = {
+    brand: brand.violet,
+    mint: brand.mint,
+    gold: brand.gold,
+    pink: brand.pink,
+  } as const;
 
   return (
-    <View style={[styles.page, { width, height: pageHeight }]}>
-      {/* ---- Hero artwork ---- */}
+    <View style={[styles.page, { width, paddingHorizontal: spacing.xl }]}>
       <Animated.View
         style={[
-          styles.hero,
-          {
-            width: heroWidth,
-            height: heroHeight,
-            transform: [{ translateX: heroDrift }, { scale: heroScale }],
-          },
+          styles.visual,
+          { transform: [{ translateX: visualDrift }, { scale: visualScale }] },
         ]}
       >
-        <Image source={slide.image} resizeMode="cover" style={styles.heroImage} />
-        {/* Softens the art's left edge into the page instead of ending on a
-            hard vertical cut against the copy column. */}
-        <LinearGradient
-          colors={[colors.background, `${colors.background}00`]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={[styles.heroFadeLeft, { width: heroFade }]}
-        />
-        {/* Same treatment on the bottom edge: the art stops partway down the
-            screen, and without this it ends on a hard horizontal cut in the gap
-            above the card. */}
-        <LinearGradient
-          colors={[`${colors.background}00`, colors.background]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.heroFadeBottom}
-        />
+        <SlideVisual visual={slide.visual} scale={visualScaleFactor} />
       </Animated.View>
 
-      {/* ---- Copy ---- */}
       <Animated.View
         style={[
           styles.copy,
-          {
-            paddingTop: headerOffset + spacing.md,
-            paddingBottom: footerOffset + spacing.md,
-            paddingLeft: spacing.xl,
-            // Clears the *opaque* part of the artwork. The fade is allowed to
-            // bleed into the gutter — that is what makes the edge soft.
-            paddingRight: heroSolid + spacing.md,
-            opacity: textOpacity,
-            transform: [{ translateX: textDrift }],
-          },
+          { opacity: copyOpacity, transform: [{ translateX: copyDrift }] },
         ]}
       >
         <View style={[styles.rule, { backgroundColor: colors.brand }]} />
@@ -165,7 +96,7 @@ export function OnboardingSlideView({
         <Text
           style={[
             styles.title,
-            { color: colors.text, fontSize: titleSize, lineHeight: titleSize * 1.2 },
+            { color: colors.text, fontSize: titleSize, lineHeight: titleSize * 1.22 },
           ]}
         >
           {slide.title.map((segment, i) => (
@@ -181,24 +112,31 @@ export function OnboardingSlideView({
             {
               color: colors.textSecondary,
               fontSize: bodySize,
-              lineHeight: bodySize * 1.5,
+              lineHeight: bodySize * 1.55,
             },
           ]}
         >
           {slide.description}
         </Text>
 
-        {/* Pushed to the foot of the column; it starts below the artwork, so it
-            spans the full width rather than staying in the copy's gutter. */}
-        <View
-          style={[
-            styles.cardSlot,
-            // Cancels the copy's gutter so the card reaches the far margin: it
-            // sits below the artwork, so it has the full width to work with.
-            { marginRight: -(heroSolid - spacing.md) },
-          ]}
-        >
-          <SlideFeatureCard card={slide.card} />
+        <View style={styles.highlights}>
+          {slide.highlights.map((highlight) => {
+            const tone = tones[highlight.tone];
+            return (
+              <View
+                key={highlight.label}
+                style={[
+                  styles.highlight,
+                  { backgroundColor: `${tone}14`, borderColor: `${tone}2E` },
+                ]}
+              >
+                <Ionicons name={highlight.icon} size={12} color={tone} />
+                <Text style={[styles.highlightLabel, { color: colors.textSecondary }]}>
+                  {highlight.label}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       </Animated.View>
     </View>
@@ -207,35 +145,15 @@ export function OnboardingSlideView({
 
 const styles = StyleSheet.create({
   page: {
-    overflow: 'hidden',
+    flex: 1,
+    justifyContent: 'center',
+    gap: 28,
   },
-  hero: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    overflow: 'hidden',
-  },
-  heroFadeLeft: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-  },
-  heroFadeBottom: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 64,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+  visual: {
+    alignItems: 'center',
   },
   copy: {
-    flex: 1,
-    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   rule: {
     width: 30,
@@ -253,15 +171,31 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: FONT_WEIGHTS.extrabold,
-    letterSpacing: -0.7,
-    marginBottom: 16,
+    letterSpacing: -0.8,
+    marginBottom: 14,
   },
   description: {
     fontFamily: FONT,
     fontWeight: '400',
   },
-  cardSlot: {
-    marginTop: 'auto',
-    paddingTop: 24,
+  highlights: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 18,
+  },
+  highlight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  highlightLabel: {
+    fontFamily: FONT,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

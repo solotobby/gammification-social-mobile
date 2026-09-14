@@ -7,7 +7,6 @@ import {
   Text,
   useWindowDimensions,
   View,
-  type LayoutChangeEvent,
   type ViewToken,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,28 +23,20 @@ import { FONT } from '../src/theme/fonts';
 /**
  * Welcome / onboarding carousel.
  *
- * Each page is full-bleed artwork (see `OnboardingSlideView`), so the header and
- * footer are overlaid on the list rather than stacked around it — otherwise the
- * art would be boxed into the middle of the screen instead of running under the
- * chrome the way the design has it. Their measured heights are handed back down
- * so each slide knows how much room to leave its copy.
+ * Header, pages and footer are stacked — the pages illustrate themselves with
+ * vignettes of the app (`SlideVisual`) rather than full-bleed artwork, so
+ * nothing needs to run under the chrome and no height has to be measured at
+ * runtime to keep copy clear of it.
  */
 export default function WelcomeScreen() {
   const { colors, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width, height: windowHeight } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
   const scrollX = useRef(new Animated.Value(0)).current;
   const listRef = useRef<Animated.FlatList<(typeof onboardingSlides)[number]>>(null);
   const [index, setIndex] = useState(0);
-
-  // Measured so the copy can clear them on any screen size.
-  const [headerHeight, setHeaderHeight] = useState(insets.top + 56);
-  const [footerHeight, setFooterHeight] = useState(200);
-  // The carousel fills the root, but a horizontal FlatList won't stretch its
-  // pages to that height on its own — measure it and hand it to each slide.
-  const [pageHeight, setPageHeight] = useState(windowHeight);
 
   const lastIndex = onboardingSlides.length - 1;
   const isLast = index === lastIndex;
@@ -91,25 +82,37 @@ export default function WelcomeScreen() {
   }, [index, ctaLabel, ctaFade]);
 
   return (
-    <View
-      style={[styles.root, { backgroundColor: colors.background }]}
-      onLayout={(e: LayoutChangeEvent) => setPageHeight(e.nativeEvent.layout.height)}
-    >
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenBackground />
 
+      {/* ---- Header ---- */}
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.xl },
+        ]}
+      >
+        <Logo width={148} />
+
+        {!isLast && (
+          <Pressable
+            hitSlop={12}
+            onPress={() => router.push('/sign-up')}
+            accessibilityRole="button"
+            accessibilityLabel="Skip onboarding"
+          >
+            <Text style={[styles.skip, { color: colors.textMuted }]}>Skip</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* ---- Carousel ---- */}
       <Animated.FlatList
         ref={listRef}
         data={onboardingSlides}
         keyExtractor={(item) => item.key}
         renderItem={({ item, index: i }) => (
-          <OnboardingSlideView
-            slide={item}
-            index={i}
-            scrollX={scrollX}
-            headerOffset={headerHeight}
-            footerOffset={footerHeight}
-            pageHeight={pageHeight}
-          />
+          <OnboardingSlideView slide={item} index={i} scrollX={scrollX} />
         )}
         horizontal
         pagingEnabled
@@ -123,40 +126,8 @@ export default function WelcomeScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-        style={StyleSheet.absoluteFill}
+        style={styles.list}
       />
-
-      {/* ---- Header ---- */}
-      <View
-        style={[
-          styles.header,
-          { paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.xl },
-        ]}
-        onLayout={(e: LayoutChangeEvent) =>
-          setHeaderHeight(e.nativeEvent.layout.height)
-        }
-      >
-        <Logo width={148} />
-
-        {!isLast && (
-          <Pressable
-            hitSlop={12}
-            onPress={() => router.push('/sign-up')}
-            accessibilityRole="button"
-            accessibilityLabel="Skip onboarding"
-            style={[
-              styles.skipPill,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                shadowColor: colors.shadow,
-              },
-            ]}
-          >
-            <Text style={[styles.skip, { color: colors.brand }]}>Skip</Text>
-          </Pressable>
-        )}
-      </View>
 
       {/* ---- Footer ---- */}
       <View
@@ -167,9 +138,6 @@ export default function WelcomeScreen() {
             paddingHorizontal: spacing.xl,
           },
         ]}
-        onLayout={(e: LayoutChangeEvent) =>
-          setFooterHeight(e.nativeEvent.layout.height)
-        }
       >
         <Paginator count={onboardingSlides.length} scrollX={scrollX} />
 
@@ -198,37 +166,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingBottom: 8,
   },
-  skipPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    // The artwork runs under the header and its own white cards can sit right
-    // behind this pill — the shadow is what keeps the two from merging.
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
   skip: {
     fontFamily: FONT,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
+  list: {
+    flex: 1,
+  },
   footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     alignItems: 'center',
     gap: 20,
     paddingTop: 8,

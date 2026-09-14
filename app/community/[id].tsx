@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   toCommunityMember,
+  toCommunityTopPost,
   toMember,
   type CommunityPost,
   type MemberAction,
@@ -467,6 +468,91 @@ export default function CommunityScreen() {
               </View>
             ) : null}
 
+            {/* Top posts — ranked by the backend, admin-only like the rest of
+                the dashboard. Tapping one opens its thread in the same sheet
+                the Feed tab uses. */}
+            {isAdminOf && analytics?.top_posts?.length ? (
+              <View style={{ gap: spacing.sm }}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Top posts</Text>
+                {analytics.top_posts.slice(0, 5).map((raw, index) => {
+                  const post = toCommunityTopPost(raw);
+                  return (
+                    <Pressable
+                      key={post.id}
+                      onPress={() => setCommentsFor(post)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open comments on ${post.author.name}'s post`}
+                      style={({ pressed }) => [
+                        styles.topPostRow,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                          borderRadius: radius.md,
+                          opacity: pressed ? 0.9 : 1,
+                        },
+                      ]}
+                    >
+                      {/* #1 gets the gold treatment; the rest sit on the brand
+                          tint, so the ranking reads without a legend. */}
+                      <View
+                        style={[
+                          styles.rankChip,
+                          {
+                            backgroundColor:
+                              index === 0 ? `${colors.gold}26` : `${colors.brand}14`,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.rankText,
+                            { color: index === 0 ? colors.gold : colors.brand },
+                          ]}
+                        >
+                          {index + 1}
+                        </Text>
+                      </View>
+
+                      <View style={styles.topPostBody}>
+                        <Text
+                          style={[styles.topPostText, { color: colors.text }]}
+                          numberOfLines={2}
+                        >
+                          {post.body || 'Media post'}
+                        </Text>
+                        <View style={styles.topPostMeta}>
+                          <Text style={[styles.topPostAuthor, { color: colors.textMuted }]}>
+                            @{post.author.handle} · {post.timeAgo}
+                          </Text>
+                        </View>
+                        <View style={styles.topPostStats}>
+                          {[
+                            { icon: 'eye-outline' as const, value: post.views },
+                            { icon: 'heart-outline' as const, value: post.likes },
+                            { icon: 'chatbubble-outline' as const, value: post.comments },
+                            // Gifts are reported by analytics and nowhere else,
+                            // so this is the only surface that can show them.
+                            ...(raw.gifts_count
+                              ? [{ icon: 'gift-outline' as const, value: raw.gifts_count }]
+                              : []),
+                          ].map((stat) => (
+                            <View key={stat.icon} style={styles.topPostStat}>
+                              <Ionicons name={stat.icon} size={13} color={colors.textMuted} />
+                              <Text
+                                style={[styles.topPostStatText, { color: colors.textMuted }]}
+                              >
+                                {stat.value}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+
             {/* Subscription revenue — the split is the server's arithmetic
                 (`platform_fee_percent` and all three amounts), not ours. */}
             {isAdminOf && earnings && earnings.stats.count > 0 ? (
@@ -906,6 +992,28 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   loadMoreText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
+  topPostRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  rankChip: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankText: { fontFamily: FONT, fontSize: 12, fontWeight: '900' },
+  topPostBody: { flex: 1, gap: 4 },
+  topPostText: { fontFamily: FONT, fontSize: 13.5, fontWeight: '600', lineHeight: 19 },
+  topPostMeta: { flexDirection: 'row', alignItems: 'center' },
+  topPostAuthor: { fontFamily: FONT, fontSize: 11.5, fontWeight: '700' },
+  topPostStats: { flexDirection: 'row', gap: 14, marginTop: 2 },
+  topPostStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  topPostStatText: { fontFamily: FONT, fontSize: 11.5, fontWeight: '700' },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   statCell: {
     width: '48.5%',

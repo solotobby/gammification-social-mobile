@@ -1226,6 +1226,32 @@ export type ApiCommunityMemberRow = ApiCommunityUser & {
   banned_at?: string;
 };
 
+/**
+ * A row of `analytics.top_posts`.
+ *
+ * **Not `ApiCommunityPost`** — the analytics endpoint sends a different shape
+ * (verified live 2026-09-07): it omits `is_liked`, `word_count` and the
+ * `comments` preview that the posts list carries, and adds `gifts_count`,
+ * `media_status`, `updated_at` and a flat `user_id`. Typing it separately keeps
+ * the posts type honest about what the *posts* endpoint returns.
+ */
+export type ApiCommunityTopPost = {
+  id: string;
+  community_id: string;
+  user_id: string;
+  content: string;
+  media_status?: string | null;
+  views_count: number;
+  likes_count: number;
+  comments_count: number;
+  /** Gifts received — analytics is the only place this is reported. */
+  gifts_count?: number;
+  created_at: string;
+  updated_at?: string;
+  user: ApiCommunityUser;
+  media: ApiCommunityPostMedia[] | null;
+};
+
 /** `GET /communities/{id}/analytics`. */
 export type ApiCommunityAnalytics = {
   community_id: string;
@@ -1244,7 +1270,7 @@ export type ApiCommunityAnalytics = {
     active_subscribers: number;
     invite_link_uses: number;
   };
-  top_posts: ApiCommunityPost[];
+  top_posts: ApiCommunityTopPost[];
   recent_members: (ApiCommunityUser & {
     pivot?: { role?: string; status?: string; created_at?: string };
   })[];

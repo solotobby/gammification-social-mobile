@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Pressable,
@@ -16,10 +15,19 @@ import { Paginator } from '../src/components/onboarding/Paginator';
 import { OnboardingSlideView } from '../src/components/onboarding/OnboardingSlideView';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { Logo } from '../src/components/ui/Logo';
+import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { onboardingSlides } from '../src/data/onboarding';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
 
+/**
+ * Welcome / onboarding carousel.
+ *
+ * Header, pages and footer are stacked — the pages illustrate themselves with
+ * vignettes of the app (`SlideVisual`) rather than full-bleed artwork, so
+ * nothing needs to run under the chrome and no height has to be measured at
+ * runtime to keep copy clear of it.
+ */
 export default function WelcomeScreen() {
   const { colors, spacing } = useTheme();
   const router = useRouter();
@@ -51,15 +59,31 @@ export default function WelcomeScreen() {
     }
   }, [index, lastIndex, router]);
 
+  // The CTA wording is per-slide but the button doesn't scroll with the pages,
+  // so cross-fade the label instead of letting it snap mid-swipe.
+  const ctaFade = useRef(new Animated.Value(1)).current;
+  const [ctaLabel, setCtaLabel] = useState(onboardingSlides[0].cta);
+
+  useEffect(() => {
+    const next = onboardingSlides[index].cta;
+    if (next === ctaLabel) return;
+    Animated.timing(ctaFade, {
+      toValue: 0,
+      duration: 110,
+      useNativeDriver: true,
+    }).start(() => {
+      setCtaLabel(next);
+      Animated.timing(ctaFade, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [index, ctaLabel, ctaFade]);
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Ambient gradient wash behind everything */}
-      <LinearGradient
-        colors={[colors.backgroundElevated, colors.background]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.6 }}
-        style={StyleSheet.absoluteFill}
-      />
+      <ScreenBackground />
 
       {/* ---- Header ---- */}
       <View
@@ -68,7 +92,7 @@ export default function WelcomeScreen() {
           { paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.xl },
         ]}
       >
-        <Logo width={150} />
+        <Logo width={148} />
 
         {!isLast && (
           <Pressable
@@ -117,12 +141,9 @@ export default function WelcomeScreen() {
       >
         <Paginator count={onboardingSlides.length} scrollX={scrollX} />
 
-        <GradientButton
-          label={isLast ? 'Get Started' : 'Continue'}
-          icon={isLast ? 'checkmark' : 'arrow-forward'}
-          onPress={goNext}
-          style={styles.cta}
-        />
+        <Animated.View style={[styles.cta, { opacity: ctaFade }]}>
+          <GradientButton label={ctaLabel} icon="arrow-forward" onPress={goNext} />
+        </Animated.View>
 
         <Pressable
           hitSlop={8}
@@ -160,7 +181,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: 'center',
-    gap: 22,
+    gap: 20,
     paddingTop: 8,
   },
   cta: {

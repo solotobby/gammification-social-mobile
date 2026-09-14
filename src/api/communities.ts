@@ -20,6 +20,7 @@ import type {
   ApiCommunityFeePreview,
   ApiCommunityMemberRole,
   ApiCommunityMemberRow,
+  ApiCommunityTopPost,
   ApiCommunitySubscribe,
   ApiCommunitySubscriptionStatus,
   UpdateCommunityPayload,
@@ -602,6 +603,35 @@ export async function removeMember(id: string, userId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 // Analytics and earnings
 // ---------------------------------------------------------------------------
+
+/**
+ * A top post from `analytics.top_posts` into the same `CommunityPost` the feed
+ * renders, so tapping one can open its comment thread like any other.
+ *
+ * The analytics shape omits three things the posts endpoint sends, and each is
+ * filled in honestly rather than guessed: `liked` is false because analytics
+ * never reports the viewer's own like (the heart isn't rendered on these rows
+ * for that reason), and the comments preview is empty because the sheet fetches
+ * the real thread on open anyway.
+ */
+export function toCommunityTopPost(raw: ApiCommunityTopPost): CommunityPost {
+  return {
+    id: raw.id,
+    communityId: raw.community_id,
+    author: toMember(raw.user),
+    body: raw.content ?? '',
+    createdAt: raw.created_at,
+    timeAgo: raw.created_at ? timeAgo(raw.created_at) : '',
+    likes: raw.likes_count ?? 0,
+    comments: raw.comments_count ?? 0,
+    views: raw.views_count ?? 0,
+    liked: false,
+    media: (raw.media ?? [])
+      .map((item) => item.full_url ?? item.url ?? null)
+      .filter((uri): uri is string => !!uri),
+    commentsPreview: [],
+  };
+}
 
 /**
  * `GET /communities/{id}/analytics` — the owner's dashboard: membership and

@@ -441,54 +441,49 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
           </Text>
         </View>
 
-        {/* Gifting spends PayKoin on someone else's post. Hidden on your own,
-            which the backend refuses outright ("You cannot gift your own
-            post."), same rule as the bookmark beside it. */}
-        {post.remote && !isMine ? (
-          <Pressable
-            onPress={() => setGiftOpen(true)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`Send a gift to ${post.author.name}`}
-            style={styles.action}
-          >
-            <Ionicons name="gift-outline" size={19} color={colors.textMuted} />
-            {post.giftCount ? (
-              <Text style={[styles.actionText, { color: colors.textMuted }]}>
-                {post.giftCount}
-              </Text>
-            ) : null}
-          </Pressable>
-        ) : null}
+        {/* Gift and bookmark are the two *actions on* the post rather than
+            counts of it, so they cluster against the right edge and leave the
+            three engagement figures packed at the left. Both hide themselves on
+            your own posts, which is exactly why they can't sit in the left run:
+            the gaps there would change from one post to the next. */}
+        <View style={styles.actionRowEnd}>
+          {/* Gifting spends PayKoin on someone else's post. Hidden on your own,
+              which the backend refuses outright ("You cannot gift your own
+              post."), same rule as the bookmark beside it. */}
+          {post.remote && !isMine ? (
+            <Pressable
+              onPress={() => setGiftOpen(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Send a gift to ${post.author.name}`}
+              style={styles.action}
+            >
+              <Ionicons name="gift-outline" size={19} color={colors.textMuted} />
+              {post.giftCount ? (
+                <Text style={[styles.actionText, { color: colors.textMuted }]}>
+                  {post.giftCount}
+                </Text>
+              ) : null}
+            </Pressable>
+          ) : null}
 
-        {post.remote && isMine ? null : (
-          <Pressable
-            onPress={() => (post.remote ? toggleBookmark.mutate(post.id) : undefined)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={bookmarked ? "Remove bookmark" : "Bookmark"}
-            style={styles.action}
-          >
-            <Ionicons
-              name={bookmarked ? "bookmark" : "bookmark-outline"}
-              size={18}
-              color={bookmarked ? colors.brand : colors.textMuted}
-            />
-          </Pressable>
-        )}
+          {post.remote && isMine ? null : (
+            <Pressable
+              onPress={() => (post.remote ? toggleBookmark.mutate(post.id) : undefined)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={bookmarked ? "Remove bookmark" : "Bookmark"}
+              style={styles.action}
+            >
+              <Ionicons
+                name={bookmarked ? "bookmark" : "bookmark-outline"}
+                size={18}
+                color={bookmarked ? colors.brand : colors.textMuted}
+              />
+            </Pressable>
+          )}
+        </View>
 
-        <Pressable
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Share"
-          style={styles.action}
-        >
-          <Ionicons
-            name="share-social-outline"
-            size={18}
-            color={colors.textMuted}
-          />
-        </Pressable>
       </View>
 
       {/* Gifts the post has received, grouped by artifact. Tapping opens the
@@ -586,7 +581,7 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
   }
 
   return (
-    // No accessibilityRole here: the post holds real buttons (like/share), and
+    // No accessibilityRole here: the post holds real buttons (like/comment), and
     // nesting <button> elements is invalid on web. The comment action is the
     // accessible route into the detail screen.
     <Pressable
@@ -729,16 +724,25 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingRight: FEED_GUTTER + 6,
+    gap: 22,
+  },
+  // `marginLeft: 'auto'` eats the free space, so this pair is flushed right
+  // however many of the three counts to its left are showing.
+  actionRowEnd: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 22,
+    marginLeft: "auto",
   },
   action: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    minWidth: 42,
   },
-  actionText: { fontFamily: FONT, fontSize: 13, fontWeight: "700" },
+  // The minimum sits on the count rather than the whole action, so a like
+  // going 9 -> 10 doesn't shove every icon to its right, while an action with
+  // no count (the bookmark) isn't padded out to look further away than it is.
+  actionText: { fontFamily: FONT, fontSize: 13, fontWeight: "700", minWidth: 16 },
   commentStrip: { gap: 8 },
   commentRow: {
     flexDirection: "row",

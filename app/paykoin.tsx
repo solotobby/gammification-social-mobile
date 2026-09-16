@@ -2,7 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { toPayKoinTransaction, type PayKoinTransaction } from '../src/api/paykoin';
@@ -20,10 +28,14 @@ import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
 
 /**
- * Top-up amounts, in **coins**. The backend enforces a minimum it reports as
- * `min_top_up`; its rejection message says "100 USD", but the figure is coins —
- * a copy bug on their side, so this screen says PK and prints the cash cost
- * beside it rather than repeating the server's wording.
+ * Quick-pick top-up amounts, in **coins** — a shortcut, not the menu: the
+ * field under them takes any amount at or above the minimum, since a gift the
+ * user is saving for rarely lands on a round number.
+ *
+ * The backend enforces a minimum it reports as `min_top_up`; its rejection
+ * message says "100 USD", but the figure is coins — a copy bug on their side,
+ * so this screen says PK and prints the cash cost beside it rather than
+ * repeating the server's wording.
  */
 const TOP_UP_STEPS = [100, 250, 500, 1000];
 
@@ -67,7 +79,11 @@ export default function PayKoinScreen() {
   const topUp = usePayKoinTopUp();
   const convert = useConvertPayKoin();
 
-  const [amount, setAmount] = useState(TOP_UP_STEPS[0]);
+  // The amount is held as **text**, not a number, so the field can be cleared
+  // and retyped without a 0 springing back into it mid-edit. The chips write
+  // into the same state, which is what keeps one highlighted when the typed
+  // value happens to match a quick pick.
+  const [amountText, setAmountText] = useState(String(TOP_UP_STEPS[0]));
   const [filter, setFilter] = useState('all');
   const [topUpOpen, setTopUpOpen] = useState(false);
 
@@ -107,7 +123,13 @@ export default function PayKoinScreen() {
   const spendable = balance.paykoin_spendable ?? 0;
   const earned = balance.paykoin_earned ?? 0;
   const total = spendable + earned;
+
+  // Digits only, so an empty field is 0 rather than NaN and every figure below
+  // stays printable while the user is still typing.
+  const amount = amountText === '' ? 0 : Number.parseInt(amountText, 10);
   const cost = amount * balance.rates.list;
+  const belowMinimum = amount < balance.min_top_up;
+  const canBuy = amount > 0 && !belowMinimum && !topUp.isPending;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -120,6 +142,11 @@ export default function PayKoinScreen() {
           gap: spacing.lg,
         }}
         showsVerticalScrollIndicator={false}
+        // The top-up field lives inside this scroller, so the keyboard would
+        // otherwise cover whichever row it opens over; "handled" keeps the
+        // quick-pick chips and Buy button tappable while it's up.
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerRow}>
           <BackButton onPress={() => router.back()} />
@@ -215,8 +242,9 @@ export default function PayKoinScreen() {
                 return (
                   <Pressable
                     key={step}
-                    onPress={() => setAmount(step)}
+                    onPress={() => setAmountText(String(step))}
                     accessibilityRole="button"
+                    accessibilityLabel={`${step.toLocaleString()} PK`}
                     accessibilityState={{ selected: active }}
                     style={[
                       styles.step,
@@ -236,27 +264,69 @@ export default function PayKoinScreen() {
                 );
               })}
             </View>
-            <Text style={[styles.panelNote, { color: colors.textMuted }]}>
-              {amount.toLocaleString()} PK costs {formatMoney(cost, symbol)}. Minimum{' '}
-              {balance.min_top_up.toLocaleString()} PK.
+
+            {/* Any amount, not just the four above. Digits only — coins are
+                whole, and a decimal point would only produce a 422 the user
+                can't act on. */}
+            <View
+              style={[
+                styles.amountField,
+                {
+                  backgroundColor: colors.surfaceAlt,
+                  borderColor: belowMinimum && amountText !== '' ? colors.danger : colors.border,
+                  borderRadius: radius.md,
+                },
+              ]}
+            >
+              <TextInput
+                value={amountText}
+                onChangeText={(text) => setAmountText(text.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                returnKeyType="done"
+                selectTextOnFocus
+                maxLength={9}
+                placeholder="Enter amount"
+                placeholderTextColor={colors.textMuted}
+                accessibilityLabel="Top-up amount in PayKoin"
+                style={[styles.amountInput, { color: colors.text }]}
+              />
+              <Text style={[styles.amountSuffix, { color: colors.textMuted }]}>PK</Text>
+            </View>
+
+            <Text
+              style={[
+                styles.panelNote,
+                { color: belowMinimum && amountText !== '' ? colors.danger : colors.textMuted },
+              ]}
+            >
+              {amountText === '' || amount === 0
+                ? `Minimum ${balance.min_top_up.toLocaleString()} PK.`
+                : belowMinimum
+                  ? `Minimum top-up is ${balance.min_top_up.toLocaleString()} PK.`
+                  : `${amount.toLocaleString()} PK costs ${formatMoney(cost, symbol)}. Minimum ${balance.min_top_up.toLocaleString()} PK.`}
             </Text>
+
             <Pressable
               onPress={() => topUp.mutate(amount)}
-              disabled={topUp.isPending || amount < balance.min_top_up}
+              disabled={!canBuy}
               accessibilityRole="button"
+              accessibilityState={{ disabled: !canBuy }}
               style={[
                 styles.buyButton,
                 {
                   backgroundColor: colors.brand,
                   borderRadius: radius.pill,
-                  opacity: topUp.isPending || amount < balance.min_top_up ? 0.6 : 1,
+                  opacity: canBuy ? 1 : 0.6,
                 },
               ]}
             >
               <Text style={[styles.buyText, { color: colors.onBrand }]}>
                 {topUp.isPending
                   ? 'Opening checkout…'
-                  : `Buy ${amount.toLocaleString()} PK · ${formatMoney(cost, symbol)}`}
+                  : amount > 0
+                    ? `Buy ${amount.toLocaleString()} PK · ${formatMoney(cost, symbol)}`
+                    : 'Buy PayKoin'}
               </Text>
             </Pressable>
           </View>
@@ -431,6 +501,18 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   stepText: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
+  amountField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    height: 50,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  // FONT, never FONT_MONO — the cash cost beside this is money, and the two
+  // should read as one pair.
+  amountInput: { flex: 1, fontFamily: FONT, fontSize: 16, fontWeight: '800', padding: 0 },
+  amountSuffix: { fontFamily: FONT, fontSize: 13, fontWeight: '800' },
   buyButton: { height: 48, alignItems: 'center', justifyContent: 'center' },
   buyText: { fontFamily: FONT, fontSize: 14.5, fontWeight: '800' },
 

@@ -1,6 +1,7 @@
 import { api } from './client';
 import { tintFor } from './timeline';
 import type {
+  ApiConnectionUser,
   ApiEnvelope,
   ApiProfile,
   Currency,
@@ -9,7 +10,7 @@ import type {
   SearchUser,
   ToggleFollowData,
 } from './types';
-import type { Member } from '../data/community';
+import type { Member, MemberTint } from '../data/community';
 
 /** GET /user/currency/list — payout currency options. */
 export async function fetchCurrencies(): Promise<Currency[]> {
@@ -94,8 +95,72 @@ export function toMemberFromProfile(profile: ApiProfile): Member {
     name: profile.name,
     handle: profile.username,
     tint: tintFor(profile.id),
+    avatar: profile.avatar,
     engagements: 0,
     followers: profile.followers ?? 0,
     following: profile.following ?? 0,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Followers / following
+//
+// These two landed 2026-09-16 and they are the endpoints the app has been
+// missing since the Following tab was built: there was previously **no way to
+// ask who a user follows**, only a per-member `is_following` flag and a write
+// toggle, which is why `followStore` exists as a client-side mirror. With
+// `/following` the real set can be read from the server and the store seeded
+// from it, instead of starting empty for anyone whose follows were made on the
+// web. See `useConnections.ts`.
+// ---------------------------------------------------------------------------
+
+/** One row of a follower/following list, as the member rows render it. */
+export type Connection = {
+  id: string;
+  name: string;
+  handle: string;
+  tint: MemberTint;
+  avatar?: string | null;
+  about?: string | null;
+  /** Does the signed-in viewer follow this member? Seeds the follow button. */
+  isFollowing: boolean;
+  /** Is this row the signed-in viewer? Their own row offers no follow button. */
+  isMe: boolean;
+};
+
+function toConnection(raw: ApiConnectionUser): Connection {
+  return {
+    id: raw.id,
+    name: raw.name,
+    handle: raw.username,
+    tint: tintFor(raw.id),
+    avatar: raw.avatar,
+    about: raw.about,
+    isFollowing: !!raw.is_following,
+    isMe: !!raw.is_me,
+  };
+}
+
+/** GET /user/profile/{username}/followers — 20 a page. */
+export async function fetchFollowers(
+  username: string,
+  page = 1,
+): Promise<Paginated<Connection>> {
+  const { data } = await api.get<ApiEnvelope<Paginated<ApiConnectionUser>>>(
+    `/user/profile/${encodeURIComponent(username)}/followers`,
+    { params: { page } },
+  );
+  return { ...data.data, data: data.data.data.map(toConnection) };
+}
+
+/** GET /user/profile/{username}/following — same shape as followers. */
+export async function fetchFollowing(
+  username: string,
+  page = 1,
+): Promise<Paginated<Connection>> {
+  const { data } = await api.get<ApiEnvelope<Paginated<ApiConnectionUser>>>(
+    `/user/profile/${encodeURIComponent(username)}/following`,
+    { params: { page } },
+  );
+  return { ...data.data, data: data.data.data.map(toConnection) };
 }

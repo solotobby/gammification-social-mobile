@@ -3,8 +3,8 @@ import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Avatar } from '../src/components/ui/Avatar';
 import { BackButton } from '../src/components/ui/BackButton';
+import { ProfileImagePicker } from '../src/components/profile/ProfileImagePicker';
 import { FieldLabel } from '../src/components/ui/FieldLabel';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
@@ -12,7 +12,7 @@ import { ThemeToggle } from '../src/components/ui/ThemeToggle';
 import { SelectField } from '../src/components/ui/SelectField';
 import { TextField } from '../src/components/ui/TextField';
 import { useUpdateProfile } from '../src/hooks/useAccount';
-import { useMe, useMyTint } from '../src/hooks/useMe';
+import { useMe } from '../src/hooks/useMe';
 import { useAuthStore } from '../src/stores/authStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
@@ -45,7 +45,6 @@ const GENDERS = [
 export default function SettingsScreen() {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
-  const myTint = useMyTint();
 
   const { data: me } = useMe();
   const sessionUser = useAuthStore((s) => s.user);
@@ -93,13 +92,10 @@ export default function SettingsScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      {/* Avatar preview */}
-      <View style={styles.avatarWrap}>
-        <Avatar name={name} tint={myTint} size={76} />
-        <Text style={[styles.avatarHint, { color: colors.textMuted }]}>
-          Avatars come from your initials for now
-        </Text>
-      </View>
+      {/* Cover + profile photo, both uploadable since 2026-09-16
+          (POST /user/avatar, POST /user/banner). This used to be an initials
+          disc with "avatars come from your initials for now" under it. */}
+      <ProfileImagePicker />
 
       <View style={[styles.form, { gap: spacing.lg }]}>
         {/* Read-only: PUT /user/profile does not accept these yet. */}
@@ -261,12 +257,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
-  avatarWrap: {
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 28,
-  },
-  avatarHint: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   form: {
     marginBottom: 24,
   },

@@ -2,7 +2,6 @@ import { api } from './client';
 import { timeAgo } from './timeline';
 import type {
   ApiEnvelope,
-  ApiGiftArtifact,
   ApiPayKoinBalance,
   ApiPayKoinTopUp,
   ApiPayKoinTopUpStatus,
@@ -88,24 +87,6 @@ export async function fetchPayKoinTransactions(
     { params: { page } },
   );
   return data.data;
-}
-
-/**
- * `GET /gifts` — the gift catalog, priced in PayKoin.
- *
- * **Undocumented**: it is in neither the Postman collection nor the PayKoin
- * folder, and was found by probing. It answers 200 with a full catalog
- * (`{gifts:[{id, name, emoji, price, tier}]}`), which is what makes the coin
- * balance mean anything on screen.
- *
- * Its companion `POST /gifts/send` ({artifact_id, post_id}) also exists but
- * **404s "Post or creator not found" for every post on staging** — own posts,
- * other users' posts, posts that demonstrably exist — so sending is not wired
- * into the feed. See the gaps list in AGENTS.md.
- */
-export async function fetchGiftCatalog(): Promise<ApiGiftArtifact[]> {
-  const { data } = await api.get<ApiEnvelope<{ gifts: ApiGiftArtifact[] }>>('/gifts');
-  return data.data?.gifts ?? [];
 }
 
 // ---------------------------------------------------------------------------

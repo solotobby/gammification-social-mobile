@@ -66,7 +66,7 @@ export function CommunityPostCard({
       ]}
     >
       <View style={styles.headerRow}>
-        <Avatar name={post.author.name} tint={post.author.tint} size={38} />
+        <Avatar name={post.author.name} tint={post.author.tint} uri={post.author.avatar} size={38} />
         <View style={styles.headerText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
             {post.author.name}
@@ -153,7 +153,7 @@ export function CommunityPostCard({
         <View style={[styles.previewWrap, { borderTopColor: colors.border }]}>
           {post.commentsPreview.slice(0, 2).map((comment) => (
             <View key={comment.id} style={styles.previewRow}>
-              <Avatar name={comment.author.name} tint={comment.author.tint} size={22} />
+              <Avatar name={comment.author.name} tint={comment.author.tint} uri={comment.author.avatar} size={22} />
               <Text style={[styles.previewText, { color: colors.textSecondary }]} numberOfLines={2}>
                 <Text style={{ fontWeight: '800', color: colors.text }}>
                   {comment.author.name}

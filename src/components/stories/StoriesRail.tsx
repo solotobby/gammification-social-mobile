@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { currentUser, type Member } from '../../data/community';
 import { memberStories, myStories, type StoryItem } from '../../data/stories';
-import { useMe, useMyTint } from '../../hooks/useMe';
+import { useMe, useMyAvatar, useMyTint } from '../../hooks/useMe';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
@@ -49,6 +49,7 @@ function MyStoryCard({ latest }: { latest?: StoryItem }) {
   const { colors, brand } = useTheme();
   const router = useRouter();
   const myTint = useMyTint();
+  const myAvatar = useMyAvatar();
   // Same identity chain as HomeHeader — the avatar sits right under it, so the
   // initials have to come from the signed-in user, not the dummy profile.
   const { data: me } = useMe();
@@ -64,7 +65,7 @@ function MyStoryCard({ latest }: { latest?: StoryItem }) {
         <StoryPreview item={latest} />
       ) : (
         <View style={styles.createBody}>
-          <Avatar name={displayName} tint={myTint} size={52} />
+          <Avatar name={displayName} tint={myTint} uri={myAvatar} size={52} />
         </View>
       )}
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.65)']} style={styles.scrim} />

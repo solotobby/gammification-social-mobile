@@ -67,7 +67,7 @@ function TrendingRow({ member, index }: { member: Member; index: number }) {
         accessibilityLabel={`View ${member.name}'s profile`}
         style={styles.memberTap}
       >
-        <Avatar name={member.name} tint={member.tint} size={44} />
+        <Avatar name={member.name} tint={member.tint} uri={member.avatar} size={44} />
         <View style={styles.rowText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
             {member.name}

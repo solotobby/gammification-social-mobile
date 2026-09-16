@@ -325,7 +325,18 @@ export function useToggleLike() {
 }
 
 /** Variables for a comment mutation. */
-export type AddCommentVars = { postId: string; body: string; clientId: string };
+export type AddCommentVars = {
+  postId: string;
+  body: string;
+  clientId: string;
+  /**
+   * The comment being replied to, or omitted for a root comment. Part of the
+   * *variables* (not just closure state) so a reply paused offline still knows
+   * what it was answering after an app restart — same reason `clientId` lives
+   * here.
+   */
+  parentId?: string | null;
+};
 
 /**
  * Id for an optimistic comment. It travels in the mutation *variables* rather
@@ -358,7 +369,8 @@ function rollbackComment(
  */
 export function registerMutationDefaults(queryClient: QueryClient) {
   queryClient.setMutationDefaults(['addComment'], {
-    mutationFn: ({ postId, body }: AddCommentVars) => postComment(postId, body),
+    mutationFn: ({ postId, body, parentId }: AddCommentVars) =>
+      postComment(postId, body, parentId),
     onError: (error, variables: AddCommentVars) =>
       rollbackComment(queryClient, variables, error),
   });
@@ -374,8 +386,9 @@ export function useAddComment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ['addComment'],
-    mutationFn: ({ postId, body }: AddCommentVars) => postComment(postId, body),
-    onMutate: ({ postId, body, clientId }) => {
+    mutationFn: ({ postId, body, parentId }: AddCommentVars) =>
+      postComment(postId, body, parentId),
+    onMutate: ({ postId, body, clientId, parentId }) => {
       const user = useAuthStore.getState().user;
       const comment: Comment = {
         id: clientId,
@@ -390,6 +403,9 @@ export function useAddComment() {
         },
         body,
         timeAgo: 'now',
+        parentId: parentId ?? null,
+        replyCount: 0,
+        replies: [],
       };
       useEngagementStore.getState().addComment(postId, comment);
       patchCachedPost(queryClient, postId, (post) => ({

@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -22,10 +23,15 @@ import type { Post } from '../../data/community';
 import { FONT } from '../../theme/fonts';
 
 /**
- * The "⋯" overflow on every feed post. What it offers depends on who wrote it:
+ * The "⋯" overflow on every feed post. Share heads the sheet for everyone;
+ * the rest depends on who wrote it:
  *
- * - **Your own post** — Edit, Analytics, Delete.
+ * - **Your own post** — Edit, Analytics, Promote, Delete.
  * - **Someone else's** — Follow/Unfollow, Hide, Report.
+ *
+ * Share moved in here from a seventh icon on the action row, which left that
+ * row too busy and — because the gift and bookmark actions hide themselves on
+ * your own posts — unevenly spaced from one post to the next.
  *
  * All but one are backed by a real endpoint. Delete hits
  * DELETE /timeline/delete/post/{id} (destructive, so it double-confirms),
@@ -108,6 +114,31 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
     });
   };
 
+  /**
+   * Hand the link to the OS share sheet, exactly like `ShareSheet` and
+   * `/blog/[slug]` do — it already knows which apps are installed.
+   *
+   * **The permalink shape is an assumption.** Nothing in the API returns a
+   * canonical web URL for a timeline post (unlike a community, which sends
+   * `share_url`), so this mirrors the app's own route. Confirm it against the
+   * web app, and switch to a server-sent URL if one ever appears.
+   */
+  const onShare = async () => {
+    try {
+      await Share.share({
+        message: `${post.author.name} on Payhankey\nhttps://payhankey.com/post/${post.id}`,
+      });
+    } catch {
+      // A dismissed share sheet is not a failure, and nothing was sent.
+    } finally {
+      // Close *after*, never before: dismissing this Modal first leaves iOS
+      // mid-transition and the share sheet never presents at all. `ShareSheet`
+      // orders it the same way, and the OS sheet renders happily over an open
+      // RN modal.
+      close();
+    }
+  };
+
   const onHide = () => {
     hide(post.id);
     close();
@@ -176,6 +207,7 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
 
             {view === 'menu' ? (
               <View style={styles.menuWrap}>
+                {row('share-social-outline', 'Share post', () => void onShare())}
                 {isMine ? (
                   <>
                     {row('create-outline', 'Edit post', () => {
@@ -186,6 +218,20 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
                       close();
                       router.push(`/post/${post.id}/analytics`);
                     })}
+                    {/* Promotion is bought with PayKoin — the boost screen reads
+                        the rates, bundles and the caller's balance from
+                        /boost/config and prices itself from those. */}
+                    {row(
+                      post.boosted ? 'megaphone' : 'megaphone-outline',
+                      post.boosted ? 'Promotion running' : 'Promote post',
+                      () => {
+                        close();
+                        // A post that already has a campaign goes to the list,
+                        // where it can be paused — the composer would only tell
+                        // it it's already boosted.
+                        router.push(post.boosted ? '/boosts' : `/post/${post.id}/boost`);
+                      },
+                    )}
                     {row('trash-outline', 'Delete post', () => setView('confirmDelete'), 'danger')}
                   </>
                 ) : (

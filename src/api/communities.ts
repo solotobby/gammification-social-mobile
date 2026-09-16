@@ -129,6 +129,10 @@ export type CommunityComment = {
   author: Member;
   body: string;
   timeAgo: string;
+  /** Threading — see `Comment` in src/data/community.ts, same one-level model. */
+  parentId?: string | null;
+  replyCount?: number;
+  replies?: CommunityComment[];
 };
 
 // ---------------------------------------------------------------------------
@@ -146,6 +150,7 @@ export function toMember(user: ApiCommunityUser | null | undefined): Member {
     name: user?.name || user?.username || 'Member',
     handle: user?.username ?? 'unknown',
     tint: tintFor(user?.id ?? 'unknown'),
+    avatar: user?.avatar,
     engagements: 0,
     followers: 0,
     following: 0,
@@ -243,11 +248,16 @@ export function toCommunity(community: ApiCommunity): Community {
 }
 
 export function toCommunityComment(comment: ApiCommunityComment): CommunityComment {
+  const replies = (comment.replies ?? []).map(toCommunityComment);
   return {
     id: comment.id,
     author: toMember(comment.user),
     body: comment.content ?? '',
     timeAgo: comment.created_at ? timeAgo(comment.created_at) : '',
+    parentId: comment.parent_id ?? null,
+    // The server's count wins over the embedded array's length.
+    replyCount: comment.reply_count ?? replies.length,
+    replies,
   };
 }
 
@@ -479,15 +489,22 @@ export async function fetchCommunityPostComments(
   return data.data;
 }
 
-/** `POST /communities/{id}/posts/{postId}/comments` — body is `{content}`. */
+/**
+ * `POST /communities/{id}/posts/{postId}/comments` — body is `{content}`, plus
+ * `parent_id` to make it a reply (live since 2026-09-16, same as the timeline).
+ *
+ * Unlike the timeline's queued 202, this answers 201 with the created comment,
+ * so callers get the real row back and don't need an optimistic placeholder.
+ */
 export async function addCommunityPostComment(
   id: string,
   postId: string,
   content: string,
+  parentId?: string | null,
 ): Promise<CommunityComment> {
   const { data } = await api.post<ApiEnvelope<ApiCommunityComment>>(
     `/communities/${id}/posts/${postId}/comments`,
-    { content },
+    { content, ...(parentId ? { parent_id: parentId } : null) },
   );
   return toCommunityComment(data.data);
 }

@@ -78,7 +78,7 @@ export function CommunityMemberRow({
         accessibilityLabel={`Open ${row.member.name}'s profile`}
         style={styles.identity}
       >
-        <Avatar name={row.member.name} tint={row.member.tint} size={40} />
+        <Avatar name={row.member.name} tint={row.member.tint} uri={row.member.avatar} size={40} />
         <View style={styles.identityText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
             {row.member.name}

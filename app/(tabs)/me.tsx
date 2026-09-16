@@ -34,6 +34,7 @@ const MENU: MenuItem[] = [
   { icon: 'diamond-outline', label: 'PayKoin', sub: 'Coins for gifting creators', route: '/paykoin' },
   { icon: 'card-outline', label: 'Bank information', sub: 'Payout account & currency', route: '/bank-info' },
   { icon: 'swap-horizontal-outline', label: 'Transactions', sub: 'Payout & earning history', route: '/transactions' },
+  { icon: 'megaphone-outline', label: 'Promotions', sub: 'Posts you\'re boosting', route: '/boosts' },
   // { icon: 'trophy-outline', label: 'Top earners', sub: 'Monthly leaderboard', route: '/top-earners' },
   { icon: 'people-outline', label: 'My referrals', sub: `${referral.total} referral so far`, route: '/referrals' },
   { icon: 'arrow-up-circle-outline', label: 'Upgrade level', sub: 'Creator & Influencer plans', route: '/upgrade' },
@@ -104,10 +105,10 @@ export default function MeScreen() {
         >
           {/* Same default banner as the profile screen, so the two surfaces
               read as one account rather than two different places. */}
-          <ProfileCover fadeTo={colors.surface} height={120} />
+          <ProfileCover uri={me?.user.banner ?? undefined} fadeTo={colors.surface} height={120} />
           <View style={styles.identityBody}>
             <View style={[styles.avatarRing, { borderColor: colors.surface }]}>
-              <Avatar name={displayName} tint={myTint} size={76} />
+              <Avatar name={displayName} tint={myTint} uri={me?.user.avatar} size={76} />
             </View>
             <Text style={[styles.name, { color: colors.text }]}>{displayName}</Text>
             <Text style={[styles.handle, { color: colors.textMuted }]}>

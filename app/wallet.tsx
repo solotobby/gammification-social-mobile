@@ -8,8 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/ui/BackButton';
 import { GhostButton } from '../src/components/ui/GhostButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
-import { useWallet } from '../src/hooks/useAccount';
-import { formatMoney, resolveSymbol, symbolFor } from '../src/hooks/useCurrency';
+import { usePayouts, useWallet } from '../src/hooks/useAccount';
+import { formatMoney, resolveSymbol, symbolFor, useCurrency } from '../src/hooks/useCurrency';
 import { useMe } from '../src/hooks/useMe';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
@@ -241,13 +241,41 @@ export default function WalletScreen() {
         </View>
         */}
 
-        {/* Payout history now lives on the Earn tab. */}
+        {/* Payouts — GET /user/payouts, live since 2026-09-16. Withdrawals used
+            to be invisible in the app entirely: the wallet showed balances and
+            nothing about money actually leaving. */}
+        <PayoutsSection />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  sectionTitle: { fontFamily: FONT, fontSize: 17, fontWeight: '800' },
+  payoutTotals: { flexDirection: 'row', gap: 10 },
+  payoutTotal: { flex: 1, padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 3 },
+  payoutTotalValue: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
+  payoutTotalLabel: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
+  payoutEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  payoutEmptyText: { fontFamily: FONT, flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 19 },
+  payoutList: { borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  payoutRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  payoutDot: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  payoutDotInner: { width: 8, height: 8, borderRadius: 4 },
+  payoutBody: { flex: 1, gap: 2 },
+  payoutDesc: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  payoutMeta: { fontFamily: FONT, fontSize: 11, fontWeight: '500' },
+  payoutAmountWrap: { alignItems: 'flex-end', gap: 2 },
+  payoutAmount: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  payoutStatus: { fontFamily: FONT, fontSize: 11, fontWeight: '700' },
+  payoutMore: { alignItems: 'center', paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  payoutMoreText: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
   root: { flex: 1 },
   headerRow: {
     flexDirection: 'row',
@@ -362,3 +390,131 @@ const styles = StyleSheet.create({
   txDate: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   txAmount: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
 });
+
+/**
+ * Recent payouts plus the paid / queued totals.
+ *
+ * Renders the backend's own `formatted` money string where it sends one, the
+ * same rule the balances above follow — re-deriving a symbol is how a USD
+ * account ends up labelled in naira.
+ *
+ * The list was empty on every test account, so this is written to look right
+ * with nothing in it: the totals still carry the story ("nothing queued"), and
+ * the empty state explains when a payout would appear rather than implying
+ * something is broken.
+ */
+function PayoutsSection() {
+  const { colors, radius, spacing } = useTheme();
+  const { format } = useCurrency();
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = usePayouts();
+
+  const pages = data?.pages ?? [];
+  const payouts = pages.flatMap((page) => page.payouts);
+  // Totals repeat on every page, so read them from the first rather than summing.
+  const summary = pages[0];
+
+  const tone = (state: string) =>
+    state === 'paid'
+      ? colors.mint
+      : state === 'failed'
+        ? colors.pink
+        : state === 'processing'
+          ? colors.brand
+          : colors.gold;
+
+  return (
+    <View style={{ gap: spacing.md }}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Payouts</Text>
+
+      <View style={styles.payoutTotals}>
+        {[
+          { label: 'Paid out', value: summary?.totalPaid ?? 0, color: colors.mint },
+          { label: 'Queued', value: summary?.totalQueued ?? 0, color: colors.gold },
+        ].map((total) => (
+          <View
+            key={total.label}
+            style={[
+              styles.payoutTotal,
+              { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
+            ]}
+          >
+            <Text style={[styles.payoutTotalValue, { color: total.color }]}>
+              {format(total.value)}
+            </Text>
+            <Text style={[styles.payoutTotalLabel, { color: colors.textMuted }]}>
+              {total.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {isLoading ? (
+        <ActivityIndicator color={colors.brand} style={{ paddingVertical: 24 }} />
+      ) : payouts.length === 0 ? (
+        <View
+          style={[
+            styles.payoutEmpty,
+            { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
+          ]}
+        >
+          <Ionicons name="cash-outline" size={22} color={colors.textMuted} />
+          <Text style={[styles.payoutEmptyText, { color: colors.textMuted }]}>
+            No payouts yet. Once you withdraw, each one shows here with its
+            status until it lands.
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.payoutList,
+            { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
+          ]}
+        >
+          {payouts.map((payout, index) => (
+            <View
+              key={payout.id}
+              style={[
+                styles.payoutRow,
+                index > 0 && {
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: colors.border,
+                },
+              ]}
+            >
+              <View style={[styles.payoutDot, { backgroundColor: `${tone(payout.state)}22` }]}>
+                <View style={[styles.payoutDotInner, { backgroundColor: tone(payout.state) }]} />
+              </View>
+              <View style={styles.payoutBody}>
+                <Text style={[styles.payoutDesc, { color: colors.text }]} numberOfLines={1}>
+                  {payout.description}
+                </Text>
+                <Text style={[styles.payoutMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                  {[payout.date, payout.reference].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              <View style={styles.payoutAmountWrap}>
+                <Text style={[styles.payoutAmount, { color: colors.text }]}>
+                  {payout.formatted ?? format(payout.amount)}
+                </Text>
+                <Text style={[styles.payoutStatus, { color: tone(payout.state) }]}>
+                  {payout.status || payout.state}
+                </Text>
+              </View>
+            </View>
+          ))}
+          {hasNextPage ? (
+            <Pressable
+              onPress={() => !isFetchingNextPage && fetchNextPage()}
+              accessibilityRole="button"
+              style={[styles.payoutMore, { borderTopColor: colors.border }]}
+            >
+              <Text style={[styles.payoutMoreText, { color: colors.brand }]}>
+                {isFetchingNextPage ? 'Loading…' : 'Show more'}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      )}
+    </View>
+  );
+}

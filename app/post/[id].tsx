@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { mergeComments, tintFor, toPostDetail } from '../../src/api/timeline';
+import { CommentItem, ReplyingBanner } from '../../src/components/feed/CommentThread';
 import { FEED_GUTTER, PostCard } from '../../src/components/feed/PostCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
@@ -22,6 +23,7 @@ import { HashtagText } from '../../src/components/ui/HashtagText';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { keyboardInset, useKeyboard } from '../../src/hooks/useKeyboard';
 import { addComment, findPost } from '../../src/data/community';
+import { useMyAvatar } from '../../src/hooks/useMe';
 import { newCommentId, useAddComment, usePost } from '../../src/hooks/useTimeline';
 import { useAuthStore } from '../../src/stores/authStore';
 import { NO_COMMENTS, useEngagementStore } from '../../src/stores/engagementStore';
@@ -50,10 +52,16 @@ export default function PostDetailScreen() {
   const post = dummy ?? (query.data ? toPostDetail(query.data) : undefined);
 
   const user = useAuthStore((s) => s.user);
+  const myAvatar = useMyAvatar();
   const myComments = useEngagementStore((s) => s.myComments[id] ?? NO_COMMENTS);
   const remoteAddComment = useAddComment();
 
   const [draft, setDraft] = useState('');
+  // What the composer is answering, or null for a root comment. Holds the ROOT
+  // comment's id (the API nests one level only) plus the handle being addressed,
+  // which may belong to a reply further down that root's thread.
+  const [replyTo, setReplyTo] = useState<{ rootId: string; handle: string } | null>(null);
+  const inputRef = useRef<TextInput>(null);
   // Bump to re-render after mutating the in-memory comment list (dummy posts).
   const [, setVersion] = useState(0);
 
@@ -92,9 +100,21 @@ export default function PostDetailScreen() {
       addComment(post.id, body);
       setVersion((v) => v + 1);
     } else {
-      remoteAddComment.mutate({ postId: post.id, body, clientId: newCommentId() });
+      remoteAddComment.mutate({
+        postId: post.id,
+        body,
+        clientId: newCommentId(),
+        parentId: replyTo?.rootId ?? null,
+      });
     }
     setDraft('');
+    setReplyTo(null);
+  };
+
+  /** Aim the composer at a comment and focus it, so Reply is a one-tap action. */
+  const startReply = (target: { rootId: string; handle: string }) => {
+    setReplyTo(target);
+    inputRef.current?.focus();
   };
 
   return (
@@ -121,7 +141,7 @@ export default function PostDetailScreen() {
           </View>
 
           <View style={[styles.postWrap, { borderBottomColor: colors.border }]}>
-            <PostCard post={post} bare />
+            <PostCard post={post} bare showBoostStrip />
           </View>
 
           <View style={[styles.gutter, { gap: spacing.md }]}>
@@ -140,28 +160,14 @@ export default function PostDetailScreen() {
               </View>
             ) : (
               comments.map((comment) => (
-                <View
+                <CommentItem
                   key={comment.id}
-                  style={[
-                    styles.commentRow,
-                    { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
-                  ]}
-                >
-                  <Avatar name={comment.author.name} tint={comment.author.tint} size={36} />
-                  <View style={styles.commentBody}>
-                    <View style={styles.commentHeader}>
-                      <Text style={[styles.commentName, { color: colors.text }]} numberOfLines={1}>
-                        {comment.author.name}
-                      </Text>
-                      <Text style={[styles.commentTime, { color: colors.textMuted }]}>
-                        {comment.timeAgo}
-                      </Text>
-                    </View>
-                    <HashtagText style={[styles.commentText, { color: colors.textSecondary }]}>
-                      {comment.body}
-                    </HashtagText>
-                  </View>
-                </View>
+                  comment={comment}
+                  // Dummy (in-memory) posts have no reply endpoint behind them,
+                  // so they render read-only rather than offering an action
+                  // that would go nowhere.
+                  onReply={dummy ? undefined : startReply}
+                />
               ))
             )}
           </View>
@@ -170,7 +176,7 @@ export default function PostDetailScreen() {
         {/* Comment input */}
         <View
           style={[
-            styles.inputBar,
+            styles.inputBarWrap,
             {
               backgroundColor: colors.surface,
               borderTopColor: colors.border,
@@ -178,11 +184,21 @@ export default function PostDetailScreen() {
             },
           ]}
         >
-          <Avatar name={user?.name ?? 'You'} tint={tintFor(user?.id ?? 'me')} size={34} />
+          {replyTo ? (
+            <ReplyingBanner handle={replyTo.handle} onCancel={() => setReplyTo(null)} />
+          ) : null}
+          <View style={styles.inputBar}>
+          <Avatar
+            name={user?.name ?? 'You'}
+            tint={tintFor(user?.id ?? 'me')}
+            uri={myAvatar}
+            size={34}
+          />
           <TextInput
+            ref={inputRef}
             value={draft}
             onChangeText={setDraft}
-            placeholder="Write a comment…"
+            placeholder={replyTo ? `Reply to @${replyTo.handle}…` : 'Write a comment…'}
             placeholderTextColor={colors.textMuted}
             selectionColor={colors.brand}
             onSubmitEditing={onSend}
@@ -208,6 +224,7 @@ export default function PostDetailScreen() {
               color={draft.trim() ? colors.onBrand : colors.textMuted}
             />
           </Pressable>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -243,14 +260,12 @@ const styles = StyleSheet.create({
   loadingWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   emptyWrap: { alignItems: 'center', gap: 8, paddingVertical: 26, paddingHorizontal: 24 },
   emptyText: { fontFamily: FONT, fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  inputBarWrap: {
     paddingHorizontal: 16,
     paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   input: {
     fontFamily: FONT,
     flex: 1,

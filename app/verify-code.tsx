@@ -8,7 +8,12 @@ import { BackButton } from '../src/components/ui/BackButton';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { OtpInput } from '../src/components/ui/OtpInput';
-import { activateSession, useResendOtp, useVerifyOtp } from '../src/hooks/useAuth';
+import {
+  activateSession,
+  useForgotPassword,
+  useResendOtp,
+  useVerifyOtp,
+} from '../src/hooks/useAuth';
 import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
@@ -19,18 +24,28 @@ const CODE_LENGTH = 6;
 export default function VerifyCodeScreen() {
   const { colors, brand, radius, spacing, typography } = useTheme();
   const router = useRouter();
-  // `next` is the route to continue to once the code is verified — set by the
+  // `next` is the route to continue to once the code is entered — set by the
   // caller (sign-up -> /get-started, forgot-password -> /reset-password).
-  // `userId` is set by sign-up: with it we verify against the API (which also
-  // signs the user in); without it (forgot-password — no API endpoints yet)
-  // the code is accepted as-is. `prefillOtp` is a TEMPORARY testing aid: the
-  // backend doesn't email codes yet, so sign-up passes the one from the
-  // register response — remove once real emails ship.
-  const { email, next, userId, prefillOtp } = useLocalSearchParams<{
+  //
+  // The two flows verify in different places, and that is a property of the
+  // API, not a shortcut:
+  //
+  // - **Sign-up** passes `userId`, so the code is checked here against
+  //   POST /verify/otp (which also signs the user in).
+  // - **Password reset** has no endpoint that checks a code on its own —
+  //   POST /reset-password validates the OTP and sets the password in a single
+  //   call. So this screen collects the digits and forwards them to
+  //   /reset-password, which is where a wrong code surfaces.
+  //
+  // `prefillOtp` is a TEMPORARY testing aid: the backend doesn't email codes
+  // yet, so sign-up passes the one from the register response — remove once
+  // real emails ship.
+  const { email, next, userId, prefillOtp, expiresIn } = useLocalSearchParams<{
     email?: string;
     next?: string;
     userId?: string;
     prefillOtp?: string;
+    expiresIn?: string;
   }>();
 
   const [code, setCode] = useState(prefillOtp ?? '');
@@ -38,6 +53,10 @@ export default function VerifyCodeScreen() {
 
   const verifyMutation = useVerifyOtp();
   const resendMutation = useResendOtp();
+  // The reset flow re-requests its code from /forgot-password, not /resend/otp
+  // (which is keyed on a user id this flow never has).
+  const forgotMutation = useForgotPassword();
+  const isReset = !userId;
   const showApiError = useFeedbackStore((s) => s.showApiError);
   const showToast = useFeedbackStore((s) => s.showToast);
 
@@ -47,15 +66,20 @@ export default function VerifyCodeScreen() {
     return () => clearInterval(id);
   }, [seconds]);
 
-  const continueToNext = () =>
-    router.replace({ pathname: next ?? '/reset-password', params: { email } });
+  // The entered code travels on to /reset-password, which is the only thing
+  // that can actually validate it.
+  const continueToNext = (otp?: string) =>
+    router.replace({
+      pathname: next ?? '/reset-password',
+      params: { email, ...(otp ? { otp } : null) },
+    });
 
   // `value` defaults to the current state, but onComplete passes the freshly
   // entered code so we don't read a stale value during the same change event.
   const verify = (value: string = code) => {
     if (value.length !== CODE_LENGTH) return;
-    if (!userId) {
-      continueToNext();
+    if (isReset) {
+      continueToNext(value);
       return;
     }
     verifyMutation.mutate(
@@ -66,6 +90,7 @@ export default function VerifyCodeScreen() {
           // guards and removes this screen, so we must already be on a route
           // (/get-started) that exists on the signed-in side.
           continueToNext();
+
           void activateSession(token, me);
         },
         onError: (error) => {
@@ -77,22 +102,22 @@ export default function VerifyCodeScreen() {
   };
 
   const resend = () => {
-    if (userId) {
-      resendMutation.mutate(
-        { id: userId },
-        {
-          onSuccess: () => {
-            setSeconds(RESEND_SECONDS);
-            showToast('A new code is on its way to your email.', 'success');
-          },
-          onError: (error) => showApiError(error, 'Could not resend the code.'),
-        },
-      );
-    } else {
+    const onSuccess = () => {
       setSeconds(RESEND_SECONDS);
+      setCode('');
       showToast('A new code is on its way to your email.', 'success');
+    };
+    const onError = (error: unknown) => showApiError(error, 'Could not resend the code.');
+
+    if (userId) {
+      resendMutation.mutate({ id: userId }, { onSuccess, onError });
+    } else if (email) {
+      forgotMutation.mutate({ email }, { onSuccess, onError });
     }
   };
+
+  const resending = resendMutation.isPending || forgotMutation.isPending;
+  const expiryMinutes = Number(expiresIn);
 
   const isComplete = code.length === CODE_LENGTH;
 
@@ -122,6 +147,11 @@ export default function VerifyCodeScreen() {
           </Text>
           .
         </Text>
+        {Number.isFinite(expiryMinutes) && expiryMinutes > 0 ? (
+          <Text style={[styles.expiry, { color: colors.textMuted }]}>
+            It expires in {expiryMinutes} minutes.
+          </Text>
+        ) : null}
       </View>
 
       <OtpInput
@@ -140,7 +170,7 @@ export default function VerifyCodeScreen() {
           <Text style={[styles.resendText, { color: colors.textSecondary }]}>
             Resend in {seconds}s
           </Text>
-        ) : resendMutation.isPending ? (
+        ) : resending ? (
           <Text style={[styles.resendText, { color: colors.textSecondary }]}>
             Sending…
           </Text>
@@ -154,7 +184,7 @@ export default function VerifyCodeScreen() {
       </View>
 
       <GradientButton
-        label="Verify"
+        label={isReset ? 'Continue' : 'Verify'}
         icon="checkmark"
         onPress={() => verify()}
         loading={verifyMutation.isPending}
@@ -193,6 +223,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
     maxWidth: 330,
+  },
+  expiry: {
+    fontFamily: FONT,
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 6,
   },
   resendRow: {
     flexDirection: 'row',

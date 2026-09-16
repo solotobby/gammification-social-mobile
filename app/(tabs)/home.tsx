@@ -18,6 +18,8 @@ import { type FeedTab } from '../../src/components/home/FeedTabs';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
+import { useSeedFollowing } from '../../src/hooks/useConnections';
+import { useMe } from '../../src/hooks/useMe';
 import { usePostViewTracker } from '../../src/hooks/usePostViewTracker';
 import { useFeed } from '../../src/hooks/useTimeline';
 import { useFollowStore } from '../../src/stores/followStore';
@@ -39,6 +41,7 @@ export default function HomeScreen() {
   const [feedTab, setFeedTab] = useState<FeedTab>('for-you');
 
   const feed = useFeed();
+  const { data: me } = useMe();
 
   // "Hide this post" has no endpoint, so hidden ids are filtered out here
   // rather than server-side (src/stores/hiddenStore.ts).
@@ -51,11 +54,18 @@ export default function HomeScreen() {
     [feed.data, hiddenIds],
   );
 
-  // There is no following feed endpoint yet — /timeline/feed returns one
+  // There is still no following *feed* endpoint — /timeline/feed returns one
   // stream and carries no `is_following` flag — so Following is filtered on the
-  // client against the device's follow set (src/stores/followStore.ts). When the
-  // backend grows `GET /timeline/feed?filter=following`, this becomes a second
-  // query and the filter goes away.
+  // client against the follow set (src/stores/followStore.ts). When the backend
+  // grows `GET /timeline/feed?filter=following`, this becomes a second query
+  // and the filter goes away.
+  //
+  // What did land (2026-09-16) is `GET /user/profile/{username}/following`, so
+  // that set is no longer guesswork: it's seeded from the server here, which
+  // fixes the long-standing case of an account whose follows were all made on
+  // the web opening a permanently empty Following tab.
+  useSeedFollowing(me?.user.username);
+
   const followedIds = useFollowStore((s) => s.following);
   const posts = useMemo(
     () =>

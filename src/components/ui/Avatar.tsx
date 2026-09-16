@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { StyleSheet, Text } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
 import type { MemberTint } from '../../data/community';
@@ -11,11 +12,25 @@ type Props = {
   /** Picks the gradient pair; keeps a member's avatar color stable everywhere. */
   tint?: MemberTint;
   size?: number;
+  /**
+   * The member's uploaded photo, when they have one (`user.avatar`). Falls back
+   * to the initials disc when absent — or when the image fails to load, which a
+   * CDN URL for a deleted file will.
+   */
+  uri?: string | null;
 };
 
-/** Initials avatar on a brand-tinted gradient disc (no remote images yet). */
-export function Avatar({ name, tint = 'violet', size = 44 }: Props) {
+/**
+ * A member's avatar: their uploaded photo, or initials on a brand-tinted
+ * gradient disc when they have none.
+ *
+ * Photos arrived with `POST /user/avatar` (2026-09-16); before that every
+ * avatar in the app was initials, which is why the fallback is a first-class
+ * path rather than a placeholder — most accounts still have no photo.
+ */
+export function Avatar({ name, tint = 'violet', size = 44, uri }: Props) {
   const { brand } = useTheme();
+  const [failed, setFailed] = useState(false);
 
   // Deep -> bright, matching the web's `linear-gradient(135deg, violet,
   // violetBright)` on .ph-avatar. The per-member tint is ours: the web paints
@@ -34,6 +49,22 @@ export function Avatar({ name, tint = 'violet', size = 44 }: Props) {
     .slice(0, 2)
     .map((part) => part[0]!.toUpperCase())
     .join('');
+
+  if (uri && !failed) {
+    return (
+      <View
+        style={[styles.disc, { width: size, height: size, borderRadius: size / 2 }]}
+      >
+        <Image
+          source={{ uri }}
+          style={{ width: size, height: size }}
+          contentFit="cover"
+          onError={() => setFailed(true)}
+          accessibilityLabel={`${name}'s profile photo`}
+        />
+      </View>
+    );
+  }
 
   return (
     <LinearGradient
@@ -54,6 +85,7 @@ const styles = StyleSheet.create({
   disc: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   initials: {
     fontFamily: FONT,

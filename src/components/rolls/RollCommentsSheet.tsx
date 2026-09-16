@@ -140,7 +140,7 @@ export function RollCommentsSheet({
               onEndReachedThreshold={0.6}
               renderItem={({ item }) => (
                 <View style={styles.row}>
-                  <Avatar name={item.author.name} tint={item.author.tint} size={34} />
+                  <Avatar name={item.author.name} tint={item.author.tint} uri={item.author.avatar} size={34} />
                   <View style={styles.rowText}>
                     <Text style={[styles.rowHandle, { color: colors.textMuted }]}>
                       @{item.author.handle}

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
@@ -8,6 +8,8 @@ import { BackButton } from '../src/components/ui/BackButton';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { TextField } from '../src/components/ui/TextField';
+import { useResetPassword } from '../src/hooks/useAuth';
+import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
 
@@ -16,6 +18,12 @@ const MIN_LENGTH = 8;
 export default function ResetPasswordScreen() {
   const { colors, brand, radius, spacing, typography } = useTheme();
   const router = useRouter();
+  // Both carried from the OTP screen: this endpoint checks the code and sets
+  // the password in one call, so it needs the address and the digits together.
+  const { email, otp } = useLocalSearchParams<{ email?: string; otp?: string }>();
+
+  const reset = useResetPassword();
+  const showApiError = useFeedbackStore((s) => s.showApiError);
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -28,7 +36,23 @@ export default function ResetPasswordScreen() {
 
   const submit = () => {
     setSubmitted(true);
-    if (valid) router.replace('/reset-success');
+    if (!valid || reset.isPending) return;
+    if (!email || !otp) {
+      // Only reachable by deep-linking straight here; the code is unrecoverable
+      // from this screen, so send them back to the start rather than posting a
+      // request that is guaranteed to fail.
+      showApiError(null, 'Start again from "Forgot password" to get a new code.');
+      router.replace('/forgot-password');
+      return;
+    }
+    reset.mutate(
+      { email, otp, password, password_confirmation: confirm },
+      {
+        onSuccess: () => router.replace('/reset-success'),
+        onError: (error) =>
+          showApiError(error, "Couldn't reset your password. Request a new code."),
+      },
+    );
   };
 
   const hint = (() => {
@@ -96,6 +120,7 @@ export default function ResetPasswordScreen() {
         label="Reset password"
         icon="checkmark"
         onPress={submit}
+        loading={reset.isPending}
         style={[styles.cta, submitted && !valid && styles.ctaShake]}
       />
     </KeyboardAwareScreen>

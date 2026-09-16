@@ -1,6 +1,7 @@
 import { api, UPLOAD_TIMEOUT } from './client';
 import type {
   ApiEnvelope,
+  ApiPostGift,
   BookmarkToggleData,
   CreatePostData,
   Paginated,
@@ -14,7 +15,7 @@ import type {
   TimelineUser,
   UpdatePostData,
 } from './types';
-import type { Comment, Member, MemberTint, Post } from '../data/community';
+import type { Comment, Member, MemberTint, Post, PostGiftBadge } from '../data/community';
 import type { MediaItem } from '../data/media';
 
 export async function fetchFeed(page: number): Promise<Paginated<TimelinePost>> {
@@ -149,8 +150,29 @@ export async function fetchPostAnalytics(postId: string): Promise<PostAnalyticsD
   return data.data;
 }
 
-export async function postComment(postId: string, comment: string): Promise<void> {
-  await api.post('/timeline/comment', { post_id: postId, comment });
+/**
+ * POST /timeline/comment.
+ *
+ * `parentId` makes it a **reply** to that comment (the field is `parent_id` and
+ * takes a comment id, live since 2026-09-16). Omit it for a root comment.
+ * Replies are one level deep: replying to a reply should pass the *root's* id,
+ * which is what `post/[id]` does — the server nests everything under the root
+ * either way, so threading a reply under a reply would render a level the API
+ * does not model.
+ *
+ * Queued server-side (202), so the response carries no comment back — the
+ * screens show the user's own comment optimistically from `engagementStore`.
+ */
+export async function postComment(
+  postId: string,
+  comment: string,
+  parentId?: string | null,
+): Promise<void> {
+  await api.post('/timeline/comment', {
+    post_id: postId,
+    comment,
+    ...(parentId ? { parent_id: parentId } : null),
+  });
 }
 
 /** DELETE /timeline/delete/post/{id} — removes the caller's own post. */
@@ -216,6 +238,7 @@ export function toMember(user: TimelineUser): Member {
     name: user.name,
     handle: user.username,
     tint: tintFor(user.id),
+    avatar: user.avatar,
     engagements: 0,
     followers: 0,
     following: 0,
@@ -299,16 +322,33 @@ function mediaOf(post: TimelinePost | TimelinePostDetail): MediaItem[] | undefin
   return items.length ? items : undefined;
 }
 
+/**
+ * One comment, with its replies mapped recursively.
+ *
+ * The server nests answers under their root in `replies[]` and keeps the
+ * top-level list roots-only, so a mapper that ignored `replies` would silently
+ * drop every reply from the screen. `parentId` is preserved so the composer
+ * knows what it is answering.
+ */
 function toComment(raw: TimelineComment, postId: string, index: number): Comment | null {
   const body = raw.message ?? raw.comment ?? raw.body ?? raw.content;
   if (!body) return null;
+  const id = raw.id ?? `${postId}-comment-${index}`;
+  const replies = (raw.replies ?? [])
+    .map((reply, i) => toComment(reply, postId, i))
+    .filter((reply): reply is Comment => reply !== null);
   return {
-    id: raw.id ?? `${postId}-comment-${index}`,
+    id,
     author: raw.user
       ? toMember(raw.user)
       : { id: 'unknown', name: 'Member', handle: 'member', tint: 'violet', engagements: 0, followers: 0, following: 0 },
     body,
     timeAgo: raw.created_at ? timeAgo(raw.created_at) : '',
+    parentId: raw.parent_id ?? null,
+    // Trust the server's count over the array length: a root can report more
+    // replies than it embeds.
+    replyCount: raw.reply_count ?? replies.length,
+    replies,
   };
 }
 
@@ -341,6 +381,33 @@ function earnedOf(apiPost: Record<string, unknown>): number | undefined {
     if (Number.isFinite(n)) return n;
   }
   return undefined;
+}
+
+/**
+ * Collapse a post's gift list into one badge per artifact, biggest first.
+ *
+ * The API sends individual gift rows; showing five separate roses on a card
+ * would be noise, so identical artifacts are summed into a `xN` badge — the
+ * same way the web renders them.
+ */
+function toGiftBadges(gifts: ApiPostGift[]): PostGiftBadge[] {
+  const byArtifact = new Map<string, PostGiftBadge>();
+  gifts.forEach((gift, index) => {
+    const key = gift.artifact_id ?? gift.id ?? `gift-${index}`;
+    const existing = byArtifact.get(key);
+    const quantity = gift.quantity ?? gift.count ?? 1;
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      byArtifact.set(key, {
+        id: key,
+        emoji: gift.emoji ?? '🎁',
+        name: gift.name ?? 'Gift',
+        quantity,
+      });
+    }
+  });
+  return [...byArtifact.values()].sort((a, b) => b.quantity - a.quantity);
 }
 
 export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
@@ -379,6 +446,20 @@ export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
     earnedSymbol: apiPost.currencySymbol,
     // Seeds the bookmark icon the way `likedByViewer` seeds the heart.
     bookmarkedByViewer: apiPost.is_bookmarked,
+    // Promotion. `sponsored` is only non-null when the backend is showing this
+    // post to *this viewer* as an ad, so its mere presence is the signal to
+    // render the sponsored chrome — there is no separate "show the ad" flag.
+    sponsored: apiPost.sponsored
+      ? {
+          boostId: apiPost.sponsored.boost_id,
+          cta: apiPost.sponsored.cta ?? undefined,
+          targetUrl: apiPost.sponsored.target_url ?? undefined,
+          label: apiPost.sponsored.label ?? undefined,
+        }
+      : undefined,
+    boosted: apiPost.is_boosted,
+    gifts: apiPost.gifts?.length ? toGiftBadges(apiPost.gifts) : undefined,
+    giftCount: apiPost.gifts_count,
     comments,
     commentCount,
     media,
@@ -417,12 +498,53 @@ export function toPostDetail(res: TimelinePostDetailResponse): Post {
 }
 
 /**
- * Merge server comments with the comments the user wrote this session, dropping
- * any session entry the server already reflects (matched by author + body) so a
+ * Merge server comments with the ones the user wrote this session, dropping any
+ * session entry the server already reflects (matched by author + body) so a
  * comment isn't shown twice once the backend has settled it.
+ *
+ * Threading makes this less trivial than an append: the comment queue is flat,
+ * but a session *reply* belongs inside its parent's `replies`, not at the root.
+ * So the dedupe key is gathered from roots **and** their replies, and each
+ * pending comment is routed by its `parentId`. A reply whose parent the server
+ * hasn't sent (the root is still queued itself) falls back to the root list
+ * rather than vanishing — better a momentarily flat reply than a lost one.
  */
 export function mergeComments(server: Comment[], mine: Comment[]): Comment[] {
   if (!mine.length) return server;
-  const seen = new Set(server.map((c) => `${c.author.id}|${c.body}`));
-  return [...server, ...mine.filter((c) => !seen.has(`${c.author.id}|${c.body}`))];
+
+  const key = (c: Comment) => `${c.author.id}|${c.body}`;
+  const seen = new Set<string>();
+  for (const comment of server) {
+    seen.add(key(comment));
+    for (const reply of comment.replies ?? []) seen.add(key(reply));
+  }
+
+  const pending = mine.filter((c) => !seen.has(key(c)));
+  if (!pending.length) return server;
+
+  const roots = pending.filter((c) => !c.parentId);
+  const replies = pending.filter((c) => c.parentId);
+  if (!replies.length) return [...server, ...roots];
+
+  const repliesByParent = new Map<string, Comment[]>();
+  for (const reply of replies) {
+    const list = repliesByParent.get(reply.parentId!) ?? [];
+    list.push(reply);
+    repliesByParent.set(reply.parentId!, list);
+  }
+
+  const merged = server.map((comment) => {
+    const extra = repliesByParent.get(comment.id);
+    if (!extra) return comment;
+    repliesByParent.delete(comment.id);
+    return {
+      ...comment,
+      replies: [...(comment.replies ?? []), ...extra],
+      replyCount: (comment.replyCount ?? comment.replies?.length ?? 0) + extra.length,
+    };
+  });
+
+  // Whatever is left is answering a root the server hasn't returned yet.
+  const orphans = [...repliesByParent.values()].flat();
+  return [...merged, ...roots, ...orphans];
 }

@@ -8,6 +8,8 @@ import { BackButton } from '../src/components/ui/BackButton';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
 import { TextField } from '../src/components/ui/TextField';
+import { useForgotPassword } from '../src/hooks/useAuth';
+import { useFeedbackStore } from '../src/stores/feedbackStore';
 import { useTheme } from '../src/theme/ThemeProvider';
 
 export default function ForgotPasswordScreen() {
@@ -15,11 +17,36 @@ export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
 
-  const submit = () =>
-    router.push({
-      pathname: '/verify-code',
-      params: { email, next: '/reset-password' },
-    });
+  const forgot = useForgotPassword();
+  const showApiError = useFeedbackStore((s) => s.showApiError);
+
+  const trimmed = email.trim();
+
+  /**
+   * Ask the backend to email a code, and only move on once it has. Routing
+   * first would land the user on a code screen for a code that was never sent
+   * — and an unknown address is a real 404 here ("We could not find an account
+   * associated with this email address"), which is worth showing.
+   */
+  const submit = () => {
+    if (!trimmed || forgot.isPending) return;
+    forgot.mutate(
+      { email: trimmed },
+      {
+        onSuccess: (data) =>
+          router.push({
+            pathname: '/verify-code',
+            params: {
+              email: trimmed,
+              next: '/reset-password',
+              // Drives the "expires in N minutes" line on the code screen.
+              expiresIn: String(data?.expires_in_minutes ?? ''),
+            },
+          }),
+        onError: (error) => showApiError(error, "Couldn't send a reset code."),
+      },
+    );
+  };
 
   return (
     <KeyboardAwareScreen>
@@ -58,12 +85,15 @@ export default function ForgotPasswordScreen() {
         textContentType="emailAddress"
         returnKeyType="send"
         onSubmitEditing={submit}
+        editable={!forgot.isPending}
       />
 
       <GradientButton
         label="Send reset code"
         icon="paper-plane-outline"
         onPress={submit}
+        loading={forgot.isPending}
+        disabled={!trimmed}
         style={styles.cta}
       />
     </KeyboardAwareScreen>

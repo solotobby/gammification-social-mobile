@@ -24,7 +24,7 @@ import { FONT } from '../../theme/fonts';
 /**
  * The "⋯" overflow on every feed post. What it offers depends on who wrote it:
  *
- * - **Your own post** — Edit, Analytics, Delete.
+ * - **Your own post** — Edit, Analytics, Promote, Delete.
  * - **Someone else's** — Follow/Unfollow, Hide, Report.
  *
  * All but one are backed by a real endpoint. Delete hits
@@ -186,6 +186,20 @@ export function PostMenu({ post, isMine }: { post: Post; isMine: boolean }) {
                       close();
                       router.push(`/post/${post.id}/analytics`);
                     })}
+                    {/* Promotion is bought with PayKoin — the boost screen reads
+                        the rates, bundles and the caller's balance from
+                        /boost/config and prices itself from those. */}
+                    {row(
+                      post.boosted ? 'megaphone' : 'megaphone-outline',
+                      post.boosted ? 'Promotion running' : 'Promote post',
+                      () => {
+                        close();
+                        // A post that already has a campaign goes to the list,
+                        // where it can be paused — the composer would only tell
+                        // it it's already boosted.
+                        router.push(post.boosted ? '/boosts' : `/post/${post.id}/boost`);
+                      },
+                    )}
                     {row('trash-outline', 'Delete post', () => setView('confirmDelete'), 'danger')}
                   </>
                 ) : (

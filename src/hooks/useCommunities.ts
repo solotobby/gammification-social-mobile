@@ -266,7 +266,8 @@ export function useToggleCommunityPostLike(id: string | undefined) {
 export function useAddCommunityPostComment(id: string | undefined, postId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (content: string) => addCommunityPostComment(id!, postId!, content),
+    mutationFn: ({ content, parentId }: { content: string; parentId?: string | null }) =>
+      addCommunityPostComment(id!, postId!, content, parentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['community-post-comments', id, postId] });
       queryClient.invalidateQueries({ queryKey: ['community-posts', id] });

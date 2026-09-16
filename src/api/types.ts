@@ -83,6 +83,13 @@ export type ApiUser = {
   gender?: string | null;
   location?: string | null;
   about?: string | null;
+  /**
+   * Profile images. Both are CDN URLs and both are null until uploaded — set by
+   * POST /user/avatar and POST /user/banner, which each answer with this whole
+   * record so the cached `/user/me` can be updated without a refetch.
+   */
+  avatar?: string | null;
+  banner?: string | null;
 };
 
 /** GET /user/me */
@@ -130,6 +137,8 @@ export type Currency = {
 export type ApiProfile = {
   id: string;
   avatar: string | null;
+  /** Uploaded cover image (POST /user/banner); null until one is set. */
+  banner?: string | null;
   name: string;
   username: string;
   followers: number;
@@ -519,6 +528,19 @@ export type TimelineComment = {
   content?: string;
   created_at?: string;
   user?: TimelineUser;
+  /**
+   * Threading, live since 2026-09-16. A root comment has `parent_id: null` and
+   * carries its answers inline in `replies[]`; a reply carries the parent's id
+   * and `is_reply: true`. The top-level list holds **roots only** — replies
+   * never appear there, so a flat render would silently drop them.
+   *
+   * Note `reply_count` counts a root's answers, while the post's own `comments`
+   * total counts roots only (verified live: 2 roots + 1 reply reported as 2).
+   */
+  parent_id?: string | null;
+  is_reply?: boolean;
+  reply_count?: number;
+  replies?: TimelineComment[];
 };
 
 /**
@@ -567,6 +589,47 @@ export type TimelinePost = {
   currencySymbol?: string;
   /** GET /timeline/bookmarks only — when the viewer saved it. */
   bookmarked_at?: string;
+  /**
+   * Promotion, live on every post endpoint since 2026-09-16.
+   *
+   * `is_boosted` is the author's own view ("this post has a campaign"), while
+   * `sponsored` is the *viewer's*: non-null only when the post is being shown
+   * as an ad, and it carries the call-to-action and destination to render. A
+   * post can be `is_boosted: true` with `sponsored: null` — that's the author
+   * seeing their own promoted post in an ordinary feed slot.
+   */
+  is_boosted?: boolean;
+  sponsored?: ApiSponsored | null;
+  /** The most recent gifts sent to this post, plus the total count. */
+  gifts?: ApiPostGift[];
+  gifts_count?: number;
+};
+
+/** The ad payload on a post the viewer is being shown as sponsored. */
+export type ApiSponsored = {
+  boost_id?: string;
+  /** Button wording chosen from the config's `cta_options`. */
+  cta?: string | null;
+  target_url?: string | null;
+  /** Some payloads label the advertiser separately from the post author. */
+  advertiser?: TimelineUser | null;
+  label?: string | null;
+};
+
+/** One gift shown on a post — the artifact, who sent it, and what it cost. */
+export type ApiPostGift = {
+  id?: string;
+  artifact_id?: string;
+  name?: string;
+  emoji?: string;
+  /** Cost in PayKoin. */
+  price?: number;
+  tier?: string;
+  quantity?: number;
+  count?: number;
+  sender?: TimelineUser | null;
+  user?: TimelineUser | null;
+  created_at?: string;
 };
 
 /** POST /timeline/bookmark/toggle — 422s with a message when it's your own post. */
@@ -930,6 +993,16 @@ export type ApiCommunityComment = {
   content: string;
   user: ApiCommunityPostUser;
   created_at: string;
+  /**
+   * Threading — identical semantics to the timeline's, live since 2026-09-16:
+   * roots carry their answers in `replies[]` and the top-level list holds roots
+   * only. (The body field differs — `content` here, `message` on the timeline —
+   * but nothing else does.)
+   */
+  parent_id?: string | null;
+  is_reply?: boolean;
+  reply_count?: number;
+  replies?: ApiCommunityComment[];
 };
 
 export type ApiCommunityPost = {
@@ -1372,4 +1445,205 @@ export type ApiGiftArtifact = {
   emoji: string;
   price: number;
   tier: string;
+};
+
+// ---------------------------------------------------------------------------
+// Password reset (POST /forgot-password, POST /reset-password)
+//
+// One-shot reset: there is **no endpoint that verifies a reset OTP on its own**
+// (`/verify/otp` takes a user id and belongs to registration). The code is
+// carried from the OTP screen to `/reset-password`, which checks it and sets
+// the new password in the same call — so an invalid code surfaces there, not on
+// the code screen.
+// ---------------------------------------------------------------------------
+
+export type ForgotPasswordPayload = { email: string };
+
+export type ForgotPasswordData = {
+  email: string;
+  /** How long the emailed code stays valid — shown on the OTP screen. */
+  expires_in_minutes?: number;
+};
+
+export type ResetPasswordPayload = {
+  email: string;
+  otp: string;
+  password: string;
+  password_confirmation: string;
+};
+
+// ---------------------------------------------------------------------------
+// Avatar & banner (POST /user/avatar, POST /user/banner)
+//
+// Both answer with the uploaded URL *and* the whole updated user record, so the
+// `['me']` cache can be written straight from the response with no refetch.
+// ---------------------------------------------------------------------------
+
+/** A picked image ready for a multipart body (React Native file descriptor). */
+export type UploadFile = {
+  uri: string;
+  name: string;
+  type: string;
+};
+
+export type AvatarUploadData = {
+  avatar?: string | null;
+  banner?: string | null;
+  user: ApiUser;
+};
+
+// ---------------------------------------------------------------------------
+// Followers / following (GET /user/profile/{username}/followers | /following)
+//
+// A plain Laravel paginator of member rows — 20 a page. Each row carries
+// `is_following` (the *viewer's* relationship to that member, so a follow
+// button can render its true initial state) and `is_me`, which is what the
+// profile endpoint still does not send for the member themselves.
+// ---------------------------------------------------------------------------
+
+export type ApiConnectionUser = {
+  id: string;
+  name: string;
+  username: string;
+  avatar?: string | null;
+  about?: string | null;
+  /** Does the *signed-in viewer* follow this member? */
+  is_following?: boolean;
+  /** Is this row the signed-in viewer? */
+  is_me?: boolean;
+  followed_at?: string;
+};
+
+// ---------------------------------------------------------------------------
+// Payouts (GET /user/payouts)
+//
+// Breaks the envelope the same way `/user/referrals` does: the paginator sits
+// under `data.payouts` with a `data.summary` aggregate beside it, rather than
+// the paginator being `data` itself.
+// ---------------------------------------------------------------------------
+
+export type ApiPayoutSummary = {
+  total_paid?: number;
+  total_queued?: number;
+  currency?: string;
+};
+
+export type ApiPayout = {
+  id?: string;
+  reference?: string;
+  ref?: string;
+  amount?: number | string;
+  /** Pre-formatted money string where the backend sends one. */
+  formatted?: string;
+  currency?: string;
+  /** "Queued" | "Paid" | "Processing" | "Failed" — capitalized by the API. */
+  status?: string;
+  method?: string;
+  narration?: string;
+  description?: string;
+  created_at?: string;
+  paid_at?: string;
+};
+
+export type PayoutsData = {
+  summary?: ApiPayoutSummary;
+  payouts?: Paginated<ApiPayout>;
+};
+
+// ---------------------------------------------------------------------------
+// Gifting (GET /gifts, POST /gifts/send, GET /gifts/post/{type}/{id})
+//
+// **`post_type` is required on send and is what fixed the long-standing 404.**
+// Before 2026-09-16 the app sent `{artifact_id, post_id}` and every call came
+// back 404 "Post or creator not found" — it was never a broken endpoint, just a
+// missing discriminator. Verified live: with `post_type` the same call reaches
+// the balance check ("Not enough PayKoin to send this gift."), without it the
+// 404 returns exactly as before.
+// ---------------------------------------------------------------------------
+
+/** Which table `post_id` points into. */
+export type GiftPostType = 'timeline' | 'post' | 'community' | 'community_post';
+
+export type GiftSendPayload = {
+  artifact_id: string;
+  post_id: string;
+  post_type: GiftPostType;
+};
+
+/** GET /gifts/post/{post_type}/{post_id} — what a post has received so far. */
+export type ApiPostGiftsData = {
+  total?: number;
+  recent?: ApiPostGift[];
+  /** The viewer's own spendable balance, so the sheet needn't fetch it twice. */
+  spendable?: number;
+};
+
+// ---------------------------------------------------------------------------
+// Boosting (GET|POST /timeline/post/{id}/boost*, /boosts*)
+//
+// Boosts are bought with **PayKoin, not fiat** — `fiat_*` fields are there to
+// price the coins in the wallet currency for display, and the charge itself is
+// a coin debit that shows up in PayKoin activity as a `post_boost` row.
+// ---------------------------------------------------------------------------
+
+/** A pre-priced click bundle offered by the config. */
+export type ApiBoostPackage = {
+  clicks: number;
+  pk_cost: number;
+  fiat_cost: number;
+};
+
+export type ApiBoostConfig = {
+  /** Both spellings ship; either being false means boosting is switched off. */
+  boost_enabled?: boolean;
+  is_boost_enabled?: boolean;
+  rate_pk_per_click?: number;
+  rate_per_click_paykoin?: number;
+  /** Wallet-currency price of one coin, for showing what a bundle costs. */
+  fiat_per_pk?: number;
+  rate_fiat_per_click?: number;
+  min_clicks?: number;
+  /** The viewer's spendable coins — both spellings ship. */
+  user_spendable_pk?: number;
+  user_spendable_paykoin?: number;
+  currency?: string;
+  /** The only accepted button wordings. */
+  cta_options?: string[];
+  packages?: ApiBoostPackage[];
+  post?: {
+    id: string;
+    content?: string;
+    is_boosted?: boolean;
+    media_status?: string;
+    has_images?: boolean;
+    has_video?: boolean;
+  };
+};
+
+export type BoostPayload = {
+  target_url: string;
+  cta: string;
+  clicks: number;
+  /** Where the promoted post may appear. At least one must be true. */
+  platform_payhankey: boolean;
+  platform_partner: boolean;
+};
+
+export type ApiBoostCampaign = {
+  id: string;
+  post_id?: string;
+  status?: string;
+  cta?: string | null;
+  target_url?: string | null;
+  /** Clicks bought vs. clicks served. */
+  clicks?: number;
+  clicks_purchased?: number;
+  clicks_delivered?: number;
+  clicks_used?: number;
+  impressions?: number;
+  pk_cost?: number;
+  platform_payhankey?: boolean;
+  platform_partner?: boolean;
+  created_at?: string;
+  post?: TimelinePost | null;
 };

@@ -1,6 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { fetchMe, login, register, resendOtp, updateOnboarding, verifyOtp } from '../api/auth';
+import {
+  fetchMe,
+  forgotPassword,
+  login,
+  register,
+  resendOtp,
+  resetPassword,
+  updateOnboarding,
+  verifyOtp,
+} from '../api/auth';
 import { persister } from '../api/queryClient';
 import type { LoginPayload, MeData, VerifyOtpPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
@@ -78,6 +87,28 @@ export function useUpdateOnboarding() {
     // /user/me carries is_onboarded, so refresh it after onboarding completes.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me'] }),
   });
+}
+
+/**
+ * POST /forgot-password — emails a reset code.
+ *
+ * No session is involved, so nothing is cached; the screen keeps the email it
+ * submitted and hands it to the OTP screen, which hands it on to the reset.
+ */
+export function useForgotPassword() {
+  return useMutation({ mutationFn: forgotPassword });
+}
+
+/**
+ * POST /reset-password — code plus new password, checked together.
+ *
+ * Deliberately does **not** sign the user in afterwards: the endpoint returns
+ * no token, and inventing a session from a password change would mean logging
+ * in without ever verifying the new credentials work. The flow ends on the
+ * success screen and routes to /sign-in.
+ */
+export function useResetPassword() {
+  return useMutation({ mutationFn: resetPassword });
 }
 
 export function useLogout() {

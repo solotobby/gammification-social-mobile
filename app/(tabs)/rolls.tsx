@@ -398,7 +398,7 @@ function RollItem({
                 accessibilityLabel={`View ${roll.author.name}'s profile`}
                 style={styles.authorTap}
               >
-                <Avatar name={roll.author.name} tint={roll.author.tint} size={34} />
+                <Avatar name={roll.author.name} tint={roll.author.tint} uri={roll.author.avatar} size={34} />
                 <Text style={styles.authorName}>@{roll.author.handle}</Text>
               </Pressable>
               {isMine ? null : (

@@ -1,14 +1,18 @@
-import { api } from './client';
+import { api, UPLOAD_TIMEOUT } from './client';
 import { tintFor } from './timeline';
 import type {
   ApiEnvelope,
+  ApiPayout,
   ApiReferralUser,
   ApiTransaction,
   BankData,
   ReferralsResponse,
   Socials,
   TransactionsResponse,
+  AvatarUploadData,
+  PayoutsData,
   UpdateProfilePayload,
+  UploadFile,
   WalletBalancesData,
   WithdrawalMethod,
 } from './types';
@@ -183,4 +187,113 @@ export async function fetchSocials(): Promise<Socials> {
 /** PUT /user/socials. */
 export async function updateSocials(payload: Socials): Promise<void> {
   await api.put('/user/socials', payload);
+}
+
+// ---------------------------------------------------------------------------
+// Payouts (GET /user/payouts)
+// ---------------------------------------------------------------------------
+
+/** A payout row as the wallet renders it. */
+export type Payout = {
+  id: string;
+  reference: string;
+  description: string;
+  amount: number;
+  /** The backend's own money string where it sent one — preferred over
+   *  re-deriving a symbol, the same rule /user/wallet follows. */
+  formatted?: string;
+  status: string;
+  /** Lowercased status bucket, for the colour of the pill. */
+  state: 'paid' | 'queued' | 'processing' | 'failed' | 'other';
+  date: string;
+};
+
+export type PayoutsResult = {
+  payouts: Payout[];
+  totalPaid: number;
+  totalQueued: number;
+  currency?: string;
+};
+
+function payoutState(status: string | undefined): Payout['state'] {
+  const value = (status ?? '').toLowerCase();
+  if (value.includes('paid') || value.includes('success') || value.includes('complete')) {
+    return 'paid';
+  }
+  if (value.includes('queue') || value.includes('pending')) return 'queued';
+  if (value.includes('process')) return 'processing';
+  if (value.includes('fail') || value.includes('reject') || value.includes('cancel')) {
+    return 'failed';
+  }
+  return 'other';
+}
+
+/**
+ * GET /user/payouts — withdrawal history plus paid/queued totals.
+ *
+ * Envelope break, same as `/user/referrals`: the paginator is `data.payouts`
+ * and the aggregate is `data.summary` beside it, rather than `data` being the
+ * paginator itself.
+ *
+ * `?status=` is accepted (the collection shows `Queued`) but the list came back
+ * empty on every test account, so the **row shape below is inference** — each
+ * field reads a couple of aliases, like the blog and notification mappers do
+ * for their equally-empty lists. Narrow it once a real payout exists.
+ */
+export async function fetchPayouts(
+  page: number,
+  status?: string,
+): Promise<PayoutsResult> {
+  const { data } = await api.get<ApiEnvelope<PayoutsData>>('/user/payouts', {
+    params: { page, ...(status ? { status } : null) },
+  });
+  const rows = data.data?.payouts?.data ?? [];
+
+  return {
+    payouts: rows.map((row: ApiPayout, index): Payout => ({
+      id: row.id ?? row.reference ?? row.ref ?? `payout-${index}`,
+      reference: row.reference ?? row.ref ?? '',
+      description: row.description ?? row.narration ?? row.method ?? 'Payout',
+      amount: num(row.amount),
+      formatted: row.formatted,
+      status: row.status ?? '',
+      state: payoutState(row.status),
+      date: formatDate(row.paid_at ?? row.created_at),
+    })),
+    totalPaid: num(data.data?.summary?.total_paid),
+    totalQueued: num(data.data?.summary?.total_queued),
+    currency: data.data?.summary?.currency,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Avatar & banner
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /user/avatar — multipart, single `avatar` part.
+ *
+ * Answers with the new URL *and* the full updated user record, so callers write
+ * the `['me']` cache from the response instead of refetching. Uses the upload
+ * timeout: a photo straight off the camera roll is not a JSON round-trip.
+ */
+export async function updateAvatar(file: UploadFile): Promise<AvatarUploadData> {
+  const form = new FormData();
+  form.append('avatar', file as unknown as Blob);
+  const { data } = await api.post<ApiEnvelope<AvatarUploadData>>('/user/avatar', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: UPLOAD_TIMEOUT,
+  });
+  return data.data;
+}
+
+/** POST /user/banner — same contract as the avatar, single `banner` part. */
+export async function updateBanner(file: UploadFile): Promise<AvatarUploadData> {
+  const form = new FormData();
+  form.append('banner', file as unknown as Blob);
+  const { data } = await api.post<ApiEnvelope<AvatarUploadData>>('/user/banner', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: UPLOAD_TIMEOUT,
+  });
+  return data.data;
 }

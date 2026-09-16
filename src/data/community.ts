@@ -19,6 +19,12 @@ export type Member = {
   followers: number;
   following: number;
   rank?: number;
+  /**
+   * Uploaded profile photo, when the endpoint sent one. The tint stays either
+   * way — it still colours the initials fallback for the many accounts that
+   * have no photo.
+   */
+  avatar?: string | null;
 };
 
 export type Comment = {
@@ -26,6 +32,33 @@ export type Comment = {
   author: Member;
   body: string;
   timeAgo: string;
+  /**
+   * Threading. A root comment has `parentId: null` and carries its answers in
+   * `replies`; a reply carries the root's id. The API models exactly one level
+   * — replying to a reply still attaches to the root — so nothing here nests
+   * deeper than `replies[]`.
+   */
+  parentId?: string | null;
+  /** The server's own count, which can exceed `replies.length`. */
+  replyCount?: number;
+  replies?: Comment[];
+};
+
+/** An ad payload on a post the viewer is being shown as sponsored. */
+export type Sponsorship = {
+  boostId?: string;
+  /** Button wording, e.g. "Visit Website". */
+  cta?: string;
+  targetUrl?: string;
+  label?: string;
+};
+
+/** A gift a post has received, as the card renders it. */
+export type PostGiftBadge = {
+  id: string;
+  emoji: string;
+  name: string;
+  quantity: number;
 };
 
 export type Post = {
@@ -58,6 +91,19 @@ export type Post = {
   /** Server-side total when `comments` only holds the embedded latest few. */
   commentCount?: number;
   hashtags?: string[];
+  /**
+   * Set when the post is being shown to this viewer as an ad. `boosted` below
+   * is the *author's* view of the same campaign — a post can be boosted without
+   * being sponsored for you, which is the author seeing their own promotion in
+   * an ordinary slot.
+   */
+  sponsored?: Sponsorship;
+  /** Does this post have a boost campaign? (The author's own signal.) */
+  boosted?: boolean;
+  /** The most recent gifts sent to the post, for the gift rail on the card. */
+  gifts?: PostGiftBadge[];
+  /** Total gifts received — can exceed `gifts.length`. */
+  giftCount?: number;
   /** Attached images/videos, rendered as a grid + carousel viewer. */
   media?: MediaItem[];
   /** The post has media the backend is still transcoding — show a placeholder. */

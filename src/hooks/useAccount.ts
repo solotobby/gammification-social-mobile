@@ -1,16 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   fetchBank,
+  fetchPayouts,
   fetchReferrals,
   fetchSocials,
   fetchTransactions,
   fetchWallet,
   saveBank,
+  updateAvatar,
+  updateBanner,
   updateProfile,
   updateSocials,
 } from '../api/account';
-import type { Socials, UpdateProfilePayload } from '../api/types';
+import type { MeData, Socials, UpdateProfilePayload, UploadFile } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 
@@ -106,4 +109,79 @@ export function useUpdateSocials() {
     onError: (error) =>
       useFeedbackStore.getState().showApiError(error, "Couldn't update your socials."),
   });
+}
+
+/**
+ * GET /user/payouts — withdrawal history plus paid/queued totals, paged.
+ *
+ * `status` filters server-side ("Queued", "Paid"); omitted, it returns
+ * everything. The totals come back on every page, so the screen reads them from
+ * the first one rather than summing rows it may not have all of.
+ */
+export function usePayouts(status?: string) {
+  const token = useAuthStore((s) => s.token);
+  return useInfiniteQuery({
+    queryKey: ['payouts', status ?? 'all'],
+    queryFn: ({ pageParam }) => fetchPayouts(pageParam, status),
+    initialPageParam: 1,
+    // fetchPayouts flattens the envelope, so paging is driven by row count
+    // against the page size rather than a `next_page_url` it no longer returns.
+    getNextPageParam: (last, pages) =>
+      last.payouts.length === PAYOUTS_PER_PAGE ? pages.length + 1 : undefined,
+    enabled: !!token,
+  });
+}
+
+/** The backend's page size for /user/payouts (`per_page` in the paginator). */
+const PAYOUTS_PER_PAGE = 15;
+
+/**
+ * POST /user/avatar and /user/banner.
+ *
+ * Both answer with the whole updated user, so the `['me']` cache is written
+ * from the response rather than invalidated — the new picture appears the
+ * instant the upload returns, with no second round-trip and no flash of the
+ * old one. The public profile is invalidated as well, since it renders the
+ * same two images from a different endpoint.
+ */
+export function useUpdateAvatar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: UploadFile) => updateAvatar(file),
+    onSuccess: (data) => {
+      writeMeUser(queryClient, data.user);
+      void queryClient.invalidateQueries({ queryKey: ['profile'] });
+      useFeedbackStore.getState().showToast('Profile photo updated.', 'success');
+    },
+    onError: (error) =>
+      useFeedbackStore.getState().showApiError(error, "Couldn't update your photo."),
+  });
+}
+
+export function useUpdateBanner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: UploadFile) => updateBanner(file),
+    onSuccess: (data) => {
+      writeMeUser(queryClient, data.user);
+      void queryClient.invalidateQueries({ queryKey: ['profile'] });
+      useFeedbackStore.getState().showToast('Cover photo updated.', 'success');
+    },
+    onError: (error) =>
+      useFeedbackStore.getState().showApiError(error, "Couldn't update your cover."),
+  });
+}
+
+/**
+ * Merge an updated user record into the cached `/user/me`, leaving the rest of
+ * that payload (level, baseCurrency, counts) untouched — the upload response
+ * carries the user only, so replacing the whole entry would drop the rest.
+ */
+function writeMeUser(
+  queryClient: ReturnType<typeof useQueryClient>,
+  user: MeData['user'],
+) {
+  queryClient.setQueryData<MeData>(['me'], (previous) =>
+    previous ? { ...previous, user: { ...previous.user, ...user } } : previous,
+  );
 }

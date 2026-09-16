@@ -25,9 +25,16 @@ import { FONT } from '../../theme/fonts';
 export function MemberRow({
   member,
   initiallyFollowing,
+  subtitle,
 }: {
   member: Member;
   initiallyFollowing?: boolean;
+  /**
+   * Replaces the default "@handle · N followers" line. The follower/following
+   * lists have no follower counts to show (and would print a misleading 0), so
+   * they pass the member's bio instead.
+   */
+  subtitle?: string;
 }) {
   const { colors, radius } = useTheme();
   const router = useRouter();
@@ -78,7 +85,7 @@ export function MemberRow({
         },
       ]}
     >
-      <Avatar name={member.name} tint={member.tint} size={44} />
+      <Avatar name={member.name} tint={member.tint} uri={member.avatar} size={44} />
       <Pressable
         onPress={() => router.push(`/member/${member.handle}`)}
         accessibilityRole="button"
@@ -89,7 +96,7 @@ export function MemberRow({
           {member.name}
         </Text>
         <Text style={[styles.memberMeta, { color: colors.textMuted }]} numberOfLines={1}>
-          @{member.handle} · {member.followers} followers
+          {subtitle ?? `@${member.handle} · ${member.followers} followers`}
         </Text>
       </Pressable>
       {isMe ? null : (

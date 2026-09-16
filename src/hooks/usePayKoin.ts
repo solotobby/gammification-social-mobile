@@ -2,7 +2,6 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 
 import {
   convertPayKoin,
-  fetchGiftCatalog,
   fetchPayKoinBalance,
   fetchPayKoinTransactions,
   startPayKoinTopUp,
@@ -30,20 +29,6 @@ export function usePayKoinTransactions() {
     initialPageParam: 1,
     getNextPageParam: (last) => (last.next_page_url ? last.current_page + 1 : undefined),
     enabled: !!token,
-  });
-}
-
-/**
- * `GET /gifts` — the catalog PayKoin is spent on. Near-static, so it's cached
- * hard; it's read here to show what a balance is actually worth.
- */
-export function useGiftCatalog() {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ['gifts'],
-    queryFn: fetchGiftCatalog,
-    enabled: !!token,
-    staleTime: 30 * 60 * 1000,
   });
 }
 

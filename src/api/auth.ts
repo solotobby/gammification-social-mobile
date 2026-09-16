@@ -1,6 +1,8 @@
 import { api } from './client';
 import type {
   ApiEnvelope,
+  ForgotPasswordData,
+  ForgotPasswordPayload,
   LoginData,
   LoginPayload,
   MeData,
@@ -8,6 +10,7 @@ import type {
   RegisterData,
   RegisterPayload,
   ResendOtpPayload,
+  ResetPasswordPayload,
   VerifyOtpData,
   VerifyOtpPayload,
 } from './types';
@@ -45,4 +48,36 @@ export async function fetchMe(token?: string): Promise<MeData> {
 
 export async function updateOnboarding(payload: OnboardPayload): Promise<void> {
   await api.post('/user/onboard', payload);
+}
+
+/**
+ * POST /forgot-password — emails a 6-digit reset code.
+ *
+ * 404s with "We could not find an account associated with this email address."
+ * for an unknown address (so it does disclose whether an account exists — a
+ * backend policy call, not something the client should paper over; its wording
+ * is good, so it is surfaced as-is). A syntactically valid address at a domain
+ * with no MX record is rejected 422 as "not a valid email address", because the
+ * rule includes a DNS check — worth knowing when a test address looks fine.
+ */
+export async function forgotPassword(
+  payload: ForgotPasswordPayload,
+): Promise<ForgotPasswordData> {
+  const { data } = await api.post<ApiEnvelope<ForgotPasswordData>>(
+    '/forgot-password',
+    payload,
+  );
+  return data.data;
+}
+
+/**
+ * POST /reset-password — checks the code and sets the new password in one call.
+ *
+ * There is no separate "verify this reset code" endpoint, so the OTP screen
+ * cannot validate the code on its own: it collects the digits and hands them
+ * here. A wrong or stale code fails at this step with 422 "Invalid or expired
+ * OTP code.", which is why the reset screen keeps a route back to re-enter it.
+ */
+export async function resetPassword(payload: ResetPasswordPayload): Promise<void> {
+  await api.post('/reset-password', payload);
 }

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -21,8 +21,7 @@ import {
 } from '../../hooks/useCommunities';
 import { keyboardInset, useKeyboard } from '../../hooks/useKeyboard';
 import { useTheme } from '../../theme/ThemeProvider';
-import { Avatar } from '../ui/Avatar';
-import { HashtagText } from '../ui/HashtagText';
+import { CommentItem, ReplyingBanner } from '../feed/CommentThread';
 import { FONT } from '../../theme/fonts';
 
 /**
@@ -52,6 +51,10 @@ export function CommunityCommentsSheet({
   const insets = useSafeAreaInsets();
   const { visible: keyboardUp } = useKeyboard();
   const [draft, setDraft] = useState('');
+  // The root comment a reply attaches to (the API nests one level), plus the
+  // handle being addressed — see CommentThread.
+  const [replyTo, setReplyTo] = useState<{ rootId: string; handle: string } | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useCommunityPostComments(communityId, post?.id, visible);
@@ -62,7 +65,20 @@ export function CommunityCommentsSheet({
   const onSend = () => {
     const body = draft.trim();
     if (!body || addComment.isPending) return;
-    addComment.mutate(body, { onSuccess: () => setDraft('') });
+    addComment.mutate(
+      { content: body, parentId: replyTo?.rootId ?? null },
+      {
+        onSuccess: () => {
+          setDraft('');
+          setReplyTo(null);
+        },
+      },
+    );
+  };
+
+  const startReply = (target: { rootId: string; handle: string }) => {
+    setReplyTo(target);
+    inputRef.current?.focus();
   };
 
   return (
@@ -113,20 +129,13 @@ export function CommunityCommentsSheet({
             }}
             contentContainerStyle={{ gap: spacing.md, paddingVertical: spacing.md }}
             renderItem={({ item }) => (
-              <View style={styles.commentRow}>
-                <Avatar name={item.author.name} tint={item.author.tint} size={32} />
-                <View style={styles.commentBody}>
-                  <Text style={[styles.commentName, { color: colors.text }]}>
-                    {item.author.name}{' '}
-                    <Text style={[styles.commentTime, { color: colors.textMuted }]}>
-                      {item.timeAgo}
-                    </Text>
-                  </Text>
-                  <HashtagText style={[styles.commentText, { color: colors.textSecondary }]}>
-                    {item.body}
-                  </HashtagText>
-                </View>
-              </View>
+              <CommentItem
+                comment={item}
+                variant="plain"
+                // Only members may write, so non-members get a read-only thread
+                // rather than a Reply that the endpoint would refuse.
+                onReply={canComment ? startReply : undefined}
+              />
             )}
             ListEmptyComponent={
               isLoading ? (
@@ -144,6 +153,10 @@ export function CommunityCommentsSheet({
           />
 
           {canComment ? (
+            <>
+            {replyTo ? (
+              <ReplyingBanner handle={replyTo.handle} onCancel={() => setReplyTo(null)} />
+            ) : null}
             <View
               style={[
                 styles.composer,
@@ -151,9 +164,10 @@ export function CommunityCommentsSheet({
               ]}
             >
               <TextInput
+                ref={inputRef}
                 value={draft}
                 onChangeText={setDraft}
-                placeholder="Add a comment…"
+                placeholder={replyTo ? `Reply to @${replyTo.handle}…` : 'Add a comment…'}
                 placeholderTextColor={colors.textMuted}
                 selectionColor={colors.brand}
                 style={[styles.composerInput, { color: colors.text }]}
@@ -178,6 +192,7 @@ export function CommunityCommentsSheet({
                 )}
               </Pressable>
             </View>
+            </>
           ) : (
             <Text style={[styles.joinNote, { color: colors.textMuted }]}>
               Join this community to join the conversation.

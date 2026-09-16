@@ -48,6 +48,7 @@ export default function ComposeScreen() {
   const createPost = useCreatePost();
 
   const { data: me } = useMe();
+  const myAvatar = me?.user.avatar ?? null;
   const limits = limitsFor(me?.level);
   const capped = Number.isFinite(limits.maxChars);
 
@@ -196,7 +197,12 @@ export default function ComposeScreen() {
             ]}
           >
             <View style={styles.editorHeader}>
-              <Avatar name={user?.name ?? 'You'} tint={tintFor(user?.id ?? 'me')} size={40} />
+              <Avatar
+                name={user?.name ?? 'You'}
+                tint={tintFor(user?.id ?? 'me')}
+                uri={myAvatar}
+                size={40}
+              />
               <View style={styles.editorHeaderText}>
                 <Text style={[styles.editorName, { color: colors.text }]}>
                   {user?.name ?? 'You'}

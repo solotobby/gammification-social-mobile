@@ -21,6 +21,7 @@ import { BackButton } from "../../src/components/ui/BackButton";
 import { GhostButton } from "../../src/components/ui/GhostButton";
 import { ScreenBackground } from "../../src/components/ui/ScreenBackground";
 import { type Post } from "../../src/data/community";
+import { useBoostRate } from "../../src/hooks/useBoost";
 import { useProfile, useToggleFollow } from "../../src/hooks/useUser";
 import { useAuthStore } from "../../src/stores/authStore";
 import { useFeedbackStore } from "../../src/stores/feedbackStore";
@@ -64,6 +65,11 @@ export default function MemberProfileScreen() {
     [profileQuery.data],
   );
   const postCount = firstPage?.data.total ?? posts.length;
+
+  // The per-click rate shown in each own-post boost strip. Read once from the
+  // first post — it's an account-level figure, not a per-post one — and only on
+  // your own profile, where the strip is rendered at all.
+  const boostRate = useBoostRate(posts[0]?.id, isMe && posts.length > 0);
 
   const toggleFollow = useToggleFollow();
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
@@ -157,11 +163,13 @@ export default function MemberProfileScreen() {
         ]}
       >
         {/* Shared default banner, fading into the card body below it. */}
-        <ProfileCover fadeTo={colors.surface} />
+        {/* The member's uploaded banner when they have one, else the shared
+            default — `banner` rides along on the profile response. */}
+        <ProfileCover uri={profile?.banner ?? undefined} fadeTo={colors.surface} />
         <View style={styles.cardBody}>
           <View style={styles.avatarRow}>
             <View style={[styles.avatarRing, { borderColor: colors.surface }]}>
-              <Avatar name={member.name} tint={member.tint} size={76} />
+              <Avatar name={member.name} tint={member.tint} uri={member.avatar} size={76} />
             </View>
             {isMe ? (
               <Pressable
@@ -224,9 +232,29 @@ export default function MemberProfileScreen() {
               </Text>
             </View>
           ) : null}
+          {/* Followers / Following open the real lists (they have endpoints
+              now). Plain <Text onPress> rather than nested Pressables — this
+              sits inside the profile card, and nesting accessibilityRole
+              ="button" is invalid markup on web. */}
           <Text style={[styles.stats, { color: colors.textSecondary }]}>
-            <Text style={styles.statValue}>{member.followers}</Text> Followers ·{" "}
-            <Text style={styles.statValue}>{member.following}</Text> Following ·{" "}
+            <Text
+              style={styles.statLink}
+              onPress={() =>
+                router.push(`/member/${member.handle}/connections?tab=followers`)
+              }
+            >
+              <Text style={styles.statValue}>{member.followers}</Text> Followers
+            </Text>
+            {" · "}
+            <Text
+              style={styles.statLink}
+              onPress={() =>
+                router.push(`/member/${member.handle}/connections?tab=following`)
+              }
+            >
+              <Text style={styles.statValue}>{member.following}</Text> Following
+            </Text>
+            {" · "}
             <Text style={styles.statValue}>{postCount}</Text>{" "}
             {postCount === 1 ? "Post" : "Posts"}
           </Text>
@@ -248,7 +276,15 @@ export default function MemberProfileScreen() {
         data={posts}
         keyExtractor={(post) => post.id}
         renderItem={({ item }) => (
-          <PostCard post={item} onOpen={(post) => router.push(`/post/${post.id}`)} />
+          <PostCard
+            post={item}
+            onOpen={(post) => router.push(`/post/${post.id}`)}
+            // Your own profile is where the web surfaces the boost strip, and
+            // it's the natural place: it's the one screen that lists only your
+            // posts, so a promote action per row is a tool rather than clutter.
+            showBoostStrip={isMe}
+            boostRatePerClick={boostRate}
+          />
         )}
         ListHeaderComponent={header}
         onEndReached={loadMore}
@@ -332,6 +368,7 @@ const styles = StyleSheet.create({
   bio: { fontFamily: FONT, fontSize: 14, fontWeight: "500", marginTop: 8, lineHeight: 20 },
   stats: { fontFamily: FONT, fontSize: 13, fontWeight: "500", marginTop: 8 },
   statValue: { fontFamily: FONT, fontWeight: "900" },
+  statLink: { fontFamily: FONT, textDecorationLine: "underline" },
   feedTitle: { fontFamily: FONT, fontSize: 17, fontWeight: "800" },
   emptyWrap: {
     alignItems: "center",

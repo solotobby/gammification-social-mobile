@@ -44,3 +44,15 @@ export function useMyTint(): MemberTint {
   const userId = useAuthStore((s) => s.user?.id);
   return tintFor(userId ?? 'me');
 }
+
+/**
+ * The signed-in user's own uploaded photo, or null.
+ *
+ * Reads `/user/me`, which is where the avatar upload writes its response — so
+ * every surface showing "you" updates the moment a new photo lands, without
+ * each one refetching.
+ */
+export function useMyAvatar(): string | null {
+  const { data } = useMe();
+  return data?.user.avatar ?? null;
+}

@@ -1,7 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { mergeComments } from "../../api/timeline";
 import {
@@ -18,6 +26,8 @@ import { Avatar } from "../ui/Avatar";
 import { HashtagText } from "../ui/HashtagText";
 import { MediaGrid } from "./MediaGrid";
 import { PostMenu } from "./PostMenu";
+import { GiftSheet } from "../gifts/GiftSheet";
+import { PostBoostStrip } from "./PostBoostStrip";
 import type { Comment, Post } from "../../data/community";
 import { FONT } from '../../theme/fonts';
 
@@ -34,6 +44,17 @@ type Props = {
   onOpen?: (post: Post) => void;
   /** Renders the body without the surrounding card chrome (used on the detail screen). */
   bare?: boolean;
+  /**
+   * Show the author-only promotion strip (Boost / Manage + the monetize
+   * upgrade line), as the web profile does on your own posts.
+   *
+   * Opt-in rather than automatic: on your own profile and post screen it's a
+   * tool, but repeated under every one of your posts in the middle of the Home
+   * feed it's just noise. Ignored on posts that aren't yours.
+   */
+  showBoostStrip?: boolean;
+  /** Coins per click for the strip's rate line — see `useBoostRate`. */
+  boostRatePerClick?: number;
 };
 
 /** One comment row — shared by the card strip and kept small on purpose. */
@@ -50,7 +71,7 @@ function CommentRow({ comment }: { comment: Comment }) {
         { backgroundColor: colors.surfaceAlt, borderRadius: radius.md },
       ]}
     >
-      <Avatar name={comment.author.name} tint={comment.author.tint} size={28} />
+      <Avatar name={comment.author.name} tint={comment.author.tint} uri={comment.author.avatar} size={28} />
       <View style={styles.commentBody}>
         <View style={styles.commentHeader}>
           <Text style={[styles.commentName, { color: colors.text }]} numberOfLines={1}>
@@ -198,7 +219,7 @@ function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>;
  * grow a comment strip: any comments the backend embeds on the post, the ones
  * you write this session, and an inline composer.
  */
-export function PostCard({ post, onOpen, bare }: Props) {
+export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick }: Props) {
   const { colors, radius } = useTheme();
   const { format } = useCurrency();
   const router = useRouter();
@@ -239,6 +260,8 @@ export function PostCard({ post, onOpen, bare }: Props) {
   // from the server's `is_bookmarked` and held in the engagement store while a
   // toggle is in flight, exactly like the heart. The backend rejects
   // bookmarking your own post (422), so the action isn't offered there.
+  const [giftOpen, setGiftOpen] = useState(false);
+
   const toggleBookmark = useToggleBookmark();
   const storedBookmarked = useEngagementStore((s) => s.bookmarked[post.id]);
   const bookmarked = storedBookmarked ?? !!post.bookmarkedByViewer;
@@ -248,8 +271,23 @@ export function PostCard({ post, onOpen, bare }: Props) {
     }
   }, [post.id, post.remote, post.bookmarkedByViewer]);
 
+  const sponsored = post.sponsored;
+
   const content = (
     <>
+      {/* Ads are labelled, always. `sponsored` is only non-null when the server
+          is showing this post to *this viewer* as a promotion, so its presence
+          is the whole condition — an author scrolling past their own boosted
+          post sees an ordinary card, which is correct. */}
+      {sponsored ? (
+        <View style={[styles.sponsorRow, styles.gutter]}>
+          <Ionicons name="megaphone-outline" size={13} color={colors.brand} />
+          <Text style={[styles.sponsorText, { color: colors.brand }]}>
+            {sponsored.label ?? 'Sponsored'}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={[styles.headerRow, styles.gutter]}>
         {/* Author → their profile */}
         <Pressable
@@ -259,7 +297,7 @@ export function PostCard({ post, onOpen, bare }: Props) {
           accessibilityLabel={`View ${post.author.name}'s profile`}
           style={styles.authorTap}
         >
-          <Avatar name={post.author.name} tint={post.author.tint} size={42} />
+          <Avatar name={post.author.name} tint={post.author.tint} uri={post.author.avatar} size={42} />
           <View style={styles.headerText}>
             <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
               {post.author.name.split(" ")[0]}
@@ -289,6 +327,15 @@ export function PostCard({ post, onOpen, bare }: Props) {
             <Text style={[styles.earnedText, { color: colors.mint }]}>
               {format(post.earned, post.earnedSymbol)}
             </Text>
+          </View>
+        ) : null}
+        {/* The author's own "this is promoted" marker, matching the web's
+            pk-boosted-pill. Distinct from the reader-facing "Sponsored" banner
+            above: this says *you* are running an ad, not that you're seeing one. */}
+        {isMine && post.boosted ? (
+          <View style={[styles.boostedPill, { backgroundColor: `${colors.brand}1A` }]}>
+            <Ionicons name="sparkles" size={10} color={colors.brand} />
+            <Text style={[styles.boostedPillText, { color: colors.brand }]}>Boosted</Text>
           </View>
         ) : null}
         {/* Every post gets the overflow — the menu itself decides whether to
@@ -394,6 +441,26 @@ export function PostCard({ post, onOpen, bare }: Props) {
           </Text>
         </View>
 
+        {/* Gifting spends PayKoin on someone else's post. Hidden on your own,
+            which the backend refuses outright ("You cannot gift your own
+            post."), same rule as the bookmark beside it. */}
+        {post.remote && !isMine ? (
+          <Pressable
+            onPress={() => setGiftOpen(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Send a gift to ${post.author.name}`}
+            style={styles.action}
+          >
+            <Ionicons name="gift-outline" size={19} color={colors.textMuted} />
+            {post.giftCount ? (
+              <Text style={[styles.actionText, { color: colors.textMuted }]}>
+                {post.giftCount}
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : null}
+
         {post.remote && isMine ? null : (
           <Pressable
             onPress={() => (post.remote ? toggleBookmark.mutate(post.id) : undefined)}
@@ -424,6 +491,72 @@ export function PostCard({ post, onOpen, bare }: Props) {
         </Pressable>
       </View>
 
+      {/* Gifts the post has received, grouped by artifact. Tapping opens the
+          same sheet the gift action does, so a card that already shows gifts
+          has an obvious way to add one. */}
+      {post.gifts?.length ? (
+        <Pressable
+          onPress={() => (isMine ? undefined : setGiftOpen(true))}
+          disabled={isMine}
+          accessibilityRole={isMine ? undefined : 'button'}
+          accessibilityLabel={isMine ? undefined : 'Send a gift'}
+          style={[styles.giftRail, styles.gutter]}
+        >
+          {post.gifts.slice(0, 5).map((gift) => (
+            <View
+              key={gift.id}
+              style={[
+                styles.giftChip,
+                { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+              ]}
+            >
+              <Text style={styles.giftEmoji}>{gift.emoji}</Text>
+              {gift.quantity > 1 ? (
+                <Text style={[styles.giftCount, { color: colors.textSecondary }]}>
+                  ×{gift.quantity}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+          {post.giftCount && post.giftCount > 5 ? (
+            <Text style={[styles.giftMore, { color: colors.textMuted }]}>
+              +{post.giftCount - 5}
+            </Text>
+          ) : null}
+        </Pressable>
+      ) : null}
+
+      {/* The ad's call to action. Rendered as its own button rather than making
+          the whole card tappable, so the destination is never a surprise. */}
+      {sponsored?.targetUrl ? (
+        <Pressable
+          onPress={() => Linking.openURL(sponsored.targetUrl!)}
+          accessibilityRole="button"
+          accessibilityLabel={`${sponsored.cta ?? 'Learn more'} — opens in your browser`}
+          style={[
+            styles.sponsorCta,
+            styles.gutter,
+            { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.sponsorCtaText, { color: colors.text }]}>
+            {sponsored.cta ?? 'Learn more'}
+          </Text>
+          <Ionicons name="open-outline" size={15} color={colors.textMuted} />
+        </Pressable>
+      ) : null}
+
+      {/* Author-only promotion strip — see PostBoostStrip. */}
+      {showBoostStrip && post.remote && isMine ? (
+        <View style={[styles.gutter, styles.boostStripWrap]}>
+          <PostBoostStrip
+            postId={post.id}
+            boosted={post.boosted}
+            ratePerClick={boostRatePerClick}
+          />
+        </View>
+      ) : null}
+
       {/* Comment strip + inline composer — API-backed feed cards only. The
           detail screen (bare) renders the full thread + its own input bar. */}
       {post.remote && !bare ? (
@@ -433,6 +566,17 @@ export function PostCard({ post, onOpen, bare }: Props) {
           ))}
           <CommentComposer postId={post.id} />
         </View>
+      ) : null}
+
+      {/* Mounted per card but only rendered when opened — the Modal itself is
+          cheap while `visible` is false, and the queries inside are gated on it. */}
+      {post.remote && !isMine ? (
+        <GiftSheet
+          visible={giftOpen}
+          postId={post.id}
+          recipientName={post.author.name}
+          onClose={() => setGiftOpen(false)}
+        />
       ) : null}
     </>
   );
@@ -482,6 +626,55 @@ const styles = StyleSheet.create({
   },
   bare: { gap: 12 },
   gutter: { paddingHorizontal: FEED_GUTTER },
+  sponsorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  sponsorText: { fontFamily: FONT, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  sponsorCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: FEED_GUTTER,
+    marginTop: 4,
+    marginBottom: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  sponsorCtaText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  giftRail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 10,
+  },
+  giftChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  giftEmoji: { fontSize: 14 },
+  giftCount: { fontFamily: FONT, fontSize: 11, fontWeight: '700' },
+  giftMore: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
+  boostedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+  },
+  boostedPillText: { fontFamily: FONT, fontSize: 11, fontWeight: '800' },
+  boostStripWrap: { paddingBottom: 12 },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",

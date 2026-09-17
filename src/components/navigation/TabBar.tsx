@@ -5,6 +5,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useMessagesStore } from '../../stores/messagesStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 
@@ -33,17 +34,23 @@ type TabBarProps = {
 
 const TAB_META: Record<string, { label: string; icon: string; iconActive: string }> = {
   home: { label: 'Home', icon: 'home-outline', iconActive: 'home' },
-  discover: { label: 'Discover', icon: 'compass-outline', iconActive: 'compass' },
-  rolls: { label: 'Rolls', icon: 'film-outline', iconActive: 'film' },
   earn: { label: 'Earn', icon: 'cash-outline', iconActive: 'cash' },
+  rolls: { label: 'Rolls', icon: 'film-outline', iconActive: 'film' },
   communities: { label: 'Communities', icon: 'people-outline', iconActive: 'people' },
+  messages: { label: 'Messages', icon: 'chatbubble-outline', iconActive: 'chatbubble' },
+  discover: { label: 'Discover', icon: 'compass-outline', iconActive: 'compass' },
 };
 
 /**
- * What the bar shows, in order. `me` is deliberately absent — the profile is
- * reached by tapping the avatar in the Home header instead.
+ * What the bar shows, in order.
+ *
+ * `me` and `discover` are deliberately absent. Five is the most labels that fit
+ * one line at these sizes, and Messages is a daily destination where Discover
+ * is an occasional one — so Discover moved to the Me screen's Explore row and
+ * the Home header's search, and the profile is still reached by tapping the
+ * avatar in that header.
  */
-const TABS = ['home', 'discover', 'rolls', 'earn', 'communities'] as const;
+const TABS = ['home', 'earn', 'rolls', 'communities', 'messages'] as const;
 
 /**
  * Floating pill tab bar plus a compose FAB anchored bottom-right above it.
@@ -59,6 +66,12 @@ export function TabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  // Dummy for now — src/data/messages.ts. Reads the same way once the badge
+  // comes from a real unread-count endpoint.
+  const unread = useMessagesStore((s) =>
+    s.conversations.reduce((sum, c) => sum + c.unread, 0),
+  );
+
   // Looked up by name rather than position, so adding or reordering a
   // Tabs.Screen in the layout can't silently point a tab at the wrong route.
   const renderTab = (routeName: string) => {
@@ -68,6 +81,8 @@ export function TabBar({ state, navigation }: TabBarProps) {
     const focused = state.index === index;
     const tint = focused ? colors.brand : colors.textMuted;
     const route = state.routes[index];
+    // Unread threads are the one thing in the bar worth interrupting for.
+    const badge = routeName === 'messages' ? unread : 0;
 
     return (
       <Pressable
@@ -87,11 +102,25 @@ export function TabBar({ state, navigation }: TabBarProps) {
         }}
         style={styles.tab}
       >
-        <Ionicons
-          name={(focused ? meta.iconActive : meta.icon) as keyof typeof Ionicons.glyphMap}
-          size={23}
-          color={tint}
-        />
+        <View>
+          <Ionicons
+            name={(focused ? meta.iconActive : meta.icon) as keyof typeof Ionicons.glyphMap}
+            size={23}
+            color={tint}
+          />
+          {badge > 0 ? (
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: colors.pink, borderColor: colors.surfaceAlt },
+              ]}
+            >
+              <Text style={styles.badgeText} numberOfLines={1}>
+                {badge > 9 ? '9+' : badge}
+              </Text>
+            </View>
+          ) : null}
+        </View>
         <Text style={[styles.label, { color: tint }]} numberOfLines={1}>
           {meta.label}
         </Text>
@@ -174,6 +203,20 @@ const styles = StyleSheet.create({
   },
   // 9pt so the longest label ("Communities") fits one line across five tabs.
   label: { fontFamily: FONT, fontSize: 9, fontWeight: '700' },
+  // Sits half off the icon's top-right; minWidth lets "9+" widen the pill.
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  badgeText: { fontFamily: FONT, color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   fab: {
     position: 'absolute',
     right: 20,

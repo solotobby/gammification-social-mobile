@@ -28,6 +28,9 @@ type MenuItem = {
 // Account destinations mapped from the web sidebar. Routes land here as the
 // corresponding screens get built (see docs/APP_FLOW.md).
 const MENU: MenuItem[] = [
+  // Discover lost its tab slot to Messages, so this is its way in. It leads the
+  // menu because it's the only row here that isn't an account setting.
+  { icon: 'compass-outline', label: 'Discover', sub: 'People, Rolls & what’s trending', route: '/discover' },
   // Communities is a bottom tab now — no need for a second way in from here.
   { icon: 'bookmark-outline', label: 'Bookmarks', sub: 'Posts you saved', route: '/bookmarks' },
   { icon: 'wallet-outline', label: 'Wallets', sub: 'Balance & withdrawals', route: '/wallet' },

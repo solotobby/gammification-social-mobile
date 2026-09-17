@@ -66,6 +66,10 @@ function ThemedStack() {
           <Stack.Screen name="compose" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="story/create" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="community/create" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          {/* A thread covers the tab bar like every other pushed screen; the
+              people picker is a modal, the same shape as /compose. */}
+          <Stack.Screen name="messages/[id]" />
+          <Stack.Screen name="messages/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen
             name="story/[member]"
             options={{ animation: 'fade', contentStyle: { backgroundColor: '#000000' } }}

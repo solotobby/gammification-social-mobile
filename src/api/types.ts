@@ -207,10 +207,30 @@ export type BankFormField = {
   options?: string[];
 };
 
+/**
+ * One bank in `BankForm.banks`. `code` is what `bank_code` is POSTed as; the
+ * backend resolves `bank_name` (and, via its provider, `account_name`) itself.
+ */
+export type BankOption = {
+  name: string;
+  code: string;
+  slug?: string;
+  country?: string;
+  nibss_bank_code?: string;
+};
+
 export type BankForm = {
   currency: string;
   payment_method?: string | null;
   fields: BankFormField[];
+  /**
+   * The bank list for an NGN wallet. **It sits here, beside `fields` — NOT on
+   * the `bank_code` field's `options`**, which is empty (verified live
+   * 2026-09-17). A form that only read `field.options` rendered an empty
+   * picker, which is exactly what made "select bank" look broken on naira
+   * accounts. Absent on a USD wallet, which asks for PayPal / USDT instead.
+   */
+  banks?: BankOption[];
 };
 
 /** The saved payout destination. Which columns are filled depends on the method. */
@@ -1646,4 +1666,49 @@ export type ApiBoostCampaign = {
   platform_partner?: boolean;
   created_at?: string;
   post?: TimelinePost | null;
+};
+
+// ---------------------------------------------------------------------------
+// Push device tokens  (POST /notifications/device-token)
+// ---------------------------------------------------------------------------
+
+/**
+ * What the app sends when it registers for push.
+ *
+ * Only `token` and `platform` are required — verified live 2026-09-17, a body
+ * of just those two is accepted and every other column comes back null.
+ *
+ * **`ip_address` is deliberately absent.** The documented example includes one,
+ * but the backend fills it from the request itself (a body with no
+ * `ip_address` came back carrying the caller's real public IP), and a phone
+ * can only see its own LAN address — `192.168.x.x` would be worse than
+ * nothing. See `registerDeviceToken`.
+ */
+export type DeviceTokenPayload = {
+  /** `ExponentPushToken[…]` from `getExpoPushTokenAsync`. */
+  token: string;
+  platform: 'ios' | 'android' | 'web';
+  /** The user's name for the device ("Alan's iPhone"), when the OS exposes it. */
+  device_name?: string;
+  /** Stable per-install id: `identifierForVendor` on iOS, ANDROID_ID on Android. */
+  device_id?: string;
+  /** How the device is connected: `wifi` | `cellular` | `ethernet` | `unknown`. */
+  location_type?: string;
+  /** A place name. The app cannot supply this — see `registerDeviceToken`. */
+  location?: string;
+};
+
+/** The registered row `POST /notifications/device-token` answers with. */
+export type DeviceTokenRecord = {
+  id: string;
+  token: string;
+  platform: string;
+  device_name?: string | null;
+  device_id?: string | null;
+  ip_address?: string | null;
+  location_type?: string | null;
+  location?: string | null;
+  is_logged_out?: boolean;
+  is_active?: boolean;
+  last_active_at?: string | null;
 };

@@ -22,6 +22,7 @@ import { GhostButton } from "../../src/components/ui/GhostButton";
 import { ScreenBackground } from "../../src/components/ui/ScreenBackground";
 import { type Post } from "../../src/data/community";
 import { useBoostRate } from "../../src/hooks/useBoost";
+import { useKeyboardFocusScroll } from "../../src/hooks/useKeyboard";
 import { useProfile, useToggleFollow } from "../../src/hooks/useUser";
 import { useAuthStore } from "../../src/stores/authStore";
 import { useFeedbackStore } from "../../src/stores/feedbackStore";
@@ -37,6 +38,8 @@ import { FONT } from '../../src/theme/fonts';
  */
 export default function MemberProfileScreen() {
   const { colors, radius, spacing } = useTheme();
+  // Android-only: see useKeyboardFocusScroll.
+  const listRef = useKeyboardFocusScroll<FlatList>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { handle } = useLocalSearchParams<{ handle: string }>();
@@ -311,6 +314,9 @@ export default function MemberProfileScreen() {
         keyboardShouldPersistTaps="handled"
         // iOS: scroll a focused input clear of the keyboard — the posts here
         // carry the same inline comment composer the feed does.
+        // Android: RN insets the list but never scrolls the focused input
+        // clear of the keyboard, so the composer you tapped stays under it.
+        ref={listRef}
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={{
           paddingTop: insets.top + spacing.lg,

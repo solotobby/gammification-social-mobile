@@ -11,6 +11,7 @@ import { GhostButton } from '../src/components/ui/GhostButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { type Post } from '../src/data/community';
 import { useBookmarks } from '../src/hooks/useTimeline';
+import { useKeyboardFocusScroll } from '../src/hooks/useKeyboard';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
 
@@ -25,6 +26,8 @@ import { FONT } from '../src/theme/fonts';
  */
 export default function BookmarksScreen() {
   const { colors, radius, spacing } = useTheme();
+  // Android-only: see useKeyboardFocusScroll.
+  const listRef = useKeyboardFocusScroll<FlatList>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -56,6 +59,9 @@ export default function BookmarksScreen() {
         // iOS: scroll a focused input clear of the keyboard. These lists carry
         // inline composers (a post's comment box, the community composer), and
         // without this the keyboard simply covers whichever one you tapped.
+        // Android: RN insets the list but never scrolls the focused input
+        // clear of the keyboard, so the composer you tapped stays under it.
+        ref={listRef}
         automaticallyAdjustKeyboardInsets
         ListHeaderComponent={
           // Posts run full-bleed, so the list has no horizontal padding and

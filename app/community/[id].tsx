@@ -48,6 +48,7 @@ import {
   useSubscribeToCommunity,
 } from '../../src/hooks/useCommunities';
 import { formatMoney, symbolFor } from '../../src/hooks/useCurrency';
+import { useKeyboardFocusScroll } from '../../src/hooks/useKeyboard';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { FONT } from '../../src/theme/fonts';
@@ -78,6 +79,8 @@ type Tab = (typeof TABS)[number];
  */
 export default function CommunityScreen() {
   const { colors, radius, spacing } = useTheme();
+  // Android-only: see useKeyboardFocusScroll.
+  const listRef = useKeyboardFocusScroll<FlatList>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   // `invite` arrives on a shared private-community link (…/c/<slug>?invite=<token>)
@@ -850,6 +853,10 @@ export default function CommunityScreen() {
               // The backend allows the author or an owner/admin; anyone else
               // gets a 403, so the control simply isn't offered to them.
               canDelete={!!isAdminOf || item.author.id === myId}
+              // A post has no share_url of its own, so it borrows the
+              // community's — see `postShareUrl`.
+              communityShareUrl={community.shareUrl}
+              communityName={community.name}
             />
           </View>
         )}
@@ -859,6 +866,9 @@ export default function CommunityScreen() {
         // iOS: scroll a focused input clear of the keyboard. These lists carry
         // inline composers (a post's comment box, the community composer), and
         // without this the keyboard simply covers whichever one you tapped.
+        // Android: RN insets the list but never scrolls the focused input
+        // clear of the keyboard, so the composer you tapped stays under it.
+        ref={listRef}
         automaticallyAdjustKeyboardInsets
         onRefresh={canViewFeed ? refetchPosts : undefined}
         refreshing={canViewFeed ? isRefetching && !isFetchingNextPage : false}

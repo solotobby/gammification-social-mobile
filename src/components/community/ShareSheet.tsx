@@ -16,12 +16,18 @@ import { FONT } from '../../theme/fonts';
  * which apps are installed and respects the user's share extensions. So this
  * keeps the copyable link (the one thing the OS sheet doesn't surface well) and
  * hands everything else to `Share.share`.
+ *
+ * Shared by the community itself and by a single community post, which is why
+ * every piece of copy is a prop rather than baked in.
  */
 export function ShareSheet({
   visible,
   title,
   url,
   message,
+  heading,
+  lede,
+  linkLabel,
   onClose,
 }: {
   visible: boolean;
@@ -29,6 +35,12 @@ export function ShareSheet({
   url: string;
   /** Text that leads the share payload; falls back to the title. */
   message?: string;
+  /** Sheet heading; defaults to "Share <title>". */
+  heading?: string;
+  /** The line under the heading. */
+  lede?: string;
+  /** Label on the copy field; defaults to "Public link". */
+  linkLabel?: string;
   onClose: () => void;
 }) {
   const { colors, radius, spacing } = useTheme();
@@ -66,14 +78,14 @@ export function ShareSheet({
         <View style={styles.titleRow}>
           <Ionicons name="share-social-outline" size={20} color={colors.brand} />
           <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-            Share {title}
+            {heading ?? `Share ${title}`}
           </Text>
         </View>
         <Text style={[styles.lede, { color: colors.textMuted }]}>
-          Invite people to join this community on Payhankey.
+          {lede ?? 'Invite people to join this community on Payhankey.'}
         </Text>
 
-        <CopyField label="Public link" value={url} icon="link-outline" />
+        <CopyField label={linkLabel ?? 'Public link'} value={url} icon="link-outline" />
 
         <GradientButton label="Share via…" onPress={() => void onShare()} />
       </View>

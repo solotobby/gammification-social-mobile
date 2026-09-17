@@ -10,12 +10,15 @@ import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { type Post } from '../../src/data/community';
 import { useHashtagPosts } from '../../src/hooks/useExplore';
+import { useKeyboardFocusScroll } from '../../src/hooks/useKeyboard';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { FONT } from '../../src/theme/fonts';
 
 /** Posts carrying a hashtag — reached from the trending topic chips/rows. */
 export default function HashtagScreen() {
   const { colors, spacing } = useTheme();
+  // Android-only: see useKeyboardFocusScroll.
+  const listRef = useKeyboardFocusScroll<FlatList>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { tag } = useLocalSearchParams<{ tag: string }>();
@@ -61,6 +64,9 @@ export default function HashtagScreen() {
         // iOS: scroll a focused input clear of the keyboard. These lists carry
         // inline composers (a post's comment box, the community composer), and
         // without this the keyboard simply covers whichever one you tapped.
+        // Android: RN insets the list but never scrolls the focused input
+        // clear of the keyboard, so the composer you tapped stays under it.
+        ref={listRef}
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={

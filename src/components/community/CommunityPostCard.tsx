@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { recordCommunityPostView, type CommunityPost } from '../../api/communities';
@@ -11,7 +11,27 @@ import {
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
 import { HashtagText } from '../ui/HashtagText';
+import { ShareSheet } from './ShareSheet';
 import { FONT } from '../../theme/fonts';
+
+/**
+ * The web link for one community post.
+ *
+ * **This shape is an assumption**, exactly like the timeline permalink in
+ * `PostMenu`: a community post carries no `share_url` of its own (verified live
+ * 2026-09-17 — the posts response is `{id, content, likes_count, …}` and
+ * nothing else), so the only thing the API gives us is the *community's*
+ * `share_url`, which the post is hung off as a query param. Confirm it against
+ * the web app and switch to a server-sent URL the moment one appears.
+ *
+ * It inherits `shareUrlFor`'s localhost guard, so the link is already a real
+ * payhankey.com one rather than the `http://localhost/c/<slug>` the backend
+ * still sends.
+ */
+export function postShareUrl(communityShareUrl: string, postId: string): string {
+  const separator = communityShareUrl.includes('?') ? '&' : '?';
+  return `${communityShareUrl}${separator}post=${encodeURIComponent(postId)}`;
+}
 
 /**
  * One post inside a community.
@@ -21,22 +41,32 @@ import { FONT } from '../../theme/fonts';
  * `is_liked_by_viewer` + queued like), carry no earnings, and their like
  * endpoint answers the **settled** count — so the heart renders straight from
  * server state with no engagement store behind it.
+ *
+ * Sharing reuses the community's own `ShareSheet` (copy link + hand off to the
+ * OS sheet). See {@link postShareUrl} for where the link comes from.
  */
 export function CommunityPostCard({
   post,
   communityId,
   onOpenComments,
   canDelete,
+  communityShareUrl,
+  communityName,
 }: {
   post: CommunityPost;
   communityId: string;
   onOpenComments: () => void;
   /** The author, or an owner/admin of the community — anyone else gets 403. */
   canDelete?: boolean;
+  /** The community's own `shareUrl`; sharing is hidden without it. */
+  communityShareUrl?: string;
+  /** Names the community in the share payload. */
+  communityName?: string;
 }) {
   const { colors, radius, spacing } = useTheme();
   const toggleLike = useToggleCommunityPostLike(communityId);
   const remove = useDeleteCommunityPost(communityId);
+  const [shareOpen, setShareOpen] = useState(false);
 
   /** Deleting is irreversible and there is no undo, so it confirms first. */
   const onDelete = () => {
@@ -145,6 +175,21 @@ export function CommunityPostCard({
           <Ionicons name="eye-outline" size={18} color={colors.textMuted} />
           <Text style={[styles.actionText, { color: colors.textMuted }]}>{post.views}</Text>
         </View>
+
+        {/* Share is an action *on* the post rather than a count of it, so it
+            sits against the right edge and leaves the three figures packed at
+            the left — the same arrangement the timeline card uses. */}
+        {communityShareUrl ? (
+          <Pressable
+            onPress={() => setShareOpen(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Share ${post.author.name}'s post`}
+            style={[styles.action, styles.actionEnd]}
+          >
+            <Ionicons name="share-social-outline" size={18} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
       </View>
 
       {/* The latest few comments the list endpoint embeds, like the timeline's
@@ -171,6 +216,25 @@ export function CommunityPostCard({
           ) : null}
         </View>
       ) : null}
+
+      {/* Mounted per card but only rendered when opened — the Modal is cheap
+          while `visible` is false. */}
+      {communityShareUrl ? (
+        <ShareSheet
+          visible={shareOpen}
+          title="post"
+          heading="Share this post"
+          lede={
+            communityName
+              ? `Send this post from ${communityName} to anyone on Payhankey.`
+              : 'Send this post to anyone on Payhankey.'
+          }
+          linkLabel="Post link"
+          url={postShareUrl(communityShareUrl, post.id)}
+          message={`${post.author.name} on Payhankey`}
+          onClose={() => setShareOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -186,6 +250,8 @@ const styles = StyleSheet.create({
   media: { width: 96, height: 96 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Eats the free space so share is flushed right whatever the counts read.
+  actionEnd: { marginLeft: 'auto' },
   actionText: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
   previewWrap: { gap: 8, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   previewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },

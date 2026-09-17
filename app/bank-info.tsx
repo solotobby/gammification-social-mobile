@@ -8,11 +8,11 @@ import { FieldLabel } from '../src/components/ui/FieldLabel';
 import { GhostButton } from '../src/components/ui/GhostButton';
 import { GradientButton } from '../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../src/components/ui/KeyboardAwareScreen';
-import { SelectField } from '../src/components/ui/SelectField';
+import { SelectField, type SelectOption } from '../src/components/ui/SelectField';
 import { TextField } from '../src/components/ui/TextField';
 import { useBank, useSaveBank } from '../src/hooks/useAccount';
 import { useTheme } from '../src/theme/ThemeProvider';
-import type { BankFormField, WithdrawalMethod } from '../src/api/types';
+import type { BankFormField, BankOption, WithdrawalMethod } from '../src/api/types';
 import { FONT } from '../src/theme/fonts';
 
 /**
@@ -24,7 +24,54 @@ import { FONT } from '../src/theme/fonts';
  * form. A field carrying `required_if` only applies when `payment_method`
  * currently equals that value — that's how the PayPal and USDT inputs
  * show and hide.
+ *
+ * **Two NGN-only shapes the USD account never exercises** (both verified live
+ * 2026-09-17, and both of them are why the naira bank picker was empty):
+ *
+ * 1. The `bank_code` field is `type: "select"` with **no `options`**. The 285
+ *    banks arrive in `form.banks[]`, beside `fields` — see `optionsFor`.
+ * 2. NGN has no `payment_method` field at all; the form states it flat
+ *    (`bank_transfer`), and the POST doesn't want it back.
+ *
+ * Saving is POST the first time and **PUT** thereafter — see `saveBank`.
  */
+
+/**
+ * The choices for a `select` field.
+ *
+ * A field usually carries its own `options` (USD's payment_method: paypal /
+ * usdt). The NGN `bank_code` field does not — its 285 banks sit in
+ * `form.banks[]` instead, so a picker built from `field.options` alone renders
+ * empty, which is exactly how "select bank" looked broken on naira accounts.
+ *
+ * Keyed on the field *name* rather than "any select with no options" so a
+ * future empty select can't silently inherit the bank list.
+ */
+function optionsFor(field: BankFormField, banks: BankOption[]): SelectOption[] {
+  if (field.name === 'bank_code' && !field.options?.length) {
+    // `code` is what the backend wants posted; it resolves the name itself.
+    return banks.map((bank) => ({ label: bank.name, value: bank.code }));
+  }
+  return (field.options ?? []).map((option) => ({
+    label: option.toUpperCase(),
+    value: option,
+  }));
+}
+
+/**
+ * Human wording for the saved destination. The backend resolves `bank_name`
+ * and the verified `account_name` from the code + number it was sent, so on
+ * NGN there is something worth naming; PayPal / USDT fall back to the method.
+ */
+function describeSaved(saved: WithdrawalMethod): string {
+  if (saved.bank_name && saved.account_number) {
+    // Last four only — the full number has no business being on screen.
+    return `${saved.bank_name} ••••${saved.account_number.slice(-4)}`;
+  }
+  if (saved.paypal_email) return `PayPal (${saved.paypal_email})`;
+  if (saved.usdt_wallet) return 'your saved USDT wallet';
+  return `your saved ${saved.payment_method} destination`;
+}
 
 /** Seed the inputs from whatever is already saved. */
 function initialValues(
@@ -55,6 +102,7 @@ export default function BankInfoScreen() {
   const save = useSaveBank();
 
   const fields = useMemo(() => bank.data?.form.fields ?? [], [bank.data]);
+  const banks = useMemo(() => bank.data?.form.banks ?? [], [bank.data]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -95,7 +143,12 @@ export default function BankInfoScreen() {
       const value = values[field.name]?.trim();
       if (value) payload[field.name] = value;
     }
-    save.mutate(payload, { onSuccess: () => router.back() });
+    // A saved method means this is an update, and the backend refuses a second
+    // POST ("Payout information already exists. Use update instead.").
+    save.mutate(
+      { values: payload, exists: !!bank.data?.withdrawal_method },
+      { onSuccess: () => router.back() },
+    );
   };
 
   if (bank.isLoading) {
@@ -142,7 +195,10 @@ export default function BankInfoScreen() {
         >
           <Ionicons name="checkmark-circle-outline" size={20} color={colors.mint} />
           <Text style={[styles.savedText, { color: colors.text }]}>
-            Payouts go to your saved {saved.payment_method} destination. Update it below.
+            {/* Name the actual destination. "your saved bank_transfer
+                destination" is the raw enum, and tells a naira user nothing
+                about which account their money is going to. */}
+            Payouts go to {describeSaved(saved)}. Update it below.
           </Text>
         </View>
       ) : null}
@@ -157,14 +213,12 @@ export default function BankInfoScreen() {
               <FieldLabel>{field.label}</FieldLabel>
               {field.type === 'select' ? (
                 <SelectField
-                  icon="swap-horizontal-outline"
+                  icon={field.name === 'bank_code' ? 'business-outline' : 'swap-horizontal-outline'}
                   placeholder={field.label}
                   title={field.label}
+                  searchPlaceholder={field.name === 'bank_code' ? 'Search banks' : undefined}
                   value={value || null}
-                  options={(field.options ?? []).map((option) => ({
-                    label: option.toUpperCase(),
-                    value: option,
-                  }))}
+                  options={optionsFor(field, banks)}
                   onChange={(next) => set(field.name, next)}
                 />
               ) : (
@@ -205,7 +259,7 @@ export default function BankInfoScreen() {
       </Text>
 
       <GradientButton
-        label="Save payout information"
+        label={saved ? 'Update payout information' : 'Save payout information'}
         icon="checkmark"
         loading={save.isPending}
         onPress={onSave}

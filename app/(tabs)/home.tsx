@@ -21,7 +21,9 @@ import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { useSeedFollowing } from '../../src/hooks/useConnections';
 import { useMe } from '../../src/hooks/useMe';
 import { usePostViewTracker } from '../../src/hooks/usePostViewTracker';
+import { usePushRegistration } from '../../src/hooks/usePushRegistration';
 import { useFeed } from '../../src/hooks/useTimeline';
+import { useKeyboardFocusScroll } from '../../src/hooks/useKeyboard';
 import { useFollowStore } from '../../src/stores/followStore';
 import { useHiddenStore } from '../../src/stores/hiddenStore';
 import { type Post } from '../../src/data/community';
@@ -32,9 +34,15 @@ import { FONT } from '../../src/theme/fonts';
  * Home tab — monetization signal, stories rail, composer entry, and the live
  * timeline feed (GET /timeline/feed) under a For You / Following filter. Pages
  * stream in as you approach the bottom; pull down to refresh.
+ *
+ * Also where push registration happens (`usePushRegistration`): this is the
+ * first screen after auth, and the notifications prompt belongs *after* the
+ * user has seen what the app is, not over the splash. See the hook.
  */
 export default function HomeScreen() {
   const { colors, spacing } = useTheme();
+  // Android-only: see useKeyboardFocusScroll.
+  const listRef = useKeyboardFocusScroll<FlatList>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -42,6 +50,10 @@ export default function HomeScreen() {
 
   const feed = useFeed();
   const { data: me } = useMe();
+
+  // Ask for notifications and register this device's Expo push token. Once per
+  // signed-in account, and silent about every possible failure.
+  usePushRegistration();
 
   // "Hide this post" has no endpoint, so hidden ids are filtered out here
   // rather than server-side (src/stores/hiddenStore.ts).
@@ -129,6 +141,9 @@ export default function HomeScreen() {
         // iOS: scroll a focused input clear of the keyboard. These lists carry
         // inline composers (a post's comment box, the community composer), and
         // without this the keyboard simply covers whichever one you tapped.
+        // Android: RN insets the list but never scrolls the focused input
+        // clear of the keyboard, so the composer you tapped stays under it.
+        ref={listRef}
         automaticallyAdjustKeyboardInsets
         refreshControl={
           <RefreshControl

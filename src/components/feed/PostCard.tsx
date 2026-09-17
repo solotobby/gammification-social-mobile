@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -24,11 +24,12 @@ import { useCurrency } from "../../hooks/useCurrency";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
 import { HashtagText } from "../ui/HashtagText";
+import { CommentItem, ReplyingBanner, type ThreadComment } from "./CommentThread";
 import { MediaGrid } from "./MediaGrid";
 import { PostMenu } from "./PostMenu";
 import { GiftSheet } from "../gifts/GiftSheet";
 import { PostBoostStrip } from "./PostBoostStrip";
-import type { Comment, Post } from "../../data/community";
+import type { Post } from "../../data/community";
 import { FONT } from '../../theme/fonts';
 
 /**
@@ -57,8 +58,30 @@ type Props = {
   boostRatePerClick?: number;
 };
 
-/** One comment row — shared by the card strip and kept small on purpose. */
-function CommentRow({ comment }: { comment: Comment }) {
+/**
+ * One comment in the feed strip, with its replies if the post carries any.
+ *
+ * `CommentItem` already knows how to draw a thread (rail, collapsed replies,
+ * Reply action) and is what the post screen uses, so the feed shares it rather
+ * than keeping a second, flatter renderer that could only ever show roots. It
+ * renders `plain` inside this inset because the card's own `surface` is
+ * directly behind it — `CommentItem`'s `card` variant would be invisible here.
+ *
+ * **Note the feed's `comments_preview` sends roots only** — no `replies[]`, no
+ * `reply_count` (verified live 2026-09-17) — so today the rail only ever shows
+ * replies written in this session, and the full thread lives on the post
+ * screen. Nothing here fetches to fill that gap: the only endpoint that
+ * returns replies is `GET /timeline/post/{id}`, which registers a view, and a
+ * feed card must not invent traffic or counts. The moment the backend adds
+ * `replies[]` to `comments_preview`, this renders them with no change.
+ */
+function CommentStripRow({
+  comment,
+  onReply,
+}: {
+  comment: ThreadComment;
+  onReply?: (target: { rootId: string; handle: string }) => void;
+}) {
   const { colors, radius } = useTheme();
   return (
     <View
@@ -71,31 +94,38 @@ function CommentRow({ comment }: { comment: Comment }) {
         { backgroundColor: colors.surfaceAlt, borderRadius: radius.md },
       ]}
     >
-      <Avatar name={comment.author.name} tint={comment.author.tint} uri={comment.author.avatar} size={28} />
-      <View style={styles.commentBody}>
-        <View style={styles.commentHeader}>
-          <Text style={[styles.commentName, { color: colors.text }]} numberOfLines={1}>
-            {comment.author.name}
-          </Text>
-          {comment.timeAgo ? (
-            <Text style={[styles.commentTime, { color: colors.textMuted }]}>
-              {comment.timeAgo}
-            </Text>
-          ) : null}
-        </View>
-        <HashtagText style={[styles.commentText, { color: colors.textSecondary }]}>
-          {comment.body}
-        </HashtagText>
-      </View>
+      <CommentItem comment={comment} variant="plain" onReply={onReply} />
     </View>
   );
 }
 
+/** What a composer is answering: the ROOT comment's id, plus who it addresses. */
+export type ReplyTarget = { rootId: string; handle: string };
+
 /**
  * Inline "write a comment" row under a feed post — submits through the
  * comment API with an optimistic append (the comment shows immediately).
+ *
+ * It writes replies as well as roots: `replyTo` carries the root comment's id
+ * into the mutation as `parent_id`, and the banner above the input says what
+ * is being answered so a send is never a surprise. The API models exactly one
+ * level, so answering a *reply* still attaches to its root — see
+ * `CommentItem`, which addresses the person while threading to the root.
  */
-export function CommentComposer({ postId, autoFocus }: { postId: string; autoFocus?: boolean }) {
+export function CommentComposer({
+  postId,
+  autoFocus,
+  replyTo,
+  onCancelReply,
+  inputRef,
+}: {
+  postId: string;
+  autoFocus?: boolean;
+  replyTo?: ReplyTarget | null;
+  onCancelReply?: () => void;
+  /** Lets the card's Reply action focus this input — see `startReply`. */
+  inputRef?: React.RefObject<TextInput | null>;
+}) {
   const { colors } = useTheme();
   const addComment = useAddComment();
   const [draft, setDraft] = useState("");
@@ -104,19 +134,30 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
   const onSend = () => {
     const body = draft.trim();
     if (!body) return;
-    addComment.mutate({ postId, body, clientId: newCommentId() });
+    addComment.mutate({
+      postId,
+      body,
+      clientId: newCommentId(),
+      parentId: replyTo?.rootId ?? null,
+    });
     setDraft("");
+    onCancelReply?.();
   };
 
   return (
     // No avatar here on purpose: the card already carries the author's, and on a
     // narrow row it costs width without telling you anything the placeholder
     // doesn't. Comment rows keep theirs — there it identifies the speaker.
-    <View style={styles.composerRow}>
+    <View style={styles.composerWrap}>
+      {replyTo ? (
+        <ReplyingBanner handle={replyTo.handle} onCancel={() => onCancelReply?.()} />
+      ) : null}
+      <View style={styles.composerRow}>
       <TextInput
+        ref={inputRef}
         value={draft}
         onChangeText={setDraft}
-        placeholder="Write a comment…"
+        placeholder={replyTo ? `Reply to @${replyTo.handle}…` : "Write a comment…"}
         placeholderTextColor={colors.textMuted}
         selectionColor={colors.brand}
         onSubmitEditing={onSend}
@@ -147,6 +188,7 @@ export function CommentComposer({ postId, autoFocus }: { postId: string; autoFoc
           color={canSend ? colors.onBrand : colors.textMuted}
         />
       </Pressable>
+      </View>
     </View>
   );
 }
@@ -250,6 +292,17 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
   const myComments = useEngagementStore((s) => s.myComments[post.id] ?? NO_COMMENTS);
   const stripComments = bare ? NO_COMMENTS : mergeComments(post.comments, myComments);
   const commentCount = post.commentCount ?? post.comments.length;
+
+  // What the inline composer is answering, or null for a root comment. Holds
+  // the ROOT's id (the API nests one level only) plus the handle being
+  // addressed, which may belong to a reply deeper in that root's thread.
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
+  const commentInputRef = useRef<TextInput>(null);
+  /** Aim the composer at a comment and focus it, so Reply is one tap. */
+  const startReply = (target: ReplyTarget) => {
+    setReplyTo(target);
+    commentInputRef.current?.focus();
+  };
 
   // Only the author sees the overflow menu (delete). There's no "is mine" API
   // flag — a post's ownerId (its user_id) is matched against the signed-in user.
@@ -557,9 +610,14 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
       {post.remote && !bare ? (
         <View style={[styles.commentStrip, styles.gutter]}>
           {stripComments.map((comment) => (
-            <CommentRow key={comment.id} comment={comment} />
+            <CommentStripRow key={comment.id} comment={comment} onReply={startReply} />
           ))}
-          <CommentComposer postId={post.id} />
+          <CommentComposer
+            postId={post.id}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            inputRef={commentInputRef}
+          />
         </View>
       ) : null}
 
@@ -744,16 +802,9 @@ const styles = StyleSheet.create({
   // no count (the bookmark) isn't padded out to look further away than it is.
   actionText: { fontFamily: FONT, fontSize: 13, fontWeight: "700", minWidth: 16 },
   commentStrip: { gap: 8 },
-  commentRow: {
-    flexDirection: "row",
-    gap: 10,
-    padding: 10,
-  },
-  commentBody: { flex: 1, gap: 2 },
-  commentHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  commentName: { fontFamily: FONT, flexShrink: 1, fontSize: 13, fontWeight: "800" },
-  commentTime: { fontFamily: FONT, fontSize: 11, fontWeight: "600" },
-  commentText: { fontFamily: FONT, fontSize: 13, lineHeight: 18, fontWeight: "400" },
+  // Just the inset: `CommentItem` draws the row (and the reply rail) inside it.
+  commentRow: { padding: 10 },
+  composerWrap: { gap: 6 },
   composerRow: {
     flexDirection: "row",
     alignItems: "center",

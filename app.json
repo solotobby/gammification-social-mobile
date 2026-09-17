@@ -2,7 +2,7 @@
   "expo": {
     "name": "Payhankey",
     "slug": "payhankey",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "orientation": "portrait",
     "scheme": "payhankey",
     "icon": "./assets/icon.png",
@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "com.payhankey.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#5A4FDC",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -41,6 +42,13 @@
         "expo-image-picker",
         {
           "photosPermission": "Payhankey needs access to your photos so you can attach them to posts and stories."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#5A4FDC"
         }
       ],
       "expo-secure-store",

@@ -155,10 +155,17 @@ export function useCreateCommunity() {
 
 /**
  * Join. The server's answer differs by community type (joined / request_sent /
- * request_pending, or a 422 for private and paid), and it returns the updated
- * community either way, so the cache is written from the response rather than
- * guessed at optimistically — a paid community must never flip to "Joined"
- * before a payment that this API can't even take yet.
+ * request_pending / payment_required, or a 422 for private), and it returns the
+ * updated community either way, so the cache is written from the response
+ * rather than guessed at optimistically — a paid community must never flip to
+ * "Joined" before the payment has actually cleared.
+ *
+ * **`payment_required` is not a success**, and it is not an error either: a
+ * paid community now answers `200 {action: "payment_required"}` where it used
+ * to 422 (verified live 2026-09-17). Callers are expected to send paid
+ * communities to `useSubscribeToCommunity` instead and never reach this — the
+ * branch below exists so that a caller which forgets says so plainly rather
+ * than toasting "Updated <name>" over a join that did not happen.
  */
 export function useJoinCommunity() {
   const queryClient = useQueryClient();
@@ -174,8 +181,8 @@ export function useJoinCommunity() {
       queryClient.invalidateQueries({ queryKey: ['community'] });
       queryClient.invalidateQueries({ queryKey: ['communities'] });
       // `action` is one of joined | already_member | request_sent |
-      // request_pending — each needs its own wording, and anything unrecognised
-      // falls back to the server's own message rather than a guess.
+      // request_pending | payment_required — each needs its own wording, and
+      // anything unrecognised falls back to a neutral line rather than a guess.
       const message =
         result.action === 'joined'
           ? `You joined ${community.name}.`
@@ -185,13 +192,14 @@ export function useJoinCommunity() {
               ? 'Join request sent to the admins.'
               : result.action === 'request_pending'
                 ? 'Your join request is still pending.'
-                : `Updated ${community.name}.`;
+                : result.action === 'payment_required'
+                  ? `${community.name} is a paid community — open it to pay and join.`
+                  : `Updated ${community.name}.`;
       showToast(message, result.action === 'joined' ? 'success' : 'info');
     },
     onError: (error) => {
-      // Private ("an invite token is required") and paid ("payment is
-      // required") both land here. The backend's wording is accurate and
-      // per-type, so it's shown as-is rather than replaced.
+      // Private ("an invite token is required") lands here. The backend's
+      // wording is accurate and per-type, so it's shown as-is.
       useFeedbackStore.getState().showApiError(error, "Couldn't join this community.");
     },
   });

@@ -3,6 +3,8 @@ import { timeAgo, tintFor } from './timeline';
 import type {
   ApiEnvelope,
   ApiNotification,
+  DeviceTokenPayload,
+  DeviceTokenRecord,
   NotificationListResponse,
   Paginated,
 } from './types';
@@ -24,6 +26,35 @@ import type { Member } from '../data/community';
  * `toBlogPost` does for the equally-empty blog list. Narrow it to what the
  * backend actually sends once rows exist.
  */
+
+/**
+ * `POST /notifications/device-token` — register this device for Expo push.
+ *
+ * Idempotent in practice: re-posting the same token updates the row rather
+ * than duplicating it, so this is safe to call on every launch.
+ *
+ * **What the app can and cannot fill in**, all established by probing the live
+ * endpoint on 2026-09-17:
+ *
+ * - `ip_address` — **not sent, on purpose.** The backend already stamps it from
+ *   the request (a body without one still came back with the caller's real
+ *   public IP), and the only address a phone can read is its own LAN one.
+ * - `location` — **never sent.** A place name needs the OS location permission
+ *   plus reverse geocoding, and asking for someone's location in order to
+ *   register a *push token* is not a trade worth making. The backend is the
+ *   right place to derive it, from the IP it is already recording.
+ *
+ * Everything else the documented body asks for is supplied.
+ */
+export async function registerDeviceToken(
+  payload: DeviceTokenPayload,
+): Promise<DeviceTokenRecord> {
+  const { data } = await api.post<ApiEnvelope<DeviceTokenRecord>>(
+    '/notifications/device-token',
+    payload,
+  );
+  return data.data;
+}
 
 /** The envelope carries `unread_count` *beside* `data`, not inside it. */
 export async function fetchNotifications(

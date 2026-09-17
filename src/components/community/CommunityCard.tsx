@@ -3,7 +3,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Community } from '../../api/communities';
-import { useJoinCommunity } from '../../hooks/useCommunities';
+import { useJoinCommunity, useSubscribeToCommunity } from '../../hooks/useCommunities';
 import { formatMoney, symbolFor } from '../../hooks/useCurrency';
 import { useMe } from '../../hooks/useMe';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -22,6 +22,13 @@ import { FONT } from '../../theme/fonts';
  * the list price when the owner has chosen to pass the platform fee on — so it
  * reads `pricing.memberCharge`, the figure the backend computed.
  *
+ * **A paid row opens checkout — it must never POST `/join`.** The button said
+ * "Pay to join · ₦500" and then called join, which the backend answers 200
+ * with `action: "payment_required"` (it stopped 422-ing once `/subscribe`
+ * shipped). So the tap looked like it worked, took no payment, and joined
+ * nothing. Paying is `POST /communities/{id}/subscribe`, the same route the
+ * detail screen uses; the hosted page then renders in `PaymentSheet`.
+ *
  * Membership is server state: every community response carries the viewer's own
  * block, so joining just writes the returned community back into the caches.
  */
@@ -29,6 +36,7 @@ export function CommunityCard({ community }: { community: Community }) {
   const { colors, radius } = useTheme();
   const router = useRouter();
   const join = useJoinCommunity();
+  const subscribe = useSubscribeToCommunity(community.id, community.name);
   const { data: me } = useMe();
 
   /**
@@ -62,6 +70,8 @@ export function CommunityCard({ community }: { community: Community }) {
 
   const label =
     priceLabel && membership === 'none' ? `${action.label} · ${priceLabel}` : action.label;
+
+  const busy = join.isPending || subscribe.isPending;
 
   return (
     // No accessibilityRole on the row: it holds the join button, and nested
@@ -105,10 +115,12 @@ export function CommunityCard({ community }: { community: Community }) {
         </Text>
         <Pressable
           onPress={() => {
-            if (action.blocked || join.isPending) return;
-            join.mutate({ id: community.id });
+            if (action.blocked || busy) return;
+            // Paid ones go to checkout; everything else is a plain join.
+            if (community.type === 'paid') subscribe.mutate();
+            else join.mutate({ id: community.id });
           }}
-          disabled={action.blocked || join.isPending}
+          disabled={action.blocked || busy}
           accessibilityRole="button"
           accessibilityLabel={`${label} ${community.name}`}
           accessibilityState={{ disabled: action.blocked }}
@@ -120,7 +132,7 @@ export function CommunityCard({ community }: { community: Community }) {
             action.blocked ? { opacity: 0.6 } : null,
           ]}
         >
-          {join.isPending ? (
+          {busy ? (
             <ActivityIndicator size="small" color={filled ? colors.onBrand : colors.textSecondary} />
           ) : (
             <Text

@@ -37,14 +37,30 @@ export function useWallet() {
   });
 }
 
-/** POST /user/bank — values keyed by the field names the form supplied. */
+/**
+ * POST (create) or PUT (update) /user/bank — values keyed by the field names
+ * the form supplied. `exists` picks the verb; the backend refuses a second
+ * POST outright, so getting this wrong makes every *change* to a saved payout
+ * account fail. See `saveBank`.
+ */
 export function useSaveBank() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (values: Record<string, string>) => saveBank(values),
-    onSuccess: () => {
+    mutationFn: ({
+      values,
+      exists,
+    }: {
+      values: Record<string, string>;
+      exists: boolean;
+    }) => saveBank(values, exists),
+    onSuccess: (_data, { exists }) => {
       void queryClient.invalidateQueries({ queryKey: ['bank'] });
-      useFeedbackStore.getState().showToast('Payout information saved.', 'success');
+      useFeedbackStore
+        .getState()
+        .showToast(
+          exists ? 'Payout information updated.' : 'Payout information saved.',
+          'success',
+        );
     },
     onError: (error) =>
       useFeedbackStore.getState().showApiError(error, "Couldn't save your payout details."),

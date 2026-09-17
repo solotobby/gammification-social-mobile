@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +24,20 @@ type Props = {
   onChange: (value: string) => void;
   /** Title shown at the top of the picker sheet. */
   title?: string;
+  /**
+   * Show a filter box above the list. Defaults on past {@link SEARCH_THRESHOLD}
+   * options — the Nigerian bank list is 285 entries, and scrolling to "Zenith"
+   * one flick at a time is not a picker, it's a punishment.
+   */
+  searchable?: boolean;
+  /** Placeholder for the filter box. "Search <title>" reads badly for a title
+   *  that is already an instruction ("Search Select bank"), so it defaults to
+   *  a plain "Search". */
+  searchPlaceholder?: string;
 };
+
+/** Option count past which the picker filters itself by default. */
+const SEARCH_THRESHOLD = 12;
 
 /**
  * Tappable field styled like {@link TextField} that opens a bottom-sheet modal to
@@ -36,12 +50,27 @@ export function SelectField({
   options,
   onChange,
   title,
+  searchable,
+  searchPlaceholder,
 }: Props) {
   const { colors, radius, spacing } = useTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   const selected = options.find((o) => o.value === value);
+  const filtering = searchable ?? options.length > SEARCH_THRESHOLD;
+  const visible = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!filtering || !term) return options;
+    return options.filter((option) => option.label.toLowerCase().includes(term));
+  }, [filtering, options, query]);
+
+  /** Always reopen on a clean list — a stale filter looks like a short list. */
+  const close = () => {
+    setOpen(false);
+    setQuery('');
+  };
 
   return (
     <>
@@ -77,11 +106,11 @@ export function SelectField({
         visible={open}
         transparent
         animationType="slide"
-        onRequestClose={() => setOpen(false)}
+        onRequestClose={close}
       >
         <Pressable
           style={[styles.backdrop, { backgroundColor: colors.overlay }]}
-          onPress={() => setOpen(false)}
+          onPress={close}
         >
           <Pressable
             style={[
@@ -100,18 +129,57 @@ export function SelectField({
             {title ? (
               <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
             ) : null}
+            {filtering ? (
+              <View
+                style={[
+                  styles.search,
+                  {
+                    backgroundColor: colors.surfaceAlt,
+                    borderColor: colors.border,
+                    borderRadius: radius.md,
+                  },
+                ]}
+              >
+                <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder={searchPlaceholder ?? 'Search'}
+                  placeholderTextColor={colors.textMuted}
+                  selectionColor={colors.brand}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  style={[styles.searchInput, { color: colors.text }]}
+                />
+                {query ? (
+                  <Pressable
+                    onPress={() => setQuery('')}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear search"
+                  >
+                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
             <FlatList
-              data={options}
+              data={visible}
               keyExtractor={(item) => item.value}
               style={styles.list}
               keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
+                <Text style={[styles.empty, { color: colors.textMuted }]}>
+                  Nothing matches "{query.trim()}".
+                </Text>
+              }
               renderItem={({ item }) => {
                 const active = item.value === value;
                 return (
                   <Pressable
                     onPress={() => {
                       onChange(item.value);
-                      setOpen(false);
+                      close();
                     }}
                     style={[
                       styles.row,
@@ -171,6 +239,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: 8,
     paddingHorizontal: 4,
+  },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 46,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 10,
+  },
+  searchInput: {
+    fontFamily: FONT,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  empty: {
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 24,
   },
   list: { flexGrow: 0 },
   row: {

@@ -44,11 +44,28 @@ export async function fetchWallet(): Promise<WalletBalancesData> {
   return data.data;
 }
 
-/** POST /user/bank — values keyed by the field names the form handed us. */
+/**
+ * Save the payout destination — values keyed by the field names the form
+ * handed us.
+ *
+ * **Create is POST, update is PUT, and the two are not interchangeable**
+ * (verified live 2026-09-17): a second POST is refused outright with "Payout
+ * information already exists. Use update instead.", which is what made saving
+ * a *change* to an existing payout account fail while the first save worked.
+ * `exists` comes from `BankData.withdrawal_method` being present.
+ *
+ * On NGN the backend resolves the rest itself: send `bank_code` +
+ * `account_number` and it answers with `bank_name` and the verified
+ * `account_name`. A wrong pair is rejected by its provider with "We couldn't
+ * find this bank account", which surfaces on the form.
+ */
 export async function saveBank(
   values: Record<string, string>,
+  exists = false,
 ): Promise<WithdrawalMethod> {
-  const { data } = await api.post<ApiEnvelope<WithdrawalMethod>>('/user/bank', values);
+  const { data } = exists
+    ? await api.put<ApiEnvelope<WithdrawalMethod>>('/user/bank', values)
+    : await api.post<ApiEnvelope<WithdrawalMethod>>('/user/bank', values);
   return data.data;
 }
 

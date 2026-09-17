@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Keyboard, Platform, type KeyboardEvent } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Keyboard, Platform, TextInput, type KeyboardEvent } from 'react-native';
 
 /**
  * Whether the software keyboard is currently up, and how tall it is.
@@ -47,4 +47,76 @@ export function useKeyboard(): { visible: boolean; height: number } {
  */
 export function keyboardInset(safeAreaBottom: number, keyboardVisible: boolean): number {
   return keyboardVisible ? 0 : safeAreaBottom;
+}
+
+/**
+ * Breathing room left between the focused input and the top of the keyboard.
+ * Zero puts them flush, which reads as the input being clipped.
+ */
+const FOCUS_CLEARANCE = 12;
+
+/**
+ * Keeps a focused input inside a scrolling list visible above the Android
+ * keyboard. Returns the ref to hand to that list.
+ *
+ * **Why Android needs this and iOS doesn't.** Every list in the app that
+ * carries an inline composer already sets `automaticallyAdjustKeyboardInsets`
+ * — and that prop is **iOS-only**. On iOS UIKit does two things when the
+ * keyboard appears: it insets the scroll view, *and* it scrolls the first
+ * responder into the visible part. On Android RN does the first (the window
+ * resizes under `adjustResize`, so the list shrinks) but nothing does the
+ * second — `ReactScrollView` doesn't scroll to the focused descendant the way
+ * `android.widget.ScrollView` does. So the list got shorter and simply stayed
+ * where it was, leaving the comment box you just tapped underneath the keys.
+ * That is the whole of the "keyboard doesn't push the input up on Android" bug.
+ *
+ * `scrollResponderScrollNativeHandleToKeyboard` is RN's own helper for exactly
+ * this — it measures the focused input against the keyboard metrics the
+ * ScrollView already tracks and scrolls it clear. Nothing calls it
+ * automatically; this hook is the caller.
+ *
+ * It is a no-op on iOS, where doing it as well would fight UIKit's own scroll.
+ *
+ * ```tsx
+ * const listRef = useKeyboardFocusScroll<FlatList>();
+ * <FlatList ref={listRef} automaticallyAdjustKeyboardInsets … />
+ * ```
+ */
+export function useKeyboardFocusScroll<T>(): React.RefObject<T | null> {
+  const listRef = useRef<T | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const subscription = Keyboard.addListener('keyboardDidShow', () => {
+      const focused = TextInput.State.currentlyFocusedInput();
+      if (!focused) return;
+      // FlatList forwards this to its inner ScrollView; a plain ScrollView has
+      // it directly. Optional throughout because a list can unmount between
+      // the keyboard opening and this running.
+      const responder = (
+        listRef.current as {
+          getScrollResponder?: () => {
+            scrollResponderScrollNativeHandleToKeyboard?: (
+              node: unknown,
+              additionalOffset?: number,
+              preventNegativeScrollOffset?: boolean,
+            ) => void;
+          } | null;
+        } | null
+      )?.getScrollResponder?.();
+
+      // `preventNegativeScrollOffset` keeps a list that is already short from
+      // being dragged downwards to meet the keyboard, which looks like a bug.
+      responder?.scrollResponderScrollNativeHandleToKeyboard?.(
+        focused,
+        FOCUS_CLEARANCE,
+        true,
+      );
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  return listRef;
 }

@@ -3,6 +3,8 @@ import { timeAgo, tintFor } from './timeline';
 import type {
   ApiEnvelope,
   ApiNotification,
+  DeviceTokenPayload,
+  DeviceTokenRecord,
   NotificationListResponse,
   Paginated,
 } from './types';
@@ -24,6 +26,51 @@ import type { Member } from '../data/community';
  * `toBlogPost` does for the equally-empty blog list. Narrow it to what the
  * backend actually sends once rows exist.
  */
+
+/**
+ * `POST /notifications/device-token` — register this device for Expo push.
+ *
+ * Idempotent in practice: re-posting the same token updates the row rather
+ * than duplicating it, so this is safe to call on every launch.
+ *
+ * **What the app can and cannot fill in**, all established by probing the live
+ * endpoint on 2026-09-17:
+ *
+ * - `ip_address` — **not sent, on purpose.** The backend already stamps it from
+ *   the request (a body without one still came back with the caller's real
+ *   public IP), and the only address a phone can read is its own LAN one.
+ * - `location` — **never sent.** A place name needs the OS location permission
+ *   plus reverse geocoding, and asking for someone's location in order to
+ *   register a *push token* is not a trade worth making. The backend is the
+ *   right place to derive it, from the IP it is already recording.
+ *
+ * Everything else the documented body asks for is supplied.
+ */
+export async function registerDeviceToken(
+  payload: DeviceTokenPayload,
+): Promise<DeviceTokenRecord> {
+  const { data } = await api.post<ApiEnvelope<DeviceTokenRecord>>(
+    '/notifications/device-token',
+    payload,
+  );
+  return data.data;
+}
+
+/**
+ * `DELETE /notifications/device-token` — stop pushing to this device.
+ *
+ * **Undocumented** (the collection lists only the POST) but live: found by
+ * probing on 2026-09-17, and it wants the token in the body — without one it
+ * answers 422 "The token field is required."
+ *
+ * Called on sign-out. Without it the row stays bound to the account that
+ * registered it, so the next person to sign in on a shared device would keep
+ * receiving the previous user's notifications — which is a privacy leak, not
+ * just a bug.
+ */
+export async function unregisterDeviceToken(token: string): Promise<void> {
+  await api.delete('/notifications/device-token', { data: { token } });
+}
 
 /** The envelope carries `unread_count` *beside* `data`, not inside it. */
 export async function fetchNotifications(

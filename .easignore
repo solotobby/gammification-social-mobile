@@ -1,0 +1,63 @@
+# What EAS Build excludes from the source archive.
+#
+# Why this file exists: `google-services.json` is gitignored (it is a real
+# credential and is deliberately not committed), but `app.json` names it in
+# `android.googleServicesFile`, so the build needs it in the upload. With no
+# `.easignore`, EAS falls back to `.gitignore` and the file is dropped —
+# prebuild then fails, or worse, ships an Android build with no FCM.
+#
+# So this mirrors `.gitignore` with that one line removed. Keep the two in step
+# when either changes. Build from the working tree with EAS_NO_VCS=1 so the
+# local copy of the credential is what gets archived.
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# Google Play service account key — never upload
+*service-account*.json
+fcm-service-account.json
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+CLAUDE.md
+AGENTS.md
+.claude
+design
+docs
+
+# NOTE: google-services.json is deliberately NOT listed — see the header.

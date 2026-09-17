@@ -13,7 +13,6 @@ import {
 import { persister } from '../api/queryClient';
 import type { LoginPayload, MeData, VerifyOtpPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
-import { unregisterFromPush } from './usePushRegistration';
 import { useEngagementStore } from '../stores/engagementStore';
 import { useFollowStore } from '../stores/followStore';
 import { useHiddenStore } from '../stores/hiddenStore';
@@ -115,11 +114,6 @@ export function useResetPassword() {
 export function useLogout() {
   const queryClient = useQueryClient();
   return async () => {
-    // Before the token goes: tell the backend to stop pushing to this device.
-    // The device-token row belongs to whoever registered it, so leaving it
-    // behind would send this account's notifications to the next person who
-    // signs in here. Silent and best-effort — it must never block a sign-out.
-    await unregisterFromPush();
     await useAuthStore.getState().signOut();
     queryClient.clear();
     // Everything below is per-account and would otherwise survive into the next

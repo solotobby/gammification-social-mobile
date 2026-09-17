@@ -56,22 +56,6 @@ export async function registerDeviceToken(
   return data.data;
 }
 
-/**
- * `DELETE /notifications/device-token` — stop pushing to this device.
- *
- * **Undocumented** (the collection lists only the POST) but live: found by
- * probing on 2026-09-17, and it wants the token in the body — without one it
- * answers 422 "The token field is required."
- *
- * Called on sign-out. Without it the row stays bound to the account that
- * registered it, so the next person to sign in on a shared device would keep
- * receiving the previous user's notifications — which is a privacy leak, not
- * just a bug.
- */
-export async function unregisterDeviceToken(token: string): Promise<void> {
-  await api.delete('/notifications/device-token', { data: { token } });
-}
-
 /** The envelope carries `unread_count` *beside* `data`, not inside it. */
 export async function fetchNotifications(
   page: number,

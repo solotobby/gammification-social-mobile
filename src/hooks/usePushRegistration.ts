@@ -9,7 +9,7 @@ import { Platform } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 
-import { registerDeviceToken, unregisterDeviceToken } from '../api/notifications';
+import { registerDeviceToken } from '../api/notifications';
 import type { DeviceTokenPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
 
@@ -113,35 +113,6 @@ function projectId(): string | undefined {
 }
 
 /**
- * The token this device most recently registered, so sign-out can hand it to
- * `DELETE /notifications/device-token`.
- *
- * Module state rather than a store: it is worthless across a restart (the
- * token is re-fetched on the next launch anyway) and it must be readable from
- * `useLogout`, which is not a component.
- */
-let activeToken: string | null = null;
-
-/**
- * Stop pushing to this device — called on sign-out.
- *
- * Without it the row stays bound to the account that registered it, so the
- * next person to sign in on a shared device keeps getting the previous user's
- * notifications. Silent like everything else here: a failed unregister must
- * never block a sign-out.
- */
-export async function unregisterFromPush(): Promise<void> {
-  const token = activeToken;
-  activeToken = null;
-  if (!token) return;
-  try {
-    await unregisterDeviceToken(token);
-  } catch {
-    // Swallowed — see the module comment.
-  }
-}
-
-/**
  * Ask, collect, send. Returns the token on success and null on any refusal or
  * failure — callers use it for logging only.
  */
@@ -191,7 +162,6 @@ export async function registerForPush(): Promise<string | null> {
     };
 
     await registerDeviceToken(payload);
-    activeToken = token;
     return token;
   } catch {
     // Silent by design — see the module comment.

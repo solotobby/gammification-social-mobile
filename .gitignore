@@ -54,3 +54,5 @@ docs
 # FCM service account key — a real credential, never commit.
 # Temporary: delete it once uploaded to EAS.
 fcm-service-account.json
+
+google-services.json

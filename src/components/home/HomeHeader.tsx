@@ -4,20 +4,27 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { currentUser } from '../../data/community';
-import { useMe, useMyAvatar, useMyTint } from '../../hooks/useMe';
+import { useMe } from '../../hooks/useMe';
 import { useUnreadNotificationCount } from '../../hooks/useNotifications';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/ThemeProvider';
+import { DrawerAvatarButton } from '../navigation/DrawerAvatarButton';
 // import { StoriesRail } from '../stories/StoriesRail';
-import { Avatar } from '../ui/Avatar';
 import { EarningsPulse } from './EarningsPulse';
 import { FeedTabs, type FeedTab } from './FeedTabs';
 import { FONT } from '../../theme/fonts';
 
 /**
- * Everything above the feed on Home: greeting row (profile, search,
+ * Everything above the feed on Home: greeting row (avatar, search,
  * notifications), the monetization signal, the composer trigger, and the
  * For You / Following filter. (The stories rail is commented out below.)
+ *
+ * The avatar at the left of the greeting row opens the **side drawer** rather
+ * than pushing a profile screen — the drawer is the way to every account
+ * destination now, the profile among them, reached from the avatar at the top
+ * of the drawer itself. It's the shared `DrawerAvatarButton`, so Home's handle
+ * on the drawer is literally the same control Earn, Communities and Messages
+ * carry; only the size differs, because this row is the roomiest of the four.
  */
 function getGreeting() {
   const hour = new Date().getHours();
@@ -45,8 +52,6 @@ export function HomeHeader({
   const { data: me } = useMe();
   const sessionUser = useAuthStore((s) => s.user);
   const displayName = me?.user.name ?? sessionUser?.name ?? currentUser.name;
-  const myTint = useMyTint();
-  const myAvatar = useMyAvatar();
 
   const iconButton = [
     styles.iconButton,
@@ -57,13 +62,7 @@ export function HomeHeader({
     <View style={{ gap: spacing.xl }}>
       {/* Greeting row */}
       <View style={styles.headerRow}>
-        <Pressable
-          onPress={() => router.push('/me')}
-          accessibilityRole="button"
-          accessibilityLabel="Open profile"
-        >
-          <Avatar name={displayName} tint={myTint} uri={myAvatar} size={46} />
-        </Pressable>
+        <DrawerAvatarButton size={46} />
         <View style={styles.headerText}>
           <Text style={[styles.hello, { color: colors.textMuted }]}>{greeting}</Text>
           <Text style={[styles.helloName, { color: colors.text }]}>

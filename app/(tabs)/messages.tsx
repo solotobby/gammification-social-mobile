@@ -5,6 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConversationRow } from '../../src/components/messages/ConversationRow';
+import { DrawerAvatarButton } from '../../src/components/navigation/DrawerAvatarButton';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { TextField } from '../../src/components/ui/TextField';
@@ -29,6 +30,10 @@ type Filter = (typeof FILTERS)[number]['value'];
  * Search and the All / Unread filter run client-side over the seeded threads;
  * when the endpoints land, expect `search` to become a query param the way
  * `GET /communities` does, rather than a filter over one page.
+ *
+ * Pinning lives in each row's "⋮" sheet (`ConversationMenu`) and is expressed
+ * purely as ordering — `byRecency` hoists pinned threads — so nothing here has
+ * to maintain a second list.
  */
 export default function MessagesScreen() {
   const { colors, radius, spacing } = useTheme();
@@ -41,6 +46,11 @@ export default function MessagesScreen() {
 
   const unreadCount = useMemo(
     () => conversations.filter((c) => c.unread > 0).length,
+    [conversations],
+  );
+
+  const pinnedCount = useMemo(
+    () => conversations.filter((c) => c.pinned).length,
     [conversations],
   );
 
@@ -79,12 +89,15 @@ export default function MessagesScreen() {
         ListHeaderComponent={
           <View style={{ gap: spacing.lg, paddingBottom: spacing.sm }}>
             <View style={styles.titleRow}>
+              <DrawerAvatarButton />
               <View style={styles.titleText}>
                 <Text style={[styles.title, { color: colors.text }]}>Messages</Text>
                 <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                   {unreadCount > 0
                     ? `${unreadCount} conversation${unreadCount === 1 ? '' : 's'} waiting on you`
-                    : 'You’re all caught up'}
+                    : pinnedCount > 0
+                      ? `${pinnedCount} pinned · you’re all caught up`
+                      : 'You’re all caught up'}
                 </Text>
               </View>
               <Pressable

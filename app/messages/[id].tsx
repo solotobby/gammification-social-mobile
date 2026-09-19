@@ -22,7 +22,7 @@ import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import type { ChatMessage } from '../../src/data/messages';
-import { keyboardInset, useKeyboard } from '../../src/hooks/useKeyboard';
+import { useComposerInset } from '../../src/hooks/useKeyboard';
 import { useMessagesStore } from '../../src/stores/messagesStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { FONT } from '../../src/theme/fonts';
@@ -52,7 +52,7 @@ export default function ConversationScreen() {
 
   // The bottom-anchored composer drops its safe-area inset once the keyboard
   // covers that strip — see src/hooks/useKeyboard.ts.
-  const { visible: keyboardUp } = useKeyboard();
+  const composerInset = useComposerInset(insets.bottom);
 
   const conversation = useMessagesStore((s) => s.conversations.find((c) => c.id === id));
   const send = useMessagesStore((s) => s.send);
@@ -260,7 +260,7 @@ export default function ConversationScreen() {
             {
               backgroundColor: colors.surface,
               borderTopColor: colors.border,
-              paddingBottom: keyboardInset(insets.bottom, keyboardUp) + 10,
+              paddingBottom: composerInset + 10,
             },
           ]}
         >

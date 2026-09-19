@@ -34,6 +34,11 @@ type MessagesState = {
   startWith: (member: Member) => string;
   /** Local mute toggle from the thread menu. */
   toggleMute: (conversationId: string) => void;
+  /**
+   * Pin/unpin a thread to the top of the list. Local and per-device, like
+   * mute — `byRecency` reads the flag, so nothing else has to know about it.
+   */
+  togglePin: (conversationId: string) => void;
   /** Removes a thread from the list. Local-only, like everything else here. */
   remove: (conversationId: string) => void;
   reset: () => void;
@@ -103,6 +108,13 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     set((state) => ({
       conversations: state.conversations.map((c) =>
         c.id === conversationId ? { ...c, muted: !c.muted } : c,
+      ),
+    })),
+
+  togglePin: (conversationId) =>
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, pinned: !c.pinned } : c,
       ),
     })),
 

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -15,6 +15,13 @@ import { shortAge } from './time';
  * The preview prefixes your own last message with a tick + "You:" the way the
  * web does, so a thread waiting on *them* reads differently from one waiting
  * on you without having to open it.
+ *
+ * **The row carries no overflow menu.** Pin, mute and delete all live in the
+ * thread's own header (`ConversationMenu`) — one place to act on a
+ * conversation rather than two, and a list of six identical "⋮" glyphs is
+ * noise next to the unread badges that are the reason to scan this screen.
+ * The row still *reports* the resulting state: a pin and a muted bell sit with
+ * the name.
  */
 export function ConversationRow({
   conversation,
@@ -36,7 +43,9 @@ export function ConversationRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Conversation with ${conversation.member.name}`}
+      accessibilityLabel={`Conversation with ${conversation.member.name}${
+        conversation.pinned ? ', pinned' : ''
+      }`}
       style={({ pressed }) => [
         styles.row,
         {
@@ -63,9 +72,24 @@ export function ConversationRow({
       </View>
 
       <View style={styles.body}>
-        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-          {conversation.member.name}
-        </Text>
+        <View style={styles.nameRow}>
+          {/* A pin reads as a property of the thread, so it sits with the name
+              rather than in the meta column — that column already carries the
+              age and the unread badge, and a third glyph there turns a
+              glanceable stack into a puzzle.
+
+              MaterialCommunityIcons, not Ionicons: Ionicons' "pin" is a map
+              marker, which in a list of conversations reads as a location. */}
+          {conversation.pinned ? (
+            <MaterialCommunityIcons name="pin" size={14} color={colors.brand} />
+          ) : null}
+          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+            {conversation.member.name}
+          </Text>
+          {conversation.muted ? (
+            <Ionicons name="notifications-off" size={12} color={colors.textMuted} />
+          ) : null}
+        </View>
         <View style={styles.previewRow}>
           {mine ? (
             <Ionicons
@@ -120,7 +144,8 @@ const styles = StyleSheet.create({
     borderWidth: 2.5,
   },
   body: { flex: 1, gap: 3 },
-  name: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  name: { fontFamily: FONT, flexShrink: 1, fontSize: 15, fontWeight: '800' },
   previewRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   preview: { fontFamily: FONT, flex: 1, fontSize: 13 },
   meta: { alignItems: 'flex-end', gap: 6, minWidth: 34 },

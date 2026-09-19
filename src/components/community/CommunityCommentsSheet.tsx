@@ -19,7 +19,7 @@ import {
   useAddCommunityPostComment,
   useCommunityPostComments,
 } from '../../hooks/useCommunities';
-import { keyboardInset, useKeyboard } from '../../hooks/useKeyboard';
+import { useComposerInset } from '../../hooks/useKeyboard';
 import { useTheme } from '../../theme/ThemeProvider';
 import { CommentItem, ReplyingBanner } from '../feed/CommentThread';
 import { FONT } from '../../theme/fonts';
@@ -49,7 +49,7 @@ export function CommunityCommentsSheet({
 }) {
   const { colors, radius, spacing } = useTheme();
   const insets = useSafeAreaInsets();
-  const { visible: keyboardUp } = useKeyboard();
+  const composerInset = useComposerInset(insets.bottom);
   const [draft, setDraft] = useState('');
   // The root comment a reply attaches to (the API nests one level), plus the
   // handle being addressed — see CommentThread.
@@ -99,7 +99,7 @@ export function CommunityCommentsSheet({
               backgroundColor: colors.surface,
               borderTopLeftRadius: radius.lg,
               borderTopRightRadius: radius.lg,
-              paddingBottom: keyboardInset(insets.bottom, keyboardUp) + spacing.md,
+              paddingBottom: composerInset + spacing.md,
             },
           ]}
         >

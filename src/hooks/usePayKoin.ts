@@ -63,19 +63,30 @@ export function usePayKoinTopUp() {
 /**
  * `POST /paykoin/convert` — cash gifted coins out to the fiat wallet.
  *
+ * `amount` is in **coins**, and the caller chooses it: the screen asks for a
+ * figure rather than passing the whole `paykoin_earned` balance, because this
+ * moves money at a spread and an unstated all-or-nothing tap is not a decision
+ * anyone got to make.
+ *
  * Only `paykoin_earned` can be converted; the server rejects anything else with
- * "You can only convert PayKoin earned from gifts", so the screen disables the
- * action at zero rather than surfacing that as a failure the user caused.
+ * "You can only convert PayKoin earned from gifts", so the screen caps the
+ * field at that balance and disables the action at zero rather than surfacing
+ * either as a failure the user caused.
  */
 export function useConvertPayKoin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (amount: number) => convertPayKoin(amount),
-    onSuccess: () => {
+    onSuccess: (_result, amount) => {
       queryClient.invalidateQueries({ queryKey: ['paykoin'] });
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      useFeedbackStore.getState().showToast('Converted to your wallet balance.', 'success');
+      useFeedbackStore
+        .getState()
+        .showToast(
+          `Converted ${amount.toLocaleString()} PK to your wallet balance.`,
+          'success',
+        );
     },
     onError: (error) => {
       useFeedbackStore.getState().showApiError(error, "Couldn't convert that.");

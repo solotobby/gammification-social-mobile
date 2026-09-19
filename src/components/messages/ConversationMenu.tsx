@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -11,11 +11,16 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 
 /**
- * The "⋮" overflow in a thread's header, matching the web's. Two of its
- * actions are local and real (mute, delete this thread); blocking and
+ * The "⋮" overflow in a thread's header, matching the web's. Three of its
+ * actions are local and real (pin, mute, delete this thread); blocking and
  * reporting have no endpoint — no messaging API exists at all yet — so they
  * say so rather than implying a moderation request went out, the same rule
  * `PostMenu`'s Report follows.
+ *
+ * **This is the only place these actions live.** The conversation list shows
+ * the resulting state (a pin, a muted bell) but carries no menu of its own:
+ * one place to act on a thread beats two, and a column of identical "⋮"
+ * glyphs competes with the unread badges that are the reason to scan a list.
  */
 export function ConversationMenu({
   conversation,
@@ -31,6 +36,7 @@ export function ConversationMenu({
   const [confirming, setConfirming] = useState(false);
 
   const toggleMute = useMessagesStore((s) => s.toggleMute);
+  const togglePin = useMessagesStore((s) => s.togglePin);
   const remove = useMessagesStore((s) => s.remove);
   const showToast = useFeedbackStore((s) => s.showToast);
 
@@ -39,8 +45,15 @@ export function ConversationMenu({
     setConfirming(false);
   };
 
+  /**
+   * `icon` takes either family: most rows are Ionicons, but the pin is a
+   * MaterialCommunityIcon because Ionicons' "pin" is a map marker, which reads
+   * as a location rather than something fastened to the top of a list.
+   */
   const row = (
-    icon: keyof typeof Ionicons.glyphMap,
+    icon:
+      | keyof typeof Ionicons.glyphMap
+      | { mc: keyof typeof MaterialCommunityIcons.glyphMap },
     label: string,
     onPress: () => void,
     tone?: 'danger',
@@ -55,7 +68,15 @@ export function ConversationMenu({
         { borderRadius: radius.md, opacity: pressed ? 0.6 : 1 },
       ]}
     >
-      <Ionicons name={icon} size={20} color={tone === 'danger' ? colors.danger : colors.text} />
+      {typeof icon === 'string' ? (
+        <Ionicons name={icon} size={20} color={tone === 'danger' ? colors.danger : colors.text} />
+      ) : (
+        <MaterialCommunityIcons
+          name={icon.mc}
+          size={20}
+          color={tone === 'danger' ? colors.danger : colors.text}
+        />
+      )}
       <Text style={[styles.rowText, { color: tone === 'danger' ? colors.danger : colors.text }]}>
         {label}
       </Text>
@@ -122,6 +143,20 @@ export function ConversationMenu({
               </View>
             ) : (
               <View style={styles.menuWrap}>
+                {row(
+                  { mc: conversation.pinned ? 'pin-off' : 'pin' },
+                  conversation.pinned ? 'Unpin conversation' : 'Pin conversation',
+                  () => {
+                    togglePin(conversation.id);
+                    close();
+                    showToast(
+                      conversation.pinned
+                        ? 'Unpinned — back in date order.'
+                        : 'Pinned to the top of your messages.',
+                      'success',
+                    );
+                  },
+                )}
                 {row('person-outline', `View @${conversation.member.handle}`, () => {
                   close();
                   router.push(`/member/${conversation.member.handle}`);

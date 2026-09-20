@@ -47,6 +47,12 @@ export type Conversation = {
   /** Local mute — the thread menu's toggle. Per-device until an API exists. */
   muted?: boolean;
   /**
+   * Pinned to the top of the conversation list. Local, like mute — there is no
+   * messaging API to hold it, so it is a property of this device's copy of the
+   * thread until one exists.
+   */
+  pinned?: boolean;
+  /**
    * When the thread itself was started. Only needed for one that has no
    * messages yet — without it an empty thread sorts to the *bottom* of a list
    * ordered by last message, which is the opposite of where a conversation you
@@ -163,7 +169,17 @@ function activityAt(conversation: Conversation): number {
   return lastMessage(conversation)?.sentAt ?? conversation.startedAt ?? 0;
 }
 
-/** Newest thread first, which is how the web orders the list. */
+/**
+ * Newest thread first, which is how the web orders the list — except that
+ * pinned threads are hoisted above the rest.
+ *
+ * Pinning is ordering, so it belongs in the comparator rather than in a
+ * second list the screens would have to concatenate: a pinned thread that
+ * receives a message still moves to the top *of the pinned group*, which is
+ * what someone who pinned it expects, and unpinning drops it straight back to
+ * wherever its age puts it.
+ */
 export function byRecency(a: Conversation, b: Conversation): number {
+  if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
   return activityAt(b) - activityAt(a);
 }

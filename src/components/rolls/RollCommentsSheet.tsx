@@ -3,7 +3,6 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -44,7 +43,7 @@ export function RollCommentsSheet({
 }) {
   const { colors, radius, spacing } = useTheme();
   const insets = useSafeAreaInsets();
-  const { visible: keyboardUp, height: keyboardHeight } = useKeyboard();
+  const { visible: keyboardUp, overlap: keyboardOverlap } = useKeyboard();
 
   const [draft, setDraft] = useState('');
   const clientSeq = useRef(0);
@@ -76,18 +75,16 @@ export function RollCommentsSheet({
 
   return (
     <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close comments">
-      {/* The measured keyboard height, not KeyboardAvoidingView.
+      {/* The measured keyboard overlap, not KeyboardAvoidingView.
           KAV estimates from its own layout and lands ~a safe-area inset short
           here, leaving a strip of video between the composer and the keys.
-          `endCoordinates.height` is the keyboard's true height, so padding by
-          it puts the composer exactly on top of the keyboard.
-          Android is excluded: `adjustResize` already shrinks the window, and
-          padding as well would push the sheet up twice. */}
+          The overlap is the keyboard's true bite out of the window, so padding
+          by it puts the composer exactly on top of the keys. It reads 0 on a
+          window the platform already resized, so this runs on both platforms
+          without the old Android exclusion — which was wrong once the app went
+          edge-to-edge and Android stopped resizing at all. */}
       <View
-        style={[
-          styles.avoider,
-          Platform.OS === 'ios' ? { paddingBottom: keyboardHeight } : null,
-        ]}
+        style={[styles.avoider, { paddingBottom: keyboardOverlap }]}
         pointerEvents="box-none"
       >
         <Pressable

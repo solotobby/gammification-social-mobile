@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { toCommunity, type Community } from '../../src/api/communities';
 import { CommunityCard } from '../../src/components/community/CommunityCard';
+import { DrawerAvatarButton } from '../../src/components/navigation/DrawerAvatarButton';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
@@ -121,7 +122,10 @@ export default function CommunitiesScreen() {
         }}
         ListHeaderComponent={
           <View style={{ gap: spacing.xl, marginBottom: spacing.md }}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Communities</Text>
+            <View style={styles.headerRow}>
+              <DrawerAvatarButton />
+              <Text style={[styles.headerTitle, { color: colors.text }]}>Communities</Text>
+            </View>
 
             {/* Create banner */}
             <LinearGradient
@@ -305,6 +309,7 @@ export default function CommunitiesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerTitle: { fontFamily: FONT, fontSize: 22, fontWeight: '800' },
   createCard: {
     padding: 20,

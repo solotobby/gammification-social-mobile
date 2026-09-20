@@ -40,6 +40,22 @@ import { FONT } from '../src/theme/fonts';
 const TOP_UP_STEPS = [100, 250, 500, 1000];
 
 /**
+ * Quick picks for the convert field, as shares of the *earned* balance rather
+ * than fixed coin amounts — a gift balance is whatever people sent you, so a
+ * ladder of round numbers would miss it more often than not.
+ *
+ * Every share floors: converting is capped at `paykoin_earned`, and a rounded
+ * "Max" that came out one coin high would be rejected by the server for a
+ * reason the user could not see.
+ */
+const CONVERT_SHARES: { label: string; of: (earned: number) => number }[] = [
+  { label: '25%', of: (earned) => Math.floor(earned * 0.25) },
+  { label: '50%', of: (earned) => Math.floor(earned * 0.5) },
+  { label: '75%', of: (earned) => Math.floor(earned * 0.75) },
+  { label: 'Max', of: (earned) => Math.floor(earned) },
+];
+
+/**
  * Activity filters, mirroring the web's chips.
  *
  * Filtered **client-side**: `GET /paykoin/transactions?type=` answers 200 for a
@@ -87,6 +103,11 @@ export default function PayKoinScreen() {
   const [filter, setFilter] = useState('all');
   const [topUpOpen, setTopUpOpen] = useState(false);
 
+  // The convert panel keeps its own text state for the same reason the top-up
+  // field does: an empty field has to stay empty while it's being retyped.
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertText, setConvertText] = useState('');
+
   const rows = useMemo(
     () => transactions.data?.pages.flatMap((page) => page.data.map(toPayKoinTransaction)) ?? [],
     [transactions.data],
@@ -130,6 +151,14 @@ export default function PayKoinScreen() {
   const cost = amount * balance.rates.list;
   const belowMinimum = amount < balance.min_top_up;
   const canBuy = amount > 0 && !belowMinimum && !topUp.isPending;
+
+  // Convert is capped by `earned`, not by the headline total: the server
+  // refuses anything above it ("You can only convert PayKoin earned from
+  // gifts"), so the field says so before the request rather than after.
+  const convertAmount = convertText === '' ? 0 : Number.parseInt(convertText, 10);
+  const overEarned = convertAmount > earned;
+  const payout = convertAmount * balance.rates.convert;
+  const canConvert = convertAmount > 0 && !overEarned && !convert.isPending;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -204,12 +233,12 @@ export default function PayKoinScreen() {
               <Text style={styles.coinPrimaryText}>Top up</Text>
             </Pressable>
             <Pressable
-              onPress={() => convert.mutate(earned)}
+              onPress={() => setConvertOpen((open) => !open)}
               // Only gifted coins convert — the server rejects anything else,
               // so at zero the action is unavailable rather than failing.
               disabled={earned <= 0 || convert.isPending}
               accessibilityRole="button"
-              accessibilityState={{ disabled: earned <= 0 }}
+              accessibilityState={{ disabled: earned <= 0, expanded: convertOpen }}
               style={[
                 styles.coinSecondary,
                 { borderRadius: radius.pill, opacity: earned > 0 ? 1 : 0.45 },
@@ -221,6 +250,136 @@ export default function PayKoinScreen() {
             </Pressable>
           </View>
         </LinearGradient>
+
+        {/* Convert — how much, not all of it.
+            Cashing out used to fire `convert.mutate(earned)` straight off the
+            card, which moved someone's whole gift balance on one tap with no
+            amount shown and nothing to undo. Converting is a money movement
+            with a spread on it (`rates.convert` is below `rates.list`), so it
+            gets the same shape as a top-up: state an amount, see what lands in
+            the wallet, then commit. "Max" keeps the old one-tap path for
+            anyone who did mean all of it. */}
+        {convertOpen && earned > 0 ? (
+          <View
+            style={[
+              styles.panel,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderRadius: radius.lg,
+              },
+            ]}
+          >
+            <Text style={[styles.panelTitle, { color: colors.text }]}>
+              How much do you want to convert?
+            </Text>
+
+            <View style={styles.stepRow}>
+              {CONVERT_SHARES.map((share) => {
+                // Whole coins only, and never more than is actually there —
+                // rounding a share up would submit an amount the server
+                // refuses.
+                const value = share.of(earned);
+                const active = value > 0 && value === convertAmount;
+                return (
+                  <Pressable
+                    key={share.label}
+                    onPress={() => setConvertText(String(value))}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${share.label} — ${value.toLocaleString()} PK`}
+                    accessibilityState={{ selected: active }}
+                    style={[
+                      styles.step,
+                      {
+                        backgroundColor: active ? colors.brand : colors.surfaceAlt,
+                        borderColor: active ? colors.brand : colors.border,
+                        borderRadius: radius.pill,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.stepText, { color: active ? colors.onBrand : colors.text }]}
+                    >
+                      {share.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View
+              style={[
+                styles.amountField,
+                {
+                  backgroundColor: colors.surfaceAlt,
+                  borderColor: overEarned ? colors.danger : colors.border,
+                  borderRadius: radius.md,
+                },
+              ]}
+            >
+              <TextInput
+                value={convertText}
+                onChangeText={(text) => setConvertText(text.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                returnKeyType="done"
+                selectTextOnFocus
+                maxLength={9}
+                placeholder={`Up to ${earned.toLocaleString()}`}
+                placeholderTextColor={colors.textMuted}
+                accessibilityLabel="Amount of PayKoin to convert"
+                style={[styles.amountInput, { color: colors.text }]}
+              />
+              <Text style={[styles.amountSuffix, { color: colors.textMuted }]}>PK</Text>
+            </View>
+
+            <Text
+              style={[
+                styles.panelNote,
+                { color: overEarned ? colors.danger : colors.textMuted },
+              ]}
+            >
+              {overEarned
+                ? `You only have ${earned.toLocaleString()} PK earned from gifts.`
+                : convertAmount > 0
+                  ? `${convertAmount.toLocaleString()} PK becomes ${formatMoney(payout, symbol)} in your wallet, at ${formatMoney(balance.rates.convert, symbol)} / PK.`
+                  : `You have ${earned.toLocaleString()} PK earned from gifts, at ${formatMoney(balance.rates.convert, symbol)} / PK.`}
+            </Text>
+
+            <Pressable
+              onPress={() =>
+                convert.mutate(convertAmount, {
+                  // Only clear the field once the coins have actually moved —
+                  // a failed convert should leave the amount to retry, not an
+                  // empty box that reads as if nothing was typed.
+                  onSuccess: () => {
+                    setConvertText('');
+                    setConvertOpen(false);
+                  },
+                })
+              }
+              disabled={!canConvert}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canConvert }}
+              style={[
+                styles.buyButton,
+                {
+                  backgroundColor: colors.brand,
+                  borderRadius: radius.pill,
+                  opacity: canConvert ? 1 : 0.6,
+                },
+              ]}
+            >
+              <Text style={[styles.buyText, { color: colors.onBrand }]}>
+                {convert.isPending
+                  ? 'Converting…'
+                  : convertAmount > 0 && !overEarned
+                    ? `Convert ${convertAmount.toLocaleString()} PK · ${formatMoney(payout, symbol)}`
+                    : 'Convert PayKoin'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {/* Top-up amounts — folded away until asked for, so the card above stays
             the thing you read first. */}

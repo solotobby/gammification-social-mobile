@@ -5,6 +5,7 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DrawerAvatarButton } from '../../src/components/navigation/DrawerAvatarButton';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
@@ -169,7 +170,10 @@ export default function EarnScreen() {
           gap: spacing.xl,
         }}
       >
-        <Text style={[styles.title, { color: colors.text }]}>Earn</Text>
+        <View style={styles.titleRow}>
+          <DrawerAvatarButton />
+          <Text style={[styles.title, { color: colors.text }]}>Earn</Text>
+        </View>
 
         {/* Month selector */}
         <View style={styles.monthRow}>
@@ -394,6 +398,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', gap: 14 },
   errorText: { fontFamily: FONT, fontSize: 14, fontWeight: '600' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontFamily: FONT, fontSize: 26, fontWeight: '800' },
   monthRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   monthChip: {

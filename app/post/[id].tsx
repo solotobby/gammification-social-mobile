@@ -21,7 +21,7 @@ import { Avatar } from '../../src/components/ui/Avatar';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { HashtagText } from '../../src/components/ui/HashtagText';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
-import { keyboardInset, useKeyboard } from '../../src/hooks/useKeyboard';
+import { useComposerInset } from '../../src/hooks/useKeyboard';
 import { addComment, findPost } from '../../src/data/community';
 import { useMyAvatar } from '../../src/hooks/useMe';
 import { newCommentId, useAddComment, usePost } from '../../src/hooks/useTimeline';
@@ -44,7 +44,7 @@ export default function PostDetailScreen() {
   const insets = useSafeAreaInsets();
   // While the keyboard is up it covers the home-indicator strip, so the
   // composer drops its safe-area inset rather than leaving a gap under itself.
-  const { visible: keyboardUp } = useKeyboard();
+  const composerInset = useComposerInset(insets.bottom);
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const dummy = findPost(id);
@@ -180,7 +180,7 @@ export default function PostDetailScreen() {
             {
               backgroundColor: colors.surface,
               borderTopColor: colors.border,
-              paddingBottom: keyboardInset(insets.bottom, keyboardUp) + 10,
+              paddingBottom: composerInset + 10,
             },
           ]}
         >

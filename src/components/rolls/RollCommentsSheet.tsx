@@ -75,14 +75,14 @@ export function RollCommentsSheet({
 
   return (
     <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close comments">
-      {/* The measured keyboard overlap, not KeyboardAvoidingView.
-          KAV estimates from its own layout and lands ~a safe-area inset short
-          here, leaving a strip of video between the composer and the keys.
-          The overlap is the keyboard's true bite out of the window, so padding
-          by it puts the composer exactly on top of the keys. It reads 0 on a
-          window the platform already resized, so this runs on both platforms
-          without the old Android exclusion — which was wrong once the app went
-          edge-to-edge and Android stopped resizing at all. */}
+      {/* The measured keyboard overlap, not KeyboardAvoidingView. KAV estimates
+          from its own layout and lands ~a safe-area inset short here, leaving a
+          strip of video between the composer and the keys.
+          Applied on both platforms: `measureOverlap` reads 0 on a window the
+          platform already resized, so one expression is right for each. The old
+          Android exclusion assumed `adjustResize` shrank the window, which
+          edge-to-edge stopped doing — that was why this sheet didn't move on
+          Android. */}
       <View
         style={[styles.avoider, { paddingBottom: keyboardOverlap }]}
         pointerEvents="box-none"

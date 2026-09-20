@@ -3,12 +3,16 @@ import { Dimensions, Keyboard, Platform, TextInput, type KeyboardEvent } from 'r
 
 export type KeyboardState = {
   visible: boolean;
-  /** The keyboard's own height, as the OS reports it. */
+  /**
+   * The keyboard panel's own height, as the OS reports it. On Android this is
+   * **less than** what the keyboard costs you at the bottom of the window —
+   * use `overlap` for layout and keep this for diagnostics.
+   */
   height: number;
   /**
-   * How much of the window's bottom edge the keyboard covers *after* whatever
-   * the platform already did about it — see `measureOverlap`. This is the
-   * number to pad a bottom-anchored bar by; `height` is not.
+   * How much of the window's bottom edge is unusable while the keyboard is up:
+   * the keyboard panel plus anything under it. This is the number to pad a
+   * bottom-anchored bar by, or to add as scroll headroom. See `measureOverlap`.
    */
   overlap: number;
 };
@@ -37,8 +41,11 @@ export function useKeyboard(): KeyboardState {
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const show = Keyboard.addListener(showEvent, (event: KeyboardEvent) => {
-      const height = event.endCoordinates?.height ?? 0;
-      setState({ visible: true, height, overlap: measureOverlap(event) });
+      setState({
+        visible: true,
+        height: event.endCoordinates?.height ?? 0,
+        overlap: measureOverlap(event),
+      });
     });
     const hide = Keyboard.addListener(hideEvent, () => {
       setState({ visible: false, height: 0, overlap: 0 });
@@ -54,26 +61,36 @@ export function useKeyboard(): KeyboardState {
 }
 
 /**
- * How much of the *window* the keyboard actually covers, measured rather than
- * assumed — which is what makes this safe to add as padding on either kind of
- * Android window.
+ * How much of the window's bottom edge the keyboard costs, measured from where
+ * its top edge actually lands rather than from its reported height.
  *
- * `endCoordinates.screenY` is the keyboard's top edge in screen coordinates.
- * If the window was resized out from under the keyboard (a classic
- * `adjustResize` activity), the window's own height has already shrunk to meet
- * that line and the difference is ~0 — nothing more to pad, because the layout
- * pass did it. If the window still spans the screen (which is the case under
- * edge-to-edge, where the keyboard is an inset rather than a resize), the
- * difference *is* the keyboard height and padding by it is exactly the lift the
- * composer needs.
+ * **The two differ, and the difference is not decoration.** Measured on a
+ * Pixel 9 / Android 16 emulator with the keyboard up:
  *
- * So the same expression handles both, and neither double-counts.
+ * ```
+ * window / screen  923.43dp   (identical — the window is NOT resized)
+ * keyboard height  312.38dp   screenY 587.05dp
+ * keyboard panel spans 587.05 -> 899.43, leaving 24dp to the window bottom
+ * ```
+ *
+ * That 24dp strip under the keyboard is the **gesture navigation bar**, which
+ * an edge-to-edge window draws under and which the keyboard does not count as
+ * its own height. Pad by `height` and the input is clipped by exactly that
+ * strip — verified, it cuts the composer in half. Pad by `window.height -
+ * screenY` and it sits flush. So the top edge is the honest measurement.
+ *
+ * Deriving it from the window also self-corrects on a window that *did* get
+ * resized out from under the keyboard: there the window's own bottom has
+ * already risen to meet `screenY`, the difference is ~0, and nothing more is
+ * padded — which is what makes this safe if Android ever stops being
+ * edge-to-edge here.
  */
 function measureOverlap(event: KeyboardEvent): number {
   const screenY = event.endCoordinates?.screenY;
   if (typeof screenY !== 'number') return event.endCoordinates?.height ?? 0;
   return Math.max(0, Dimensions.get('window').height - screenY);
 }
+
 
 /**
  * Bottom padding for a composer bar: the safe-area inset while the keyboard is
@@ -95,24 +112,22 @@ export function keyboardInset(safeAreaBottom: number, keyboardVisible: boolean):
  * sat inside a `KeyboardAvoidingView` with `behavior` set on iOS and left
  * `undefined` on Android, on the understanding that `adjustResize` would shrink
  * the window and the bar would ride up with it. That stopped being true: the
- * app is edge-to-edge (mandatory from SDK 54 on, and this is 56), and an
+ * app is edge-to-edge (mandatory from SDK 54, and this is 56), and an
  * edge-to-edge window is **not** resized by the keyboard — the keyboard arrives
  * as an inset over a window that still spans the screen. So nothing moved the
  * bar, `keyboardInset` helpfully removed the safe-area padding as well, and the
- * input you had just tapped sat underneath the keys with what you were typing
- * invisible. iOS was fine throughout because UIKit does the lift itself.
+ * input you had just tapped sat underneath the keys. iOS was fine throughout,
+ * because UIKit does the lift itself.
  *
- * The fix is to stop relying on the window resizing and pad by the overlap the
- * keyboard actually has with the window — see `measureOverlap`, which reads 0
- * on any window that *did* resize, so this cannot double-count.
- *
- * iOS keeps using `KeyboardAvoidingView` for the lift (it animates in step with
- * the keyboard, which a padding change cannot), so there the result is just
- * `keyboardInset`.
+ * Pads by the measured `overlap`, never by `height` — see `measureOverlap` for
+ * why those differ by a navigation bar on Android.
  */
 export function useComposerInset(safeAreaBottom: number): number {
   const { visible, overlap } = useKeyboard();
   if (!visible) return safeAreaBottom;
+  // iOS lifts the bar with KeyboardAvoidingView, which animates in step with
+  // the keyboard in a way a padding change cannot; there, only the now-covered
+  // safe-area inset needs removing.
   if (Platform.OS === 'ios') return 0;
   return overlap;
 }
@@ -152,11 +167,17 @@ const FOCUS_CLEARANCE = 12;
  */
 export function useKeyboardFocusScroll<T>(): React.RefObject<T | null> {
   const listRef = useRef<T | null>(null);
+  const { visible, overlap } = useKeyboard();
 
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    if (Platform.OS !== 'android' || !visible) return;
 
-    const subscription = Keyboard.addListener('keyboardDidShow', () => {
+    // Driven off the keyboard *state* rather than the raw event, and then one
+    // frame later, so this runs after the render that added the keyboard's
+    // height to the scroll view's bottom padding. Scrolling first would aim at
+    // a content size that has no room to scroll into yet, which on a short
+    // form means not moving at all.
+    const frame = requestAnimationFrame(() => {
       const focused = TextInput.State.currentlyFocusedInput();
       if (!focused) return;
       // FlatList forwards this to its inner ScrollView; a plain ScrollView has
@@ -183,8 +204,10 @@ export function useKeyboardFocusScroll<T>(): React.RefObject<T | null> {
       );
     });
 
-    return () => subscription.remove();
-  }, []);
+    return () => cancelAnimationFrame(frame);
+    // `overlap` is a dependency so a keyboard that changes size (a suggestion
+    // strip appearing, switching to emoji) re-aims at the focused field.
+  }, [visible, overlap]);
 
   return listRef;
 }

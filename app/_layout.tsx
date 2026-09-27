@@ -11,19 +11,32 @@ import { ErrorModalHost } from '../src/components/feedback/ErrorModal';
 import { OfflineBanner } from '../src/components/feedback/OfflineBanner';
 import { ToastHost } from '../src/components/feedback/Toast';
 import { PaymentSheet } from '../src/components/payments/PaymentSheet';
+import { registerMessagingMutationDefaults, useMessagingSync } from '../src/hooks/useMessages';
 import { registerMutationDefaults } from '../src/hooks/useTimeline';
 import { useUpdateCheck } from '../src/hooks/useInAppUpdate';
 import { useAuthStore } from '../src/stores/authStore';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 
 // Must be registered before the persisted cache is restored, so any comment
-// paused offline in a previous run can be replayed from its key alone.
+// (or conversation pin/mute) paused offline in a previous run can be replayed
+// from its key alone.
 registerMutationDefaults(queryClient);
+registerMessagingMutationDefaults(queryClient);
 
 // Without this the native splash hides the moment the root view mounts, which
 // is before the session has been read back — see ThemedStack below.
 void SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({ duration: 350, fade: true });
+
+/**
+ * Messaging upkeep that must outlive any one screen: the outbox keeps sending
+ * after you leave a thread, and the tab badge keeps polling. Rendered only
+ * while signed in.
+ */
+function MessagingSync() {
+  useMessagingSync();
+  return null;
+}
 
 function ThemedStack() {
   const { colors, isDark } = useTheme();
@@ -90,6 +103,7 @@ function ThemedStack() {
         {/* Play in-app update prompt — reachable signed in or out. */}
         <Stack.Screen name="app-update" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
+      {signedIn ? <MessagingSync /> : null}
       <OfflineBanner />
       {/* Checkout runs above every screen: a payment must not be cancelled by
           navigating, and only one can ever be in flight. */}

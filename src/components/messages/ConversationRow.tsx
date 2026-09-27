@@ -2,11 +2,11 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { SELF_ID, lastMessage, type Conversation } from '../../data/messages';
+import { previewText, type Conversation } from '../../data/messages';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 import { Avatar } from '../ui/Avatar';
-import { shortAge } from './time';
+import { listStamp } from './time';
 
 /** Avatar diameter — also what `CONVERSATION_DIVIDER_INSET` is derived from. */
 const AVATAR_SIZE = 52;
@@ -30,11 +30,18 @@ export const CONVERSATION_DIVIDER_INSET = AVATAR_SIZE + AVATAR_GAP;
  * timestamp and the count badge — not by tinting the whole row, which made an
  * inbox with a few unread threads look like a stack of alerts.
  *
- * The preview prefixes your own last message with a tick + "You:" the way the
- * web does, so a thread waiting on *them* reads differently from one waiting
- * on you without having to open it.
+ * The preview prefixes your own last message with "You:" the way the web
+ * does, so a thread waiting on *them* reads differently from one waiting on
+ * you without having to open it. There's deliberately **no delivery tick**:
+ * the list endpoint doesn't say whether your last message was read, and a
+ * tick that can't change would claim something it doesn't know. The only
+ * states shown are the ones this device *does* know — a clock while a message
+ * is still in the outbox, and a red "!" when the server refused one.
  *
- * **The row carries no overflow menu.** Pin, mute and delete all live in the
+ * **No presence dot.** The API has no online/last-seen signal, so a green dot
+ * would be invented.
+ *
+ * **The row carries no overflow menu.** Pin, mute and block all live in the
  * thread's own header (`ConversationMenu`) — one place to act on a
  * conversation rather than two. The row still *reports* the resulting state:
  * a muted bell and a pin sit at the end of the preview line, beside the unread
@@ -54,13 +61,10 @@ export function ConversationRow({
   gutter: number;
 }) {
   const { colors } = useTheme();
-  const last = lastMessage(conversation);
-  const mine = last?.senderId === SELF_ID;
+  const last = conversation.last;
+  const mine = !!last?.mine;
   const unread = conversation.unread > 0;
-
-  const preview = last
-    ? last.body || (last.imageUri ? 'Photo' : '')
-    : 'Say hello — this thread is empty';
+  const preview = previewText(last);
 
   return (
     <Pressable
@@ -79,22 +83,12 @@ export function ConversationRow({
         },
       ]}
     >
-      <View>
-        <Avatar
-          name={conversation.member.name}
-          tint={conversation.member.tint}
-          uri={conversation.member.avatar}
-          size={AVATAR_SIZE}
-        />
-        {conversation.online ? (
-          <View
-            style={[
-              styles.presence,
-              { backgroundColor: colors.mint, borderColor: colors.background },
-            ]}
-          />
-        ) : null}
-      </View>
+      <Avatar
+        name={conversation.member.name}
+        tint={conversation.member.tint}
+        uri={conversation.member.avatar}
+        size={AVATAR_SIZE}
+      />
 
       <View style={styles.body}>
         <View style={styles.line}>
@@ -110,18 +104,19 @@ export function ConversationRow({
               { color: unread ? colors.brand : colors.textMuted, fontWeight: unread ? '700' : '500' },
             ]}
           >
-            {last ? shortAge(last.sentAt) : ''}
+            {last ? listStamp(last.sentAt) : ''}
           </Text>
         </View>
 
         <View style={styles.line}>
           <View style={styles.previewWrap}>
-            {mine ? (
-              <Ionicons
-                name={last?.status === 'read' ? 'checkmark-done' : 'checkmark'}
-                size={16}
-                color={last?.status === 'read' ? colors.brand : colors.textMuted}
-              />
+            {last?.status === 'sending' ? (
+              <Ionicons name="time-outline" size={15} color={colors.textMuted} />
+            ) : last?.status === 'failed' ? (
+              <Ionicons name="alert-circle" size={16} color={colors.danger} />
+            ) : null}
+            {last?.hasImage ? (
+              <Ionicons name="camera-outline" size={15} color={colors.textMuted} />
             ) : null}
             <Text
               style={[
@@ -133,7 +128,11 @@ export function ConversationRow({
               ]}
               numberOfLines={1}
             >
-              {mine ? `You: ${preview}` : preview}
+              {last?.status === 'failed'
+                ? 'Message not sent'
+                : mine
+                  ? `You: ${preview}`
+                  : preview}
             </Text>
           </View>
 
@@ -170,15 +169,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: AVATAR_GAP,
     paddingVertical: 10,
-  },
-  presence: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2.5,
   },
   body: { flex: 1, gap: 3 },
   line: { flexDirection: 'row', alignItems: 'center', gap: 8 },

@@ -1,21 +1,24 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Conversation } from '../../data/messages';
+import { useBlockMessaging, useSetConversationFlag } from '../../hooks/useMessages';
 import { useFeedbackStore } from '../../stores/feedbackStore';
-import { useMessagesStore } from '../../stores/messagesStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 
 /**
- * The "⋮" overflow in a thread's header, matching the web's. Three of its
- * actions are local and real (pin, mute, delete this thread); blocking and
- * reporting have no endpoint — no messaging API exists at all yet — so they
- * say so rather than implying a moderation request went out, the same rule
- * `PostMenu`'s Report follows.
+ * The "⋮" overflow in a thread's header, matching the web's: pin, mute, view
+ * profile and block — all four real (`/conversations/{id}/pin|mute`,
+ * `/conversations/block/{userId}`). Pin and mute are optimistic and survive
+ * going offline; block asks first and needs a connection, because it hides
+ * the thread and the person doing it should know it actually happened.
+ *
+ * There's no "delete conversation": the API has no such route, and a local
+ * hide would bring the thread back on the next poll.
  *
  * **This is the only place these actions live.** The conversation list shows
  * the resulting state (a pin, a muted bell) but carries no menu of its own:
@@ -24,10 +27,10 @@ import { FONT } from '../../theme/fonts';
  */
 export function ConversationMenu({
   conversation,
-  onDeleted,
+  onBlocked,
 }: {
   conversation: Conversation;
-  onDeleted: () => void;
+  onBlocked: () => void;
 }) {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
@@ -35,10 +38,11 @@ export function ConversationMenu({
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  const toggleMute = useMessagesStore((s) => s.toggleMute);
-  const togglePin = useMessagesStore((s) => s.togglePin);
-  const remove = useMessagesStore((s) => s.remove);
+  const setFlag = useSetConversationFlag();
+  const block = useBlockMessaging();
   const showToast = useFeedbackStore((s) => s.showToast);
+  const showApiError = useFeedbackStore((s) => s.showApiError);
+  const { member } = conversation;
 
   const close = () => {
     setOpen(false);
@@ -115,22 +119,39 @@ export function ConversationMenu({
             {confirming ? (
               <View style={styles.confirmWrap}>
                 <Text style={[styles.confirmTitle, { color: colors.text }]}>
-                  Delete this conversation?
+                  Block {member.name}?
                 </Text>
                 <Text style={[styles.confirmText, { color: colors.textMuted }]}>
-                  It’s removed from this device only — {conversation.member.name} keeps their copy.
+                  They won’t be able to message you, and this conversation will be hidden. You can
+                  unblock them from their profile — the conversation comes back as it was.
                 </Text>
                 <Pressable
-                  onPress={() => {
-                    remove(conversation.id);
-                    close();
-                    onDeleted();
-                  }}
+                  onPress={() =>
+                    block.mutate(
+                      { member, conversationId: conversation.id },
+                      {
+                        onSuccess: () => {
+                          close();
+                          showToast(`Blocked ${member.name}.`, 'success');
+                          onBlocked();
+                        },
+                        onError: (error) => showApiError(error, `Couldn’t block ${member.name}.`),
+                      },
+                    )
+                  }
+                  disabled={block.isPending}
                   accessibilityRole="button"
-                  accessibilityLabel="Confirm delete conversation"
-                  style={[styles.destructiveBtn, { backgroundColor: colors.danger }]}
+                  accessibilityLabel={`Confirm block ${member.name}`}
+                  style={[
+                    styles.destructiveBtn,
+                    { backgroundColor: colors.danger, opacity: block.isPending ? 0.7 : 1 },
+                  ]}
                 >
-                  <Text style={styles.destructiveText}>Delete conversation</Text>
+                  {block.isPending ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.destructiveText}>Block</Text>
+                  )}
                 </Pressable>
                 <Pressable
                   onPress={() => setConfirming(false)}
@@ -147,7 +168,7 @@ export function ConversationMenu({
                   { mc: conversation.pinned ? 'pin-off' : 'pin' },
                   conversation.pinned ? 'Unpin conversation' : 'Pin conversation',
                   () => {
-                    togglePin(conversation.id);
+                    setFlag.mutate({ id: conversation.id, flag: 'pinned', value: !conversation.pinned });
                     close();
                     showToast(
                       conversation.pinned
@@ -157,27 +178,25 @@ export function ConversationMenu({
                     );
                   },
                 )}
-                {row('person-outline', `View @${conversation.member.handle}`, () => {
-                  close();
-                  router.push(`/member/${conversation.member.handle}`);
-                })}
                 {row(
                   conversation.muted ? 'notifications-outline' : 'notifications-off-outline',
-                  conversation.muted ? 'Unmute conversation' : 'Mute conversation',
+                  conversation.muted ? 'Unmute notifications' : 'Mute notifications',
                   () => {
-                    toggleMute(conversation.id);
+                    setFlag.mutate({ id: conversation.id, flag: 'muted', value: !conversation.muted });
                     close();
                     showToast(
-                      conversation.muted ? 'Conversation unmuted.' : 'Conversation muted.',
+                      conversation.muted
+                        ? 'Notifications on for this conversation.'
+                        : 'Muted — you won’t be notified about new messages here.',
                       'success',
                     );
                   },
                 )}
-                {row('ban-outline', 'Block & report', () => {
+                {row('person-outline', `View ${member.name}’s profile`, () => {
                   close();
-                  showToast('Blocking isn’t wired up yet — nothing was sent.', 'info');
+                  router.push({ pathname: '/member/[handle]', params: { handle: member.handle } });
                 })}
-                {row('trash-outline', 'Delete conversation', () => setConfirming(true), 'danger')}
+                {row('ban-outline', `Block ${member.name}`, () => setConfirming(true), 'danger')}
                 {row('close-outline', 'Cancel', close)}
               </View>
             )}

@@ -4,7 +4,10 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ConversationRow } from '../../src/components/messages/ConversationRow';
+import {
+  CONVERSATION_DIVIDER_INSET,
+  ConversationRow,
+} from '../../src/components/messages/ConversationRow';
 import { DrawerAvatarButton } from '../../src/components/navigation/DrawerAvatarButton';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
@@ -31,9 +34,15 @@ type Filter = (typeof FILTERS)[number]['value'];
  * when the endpoints land, expect `search` to become a query param the way
  * `GET /communities` does, rather than a filter over one page.
  *
- * Pinning lives in each row's "⋮" sheet (`ConversationMenu`) and is expressed
- * purely as ordering — `byRecency` hoists pinned threads — so nothing here has
- * to maintain a second list.
+ * Pinning lives in the thread header's "⋮" sheet (`ConversationMenu`) and is
+ * expressed purely as ordering — `byRecency` hoists pinned threads — so nothing
+ * here has to maintain a second list.
+ *
+ * The list is a flat inbox, not a stack of cards: rows run full width and are
+ * divided by a hairline under the text column only. So the content container
+ * carries no horizontal padding — the header and empty state re-apply the
+ * gutter themselves, and each row takes it as a prop so its press highlight
+ * still reaches both edges.
  */
 export default function MessagesScreen() {
   const { colors, radius, spacing } = useTheme();
@@ -83,11 +92,11 @@ export default function MessagesScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + spacing.lg,
           paddingBottom: insets.bottom + TAB_BAR_CLEARANCE,
-          paddingHorizontal: spacing.xl,
-          gap: spacing.sm,
         }}
         ListHeaderComponent={
-          <View style={{ gap: spacing.lg, paddingBottom: spacing.sm }}>
+          <View
+            style={{ gap: spacing.lg, paddingBottom: spacing.md, paddingHorizontal: spacing.xl }}
+          >
             <View style={styles.titleRow}>
               <DrawerAvatarButton />
               <View style={styles.titleText}>
@@ -162,11 +171,28 @@ export default function MessagesScreen() {
         renderItem={({ item }) => (
           <ConversationRow
             conversation={item}
+            gutter={spacing.xl}
             onPress={() => router.push(`/messages/${item.id}`)}
           />
         )}
+        ItemSeparatorComponent={() => (
+          <View
+            style={[
+              styles.divider,
+              {
+                marginLeft: spacing.xl + CONVERSATION_DIVIDER_INSET,
+                backgroundColor: colors.border,
+              },
+            ]}
+          />
+        )}
         ListEmptyComponent={
-          <View style={[styles.empty, { borderColor: colors.border, borderRadius: radius.lg }]}>
+          <View
+            style={[
+              styles.empty,
+              { borderColor: colors.border, borderRadius: radius.lg, marginHorizontal: spacing.xl },
+            ]}
+          >
             <Ionicons name="chatbubbles-outline" size={28} color={colors.textMuted} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
               {query.trim()
@@ -211,6 +237,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   chipText: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
+  divider: { height: StyleSheet.hairlineWidth },
   empty: {
     alignItems: 'center',
     gap: 8,

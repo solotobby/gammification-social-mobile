@@ -8,6 +8,7 @@ import { BackButton } from '../src/components/ui/BackButton';
 import { GhostButton } from '../src/components/ui/GhostButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
 import { useTransactions } from '../src/hooks/useAccount';
+import { useCurrency } from '../src/hooks/useCurrency';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
 
@@ -20,6 +21,7 @@ export default function TransactionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const { format } = useCurrency();
   const query = useTransactions();
   const transactions = query.data ?? [];
 
@@ -95,8 +97,9 @@ export default function TransactionsScreen() {
                   </Text>
                 </View>
                 <View style={styles.trailing}>
-                  <Text style={[styles.amount, { color: colors.mint }]}>
-                    +₦{tx.amount.toLocaleString()}
+                  <Text style={[styles.amount, { color: tx.credit ? colors.mint : colors.text }]}>
+                    {tx.credit ? '+' : ''}
+                    {format(tx.amount)}
                   </Text>
                   {tx.status ? (
                     <View

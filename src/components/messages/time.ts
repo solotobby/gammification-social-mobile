@@ -1,6 +1,6 @@
 /**
  * Timestamp formatting for the messages surfaces. Two different jobs:
- * the list wants the shortest thing that still locates a thread in time, the
+ * the list wants a stamp that locates a thread in time at a glance, the
  * thread wants a clock time on every bubble and a date divider per day.
  */
 
@@ -16,18 +16,43 @@ export function clockTime(epochMs: number): string {
   });
 }
 
+/** Midnight at the start of the given moment's day, in the device's timezone. */
+function startOfDay(epochMs: number): number {
+  const date = new Date(epochMs);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
 /**
- * Compact age for a conversation row: "now", "24m", "5h", "2d", then a date.
- * Deliberately short — the row also carries a name and a message preview, and
- * a full date there pushes the preview into an ellipsis.
+ * The stamp on a conversation row, the way chat apps have taught people to
+ * read an inbox:
+ *
+ * - today → the clock time, 24-hour ("20:19")
+ * - yesterday → "Yesterday"
+ * - within the last week → the weekday ("Monday")
+ * - older → the date ("17 Sep", with the year once it isn't this one)
+ *
+ * Counted in calendar days, not elapsed hours: a message from 23:50 last night
+ * is "Yesterday" at 00:10, not "20m". "The last week" is the six days before
+ * yesterday, so a weekday name never repeats and can't be mistaken for next
+ * week's.
  */
-export function shortAge(epochMs: number): string {
-  const delta = Date.now() - epochMs;
-  if (delta < MINUTE) return 'now';
-  if (delta < HOUR) return `${Math.floor(delta / MINUTE)}m`;
-  if (delta < DAY) return `${Math.floor(delta / HOUR)}h`;
-  if (delta < 7 * DAY) return `${Math.floor(delta / DAY)}d`;
-  return new Date(epochMs).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+export function listStamp(epochMs: number, now = Date.now()): string {
+  const days = Math.round((startOfDay(now) - startOfDay(epochMs)) / DAY);
+  const date = new Date(epochMs);
+
+  if (days <= 0) {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return date.toLocaleDateString(undefined, { weekday: 'long' });
+  return date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    ...(date.getFullYear() === new Date(now).getFullYear() ? {} : { year: 'numeric' }),
+  });
 }
 
 /** "Today" / "Yesterday" / "12 Sep" — the divider above a day's messages. */

@@ -1712,3 +1712,89 @@ export type DeviceTokenRecord = {
   is_active?: boolean;
   last_active_at?: string | null;
 };
+
+// ---------------------------------------------------------------------------
+// Messaging — /conversations (added to the collection 2026-09-27)
+// ---------------------------------------------------------------------------
+
+/** The other person in a direct conversation. */
+export type ApiConversationParticipant = {
+  id: string;
+  name: string;
+  /** Free text on this backend: can hold spaces, emoji or an email address. */
+  username: string;
+  avatar?: string | null;
+};
+
+/**
+ * One row of `GET /conversations` — also what `POST /conversations/direct`
+ * answers with. A preview only; the messages come from the thread endpoint.
+ */
+export type ApiConversation = {
+  id: string;
+  participant: ApiConversationParticipant;
+  /** Unread *incoming* messages in this thread. */
+  unread: number;
+  muted: boolean;
+  pinned: boolean;
+  /**
+   * The preview text. A thread with no messages yet carries the placeholder
+   * "Start a conversation" here — `last_at: null` is how to tell.
+   */
+  last_message: string | null;
+  last_message_type: 'text' | 'image' | string;
+  last_at: string | null;
+  last_from_me: boolean;
+  has_image: boolean;
+};
+
+/**
+ * `GET /conversations`. Not a Laravel paginator: the rows sit under
+ * `data.conversations`, and the account-wide `unread_total` sits at the
+ * envelope root, *beside* `data` — the same break as `/notifications`.
+ */
+export type ConversationListResponse = {
+  success?: boolean;
+  message: string;
+  unread_total?: number;
+  data: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+    conversations: ApiConversation[];
+  };
+};
+
+/** A message as the thread and send endpoints return it. */
+export type ApiChatMessage = {
+  id: string;
+  type: 'text' | 'image';
+  mine: boolean;
+  body: string | null;
+  /** Absolute CDN URLs. Up to 5 per message. */
+  images: string[];
+  created_at: string;
+  /** "sent" on the send response; "delivered" / "read" once re-read. */
+  status?: string;
+  /** Server-formatted clock time in UTC — ignored, the app formats locally. */
+  at?: string;
+  sender?: ApiConversationParticipant;
+};
+
+/**
+ * The thread interleaves server-side day dividers with the messages. They are
+ * labelled in the server's timezone (UTC), so the app drops them and builds
+ * its own from `created_at` in the device's.
+ */
+export type ApiThreadRow = ApiChatMessage | { id: string; type: 'date'; label: string };
+
+/** `GET /conversations/{id}` — the thread, oldest first. */
+export type ApiThread = {
+  conversation_id: string;
+  type: 'direct' | string;
+  participant: ApiConversationParticipant;
+  muted: boolean;
+  pinned: boolean;
+  messages: ApiThreadRow[];
+};

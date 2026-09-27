@@ -10,7 +10,7 @@ import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { SectionHeader } from '../../src/components/ui/SectionHeader';
-import { transactions } from '../../src/data/community';
+import { useTransactions } from '../../src/hooks/useAccount';
 import { useCurrency } from '../../src/hooks/useCurrency';
 import { useMonthlyAnalytics, useYearlyAnalytics } from '../../src/hooks/useEarnings';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -70,6 +70,9 @@ function parseMonth(month: string): { num: number; short: string; year: number }
   return { num: m, short, year };
 }
 
+/** How many payout-history rows Earn previews before "View all". */
+const RECENT_PAYOUTS = 5;
+
 const now = new Date();
 const CURRENT_YEAR = now.getFullYear();
 const CURRENT_MONTH = now.getMonth() + 1;
@@ -89,7 +92,10 @@ export default function EarnScreen() {
   const { format: money } = useCurrency();
   const format = money;
 
-  const recentPayouts = transactions.slice(0, 3);
+  const transactions = useTransactions();
+  const allTransactions = transactions.data ?? [];
+  // Newest first, as the endpoint returns them — the full list is one tap away.
+  const recentPayouts = allTransactions.slice(0, RECENT_PAYOUTS);
 
   const yearly = useYearlyAnalytics(CURRENT_YEAR);
 
@@ -342,51 +348,97 @@ export default function EarnScreen() {
           </View>
         </View>
 
-        {/* Payout history — moved here from /wallet, which now covers balance
-            and plan status only. Still the dummy list: /user/transactions is
-            wired on /transactions, but this preview has never been switched
-            over to it. */}
+        {/* Payout history — the latest few rows of GET /user/transactions
+            (moved here from /wallet); the full list is /transactions. */}
         <View style={{ gap: spacing.md }}>
-          <SectionHeader
-            title="Payout history"
-            icon="receipt"
-            onSeeAll={() => router.push('/transactions')}
-          />
+          <SectionHeader title="Payout history" icon="receipt" />
           <View
             style={[
               styles.listCard,
               { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg },
             ]}
           >
-            {recentPayouts.map((tx, index) => (
-              <View
-                key={tx.id}
-                style={[
-                  styles.txRow,
-                  index > 0 && {
-                    borderTopWidth: StyleSheet.hairlineWidth,
-                    borderTopColor: colors.border,
-                  },
-                ]}
-              >
-                <View style={[styles.txIcon, { backgroundColor: `${colors.mint}1A` }]}>
-                  <Ionicons
-                    name={tx.kind === 'payout' ? 'cash-outline' : 'gift-outline'}
-                    size={18}
-                    color={colors.mint}
-                  />
-                </View>
-                <View style={styles.txText}>
-                  <Text style={[styles.txLabel, { color: colors.text }]} numberOfLines={1}>
-                    {tx.description}
-                  </Text>
-                  <Text style={[styles.txDate, { color: colors.textMuted }]}>{tx.date}</Text>
-                </View>
-                <Text style={[styles.txAmount, { color: colors.mint }]}>
-                  +{format(tx.amount)}
+            {transactions.isLoading ? (
+              <View style={styles.txState}>
+                <ActivityIndicator color={colors.brand} />
+              </View>
+            ) : transactions.isError && !transactions.data ? (
+              <View style={styles.txState}>
+                <Text style={[styles.txStateText, { color: colors.textMuted }]}>
+                  We couldn't load your transactions.
+                </Text>
+                <GhostButton label="Retry" onPress={() => void transactions.refetch()} />
+              </View>
+            ) : recentPayouts.length === 0 ? (
+              <View style={styles.txState}>
+                <Ionicons name="receipt-outline" size={26} color={colors.textMuted} />
+                <Text style={[styles.txStateText, { color: colors.textMuted }]}>
+                  No transactions yet. Payouts land here once your engagement is validated at
+                  month end.
                 </Text>
               </View>
-            ))}
+            ) : (
+              recentPayouts.map((tx, index) => (
+                <View
+                  key={tx.id}
+                  style={[
+                    styles.txRow,
+                    index > 0 && {
+                      borderTopWidth: StyleSheet.hairlineWidth,
+                      borderTopColor: colors.border,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.txIcon,
+                      { backgroundColor: tx.credit ? `${colors.mint}1A` : colors.surfaceAlt },
+                    ]}
+                  >
+                    <Ionicons
+                      name={
+                        tx.kind === 'payout'
+                          ? 'cash-outline'
+                          : tx.kind === 'referral'
+                            ? 'gift-outline'
+                            : 'swap-horizontal-outline'
+                      }
+                      size={18}
+                      color={tx.credit ? colors.mint : colors.textSecondary}
+                    />
+                  </View>
+                  <View style={styles.txText}>
+                    <Text style={[styles.txLabel, { color: colors.text }]} numberOfLines={1}>
+                      {tx.description}
+                    </Text>
+                    <Text style={[styles.txDate, { color: colors.textMuted }]} numberOfLines={1}>
+                      {[tx.date, tx.status].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  <Text style={[styles.txAmount, { color: tx.credit ? colors.mint : colors.text }]}>
+                    {tx.credit ? '+' : ''}
+                    {format(tx.amount)}
+                  </Text>
+                </View>
+              ))
+            )}
+
+            {allTransactions.length > 0 ? (
+              <Pressable
+                onPress={() => router.push('/transactions')}
+                accessibilityRole="button"
+                accessibilityLabel="View all transactions"
+                style={({ pressed }) => [
+                  styles.viewAll,
+                  { borderTopColor: colors.border, opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Text style={[styles.viewAllText, { color: colors.brand }]}>
+                  View all transactions
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.brand} />
+              </Pressable>
+            ) : null}
           </View>
         </View>
       </ScrollView>
@@ -508,5 +560,23 @@ const styles = StyleSheet.create({
   txLabel: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
   txDate: { fontFamily: FONT, fontSize: 12, fontWeight: '500' },
   txAmount: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
+  txState: { alignItems: 'center', gap: 10, paddingVertical: 22 },
+  txStateText: {
+    fontFamily: FONT,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '500',
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  viewAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  viewAllText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
   monetizedValue: { fontFamily: FONT, fontSize: 16, fontWeight: '800' },
 });

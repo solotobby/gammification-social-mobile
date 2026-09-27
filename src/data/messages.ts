@@ -1,185 +1,105 @@
 /**
- * Dummy direct-messages data, modelled on the web app's `/user/messages` page
- * (conversation list on the left, thread on the right, composer under it).
+ * Direct messages — the app-side model the Messages screens render.
  *
- * **There is no messaging API yet** — nothing in the Postman collection, and
- * nothing found by probing. So this file is the whole backend: seeded threads
- * plus the shapes the screens render. `src/stores/messagesStore.ts` holds the
- * mutable copy so sending a message updates the list in place.
- *
- * When the endpoints land, keep these types as the app-side model and map the
- * API onto them in `src/api/messages.ts`, exactly like `toPost` does for the
- * timeline — the screens should not have to change.
+ * The API (`/conversations`, live since 2026-09-27) is mapped onto these types
+ * in `src/api/messages.ts`, exactly like `toPost` does for the timeline, so the
+ * screens never read an API shape directly. Messages still waiting in the
+ * outbox (`src/stores/outboxStore.ts`) are mapped onto `ChatMessage` too, which
+ * is what lets a thread render sent and unsent messages as one list.
  */
 
-import { members, type Member } from './community';
-import { sampleImage } from './media';
+import type { Member } from './community';
 
 /**
- * Delivery state of a message *you* sent. Mirrors the web's tick beside the
- * timestamp. Incoming messages carry no status — theirs is not ours to report.
+ * Where one of *your* messages is.
+ *
+ * - `sending` — in the outbox: in flight, or waiting for a connection.
+ * - `failed`  — the server refused it; tap to retry or remove.
+ * - `sent` / `delivered` / `read` — the server's own word for it.
+ *
+ * Incoming messages carry no status — theirs is not ours to report.
  */
-export type MessageStatus = 'sending' | 'sent' | 'read';
+export type MessageStatus = 'sending' | 'failed' | 'sent' | 'delivered' | 'read';
 
 export type ChatMessage = {
+  /** Server id — or the outbox's client id while the message is unsent. */
   id: string;
-  /** `SELF_ID` for the signed-in user, otherwise the other member's id. */
-  senderId: string;
+  mine: boolean;
   body: string;
-  /** Epoch ms. Stored as a number so day dividers and ordering are honest. */
+  /** Up to five photos. Local file URIs while the message is in the outbox. */
+  images: string[];
+  /** Epoch ms. A number so day dividers and ordering are honest. */
   sentAt: number;
   /** Only ever set on your own messages. */
   status?: MessageStatus;
-  /** Attached photo, when the message is an image. */
-  imageUri?: string;
+  /** Why a `failed` message was refused, in the server's words. */
+  error?: string;
+  /** True while the message only exists on this device (the outbox). */
+  local?: boolean;
+};
+
+/** The newest message of a thread, as the conversation list previews it. */
+export type ConversationPreview = {
+  body: string;
+  hasImage: boolean;
+  mine: boolean;
+  sentAt: number;
+  /** Only for a preview built from the outbox — the row shows a clock or "!". */
+  status?: MessageStatus;
 };
 
 export type Conversation = {
   id: string;
-  /** The other participant. Group threads don't exist on the web app either. */
+  /** The other participant. Every conversation is direct — there are no groups. */
   member: Member;
-  /** Drives the green presence dot and the "Active now" line in the thread. */
-  online: boolean;
-  /** Presence copy when offline, e.g. "Active 2h ago". */
-  lastActive?: string;
-  /** Unread *incoming* messages. Cleared when the thread is opened. */
+  /** Unread *incoming* messages. */
   unread: number;
-  /** Local mute — the thread menu's toggle. Per-device until an API exists. */
-  muted?: boolean;
-  /**
-   * Pinned to the top of the conversation list. Local, like mute — there is no
-   * messaging API to hold it, so it is a property of this device's copy of the
-   * thread until one exists.
-   */
-  pinned?: boolean;
-  /**
-   * When the thread itself was started. Only needed for one that has no
-   * messages yet — without it an empty thread sorts to the *bottom* of a list
-   * ordered by last message, which is the opposite of where a conversation you
-   * just opened belongs.
-   */
-  startedAt?: number;
-  messages: ChatMessage[];
+  muted: boolean;
+  pinned: boolean;
+  /** Null for a thread that has been opened but has no messages yet. */
+  last: ConversationPreview | null;
 };
 
-/** The signed-in user's sender id inside a thread. */
-export const SELF_ID = 'me';
+/** A thread: who it's with, its flags, and the messages loaded so far. */
+export type Thread = {
+  conversation: Conversation;
+  /** Oldest first. Only the pages loaded so far — see `hasOlder`. */
+  messages: ChatMessage[];
+  /** Whether `before_id` paging can reach further back. */
+  hasOlder: boolean;
+};
 
-const MINUTE = 60_000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
+/** The server caps a message body here (422 above it). */
+export const MAX_MESSAGE_LENGTH = 5000;
 
-/** Relative to now, so seeded threads never look stale on a later launch. */
-const ago = (ms: number) => Date.now() - ms;
+/** The server caps attachments per message here (422 above it). */
+export const MAX_MESSAGE_IMAGES = 5;
 
-let seq = 0;
-const msg = (
-  senderId: string,
-  body: string,
-  sentAt: number,
-  extra: Partial<ChatMessage> = {},
-): ChatMessage => ({ id: `dm${++seq}`, senderId, body, sentAt, ...extra });
-
-const [prosper, deborah, utu, kehinde, champion, timothy] = members;
-
-export const seedConversations: Conversation[] = [
-  {
-    id: 'c1',
-    member: prosper!,
-    online: true,
-    unread: 2,
-    messages: [
-      msg(prosper!.id, 'Yo! That post about payouts did numbers 🔥', ago(3 * HOUR)),
-      msg(SELF_ID, 'Thanks man. 4k views before lunch, I was shocked', ago(3 * HOUR - 4 * MINUTE), {
-        status: 'read',
-      }),
-      msg(prosper!.id, 'What time did you post it?', ago(26 * MINUTE)),
-      msg(prosper!.id, 'Trying to figure out the best slot for mine', ago(24 * MINUTE)),
-    ],
-  },
-  {
-    id: 'c2',
-    member: deborah!,
-    online: true,
-    unread: 0,
-    messages: [
-      msg(deborah!.id, 'Did you see the new Rolls tab?', ago(DAY + 2 * HOUR)),
-      msg(SELF_ID, 'Yeah, I have been posting there all week', ago(DAY + HOUR), { status: 'read' }),
-      msg(deborah!.id, 'Sending you the thumbnail I made', ago(5 * HOUR)),
-      msg(deborah!.id, '', ago(5 * HOUR - MINUTE), { imageUri: sampleImage('dm-thumb', 900, 1200) }),
-      msg(SELF_ID, 'This is clean 👏 use the violet one', ago(4 * HOUR), { status: 'read' }),
-    ],
-  },
-  {
-    id: 'c3',
-    member: utu!,
-    online: false,
-    lastActive: 'Active 2h ago',
-    unread: 1,
-    messages: [
-      msg(SELF_ID, 'Bro, are you joining the creators community?', ago(2 * DAY), { status: 'read' }),
-      msg(utu!.id, 'Send the invite link, I will join tonight', ago(2 * HOUR)),
-    ],
-  },
-  {
-    id: 'c4',
-    member: kehinde!,
-    online: false,
-    lastActive: 'Active yesterday',
-    unread: 0,
-    messages: [
-      msg(kehinde!.id, 'Congrats on hitting Creator level 🎉', ago(3 * DAY)),
-      msg(SELF_ID, 'Appreciate you 🙏', ago(3 * DAY - 20 * MINUTE), { status: 'read' }),
-    ],
-  },
-  {
-    id: 'c5',
-    member: champion!,
-    online: false,
-    lastActive: 'Active 3d ago',
-    unread: 0,
-    messages: [
-      msg(champion!.id, 'Can you review my referral copy before I post?', ago(5 * DAY)),
-      msg(SELF_ID, 'Drop it here whenever', ago(5 * DAY - 30 * MINUTE), { status: 'sent' }),
-    ],
-  },
-  {
-    id: 'c6',
-    member: timothy!,
-    online: false,
-    lastActive: 'Active last week',
-    unread: 0,
-    messages: [msg(timothy!.id, 'Thanks for the follow!', ago(8 * DAY))],
-  },
-];
-
-/** People you can start a new thread with — everyone you aren't already in one with. */
-export function membersWithoutConversation(conversations: Conversation[]): Member[] {
-  const taken = new Set(conversations.map((c) => c.member.id));
-  return members.filter((m) => !taken.has(m.id));
-}
-
-/** The message a conversation row previews, or undefined for an empty thread. */
-export function lastMessage(conversation: Conversation): ChatMessage | undefined {
-  return conversation.messages[conversation.messages.length - 1];
-}
-
-/** When a thread last moved — its newest message, or when it was started. */
+/** When a thread last moved — its newest message. An empty one sorts by 0. */
 function activityAt(conversation: Conversation): number {
-  return lastMessage(conversation)?.sentAt ?? conversation.startedAt ?? 0;
+  return conversation.last?.sentAt ?? 0;
 }
 
 /**
- * Newest thread first, which is how the web orders the list — except that
- * pinned threads are hoisted above the rest.
+ * Newest thread first, except that pinned threads are hoisted above the rest.
  *
- * Pinning is ordering, so it belongs in the comparator rather than in a
- * second list the screens would have to concatenate: a pinned thread that
- * receives a message still moves to the top *of the pinned group*, which is
- * what someone who pinned it expects, and unpinning drops it straight back to
- * wherever its age puts it.
+ * Pinning is ordering, so it belongs in the comparator rather than in a second
+ * list the screens would have to concatenate: a pinned thread that receives a
+ * message still moves to the top *of the pinned group*, and unpinning drops it
+ * straight back to wherever its age puts it.
+ *
+ * A thread you just opened (no messages yet) has no age at all, so it sorts to
+ * the bottom of its group — it's hoisted by the list only once something is
+ * said in it, which is also when it becomes worth finding again.
  */
 export function byRecency(a: Conversation, b: Conversation): number {
-  if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+  if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
   return activityAt(b) - activityAt(a);
+}
+
+/** What a conversation row prints under the name. */
+export function previewText(preview: ConversationPreview | null): string {
+  if (!preview) return 'Say hello 👋';
+  if (preview.body) return preview.body;
+  return preview.hasImage ? 'Photo' : '';
 }

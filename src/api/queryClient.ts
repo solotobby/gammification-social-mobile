@@ -20,6 +20,10 @@ const MAX_AGE = 24 * 60 * 60 * 1000;
  *   just accumulate keys in storage.
  * - `post-analytics` — money that changes server-side; a stale snapshot of
  *   someone's earnings is worse than a spinner.
+ *
+ * `conversations` (the list + the tab badge) and `conversation` (each thread)
+ * are in, so Messages opens on a cold start with no connection. Unsent
+ * messages are persisted separately, in `outboxStore`.
  */
 const PERSISTED_KEYS = new Set([
   'feed',
@@ -41,6 +45,8 @@ const PERSISTED_KEYS = new Set([
   'trending-members',
   'currencies',
   'channels',
+  'conversations',
+  'conversation',
 ]);
 
 export const queryClient = new QueryClient({
@@ -86,8 +92,14 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
      * already shows as correct — and in an app that pays for engagement, a
      * silently double-toggled like is worse than one lost while offline.
      * Within a session they still pause and resume normally.
+     *
+     * A conversation's pin/mute *does* survive, despite riding on toggle
+     * endpoints too: `setConversationFlag` carries the state it wants and
+     * toggles again if it lands on the other one, so a replay can't flip it.
      */
     shouldDehydrateMutation: (mutation) =>
-      mutation.state.isPaused && mutation.options.mutationKey?.[0] === 'addComment',
+      mutation.state.isPaused &&
+      (mutation.options.mutationKey?.[0] === 'addComment' ||
+        mutation.options.mutationKey?.[0] === 'conversation-flag'),
   },
 };

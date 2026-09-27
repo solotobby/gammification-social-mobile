@@ -69,7 +69,7 @@ export const onboardingSlides: OnboardingSlide[] = [
       { text: '\nthan likes?' },
     ],
     description:
-      'Post your vibes. Share your thoughts. Drop your videos. Then watch what happens when people start engaging.',
+      'Post your vibes. Share your thoughts and earn gifts without going LIVE or gather large followers',
     highlights: [
       { icon: 'heart', label: 'Likes', tone: 'pink' },
       { icon: 'chatbubble', label: 'Comments', tone: 'brand' },
@@ -86,7 +86,7 @@ export const onboardingSlides: OnboardingSlide[] = [
       { text: 'Get rewarded.', accent: true },
     ],
     description:
-      'Share posts, videos, facts and quizzes — and unlock opportunities to earn from eligible engagement, viral content and referrals.',
+      'Monetization of your content just got easier. Your first post in a next one minute get monetized whether you have one follower or one thousand.',
     highlights: [
       { icon: 'flame', label: 'Viral content', tone: 'pink' },
       { icon: 'stats-chart', label: 'Engagement', tone: 'mint' },
@@ -100,7 +100,7 @@ export const onboardingSlides: OnboardingSlide[] = [
     overline: "Oh… and there's Koin",
     title: [{ text: 'Meet Payhankey\n' }, { text: 'Koin.', accent: true }],
     description:
-      'Earn, collect and spend Koin as you explore Payhankey. The more you participate, the more it unlocks.',
+      'You can receive gifts from friends and other Payhankers from any post. Your premium content can be posted on your paid communities for you to earn from subscriptions.',
     highlights: [
       { icon: 'sparkles', label: 'Earn Koin', tone: 'gold' },
       { icon: 'lock-open', label: 'Unlock more', tone: 'brand' },

@@ -13,9 +13,11 @@ import {
 import { persister } from '../api/queryClient';
 import type { LoginPayload, MeData, VerifyOtpPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
+import { useBlockedStore } from '../stores/blockedStore';
 import { useEngagementStore } from '../stores/engagementStore';
 import { useFollowStore } from '../stores/followStore';
 import { useHiddenStore } from '../stores/hiddenStore';
+import { useOutboxStore } from '../stores/outboxStore';
 import { useViewedStore } from '../stores/viewedStore';
 
 /**
@@ -125,6 +127,10 @@ export function useLogout() {
     useFollowStore.getState().reset();
     useHiddenStore.getState().reset();
     useViewedStore.getState().reset();
+    // Unsent messages and remembered blocks belong to the account that made
+    // them — the next person to sign in must not send the previous one's queue.
+    useOutboxStore.getState().reset();
+    useBlockedStore.getState().reset();
     await persister.removeClient();
   };
 }

@@ -5,7 +5,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useMessagesStore } from '../../stores/messagesStore';
+import { useMessagesUnreadCount } from '../../hooks/useMessages';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 
@@ -66,11 +66,9 @@ export function TabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // Dummy for now — src/data/messages.ts. Reads the same way once the badge
-  // comes from a real unread-count endpoint.
-  const unread = useMessagesStore((s) =>
-    s.conversations.reduce((sum, c) => sum + c.unread, 0),
-  );
+  // GET /conversations/unread-count — polled, and also refreshed by every
+  // read of the conversation list, so opening Messages settles it at once.
+  const unread = useMessagesUnreadCount().data ?? 0;
 
   // Looked up by name rather than position, so adding or reordering a
   // Tabs.Screen in the layout can't silently point a tab at the wrong route.

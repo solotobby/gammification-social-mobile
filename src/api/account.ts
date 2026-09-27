@@ -147,6 +147,12 @@ export type AccountTransaction = {
   amount: number;
   date: string;
   kind: 'payout' | 'referral' | 'other';
+  /**
+   * Money coming in. Payouts and referral bonuses are; a level-upgrade
+   * checkout (`subscription_upgrade`, the rows the test accounts actually
+   * have) is money going out, and must not render with a "+".
+   */
+  credit: boolean;
   status: string;
 };
 
@@ -172,16 +178,21 @@ export async function fetchTransactions(): Promise<AccountTransaction[]> {
   const { data } = await api.get<TransactionsResponse>('/user/transactions');
   const rows = data.data?.data ?? [];
 
-  return rows.map((row, index): AccountTransaction => ({
-    id: row.id ?? row.ref ?? row.reference ?? `tx-${index}`,
-    // Live rows call it `ref`; `reference` is the checkout response's name.
-    reference: row.ref ?? row.reference ?? '',
-    description: row.description ?? row.narration ?? row.title ?? 'Transaction',
-    amount: num(row.amount),
-    date: formatDate(row.created_at ?? row.date),
-    kind: kindOf(row.type ?? row.kind),
-    status: row.status ?? '',
-  }));
+  return rows.map((row, index): AccountTransaction => {
+    const type = row.type ?? row.kind;
+    const kind = kindOf(type);
+    return {
+      id: row.id ?? row.ref ?? row.reference ?? `tx-${index}`,
+      // Live rows call it `ref`; `reference` is the checkout response's name.
+      reference: row.ref ?? row.reference ?? '',
+      description: row.description ?? row.narration ?? row.title ?? 'Transaction',
+      amount: num(row.amount),
+      date: formatDate(row.created_at ?? row.date),
+      kind,
+      credit: kind !== 'other' || /credit|earn|bonus|gift/i.test(type ?? ''),
+      status: row.status ?? '',
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------

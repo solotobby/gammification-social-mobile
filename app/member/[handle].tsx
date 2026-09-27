@@ -22,9 +22,11 @@ import { GhostButton } from "../../src/components/ui/GhostButton";
 import { ScreenBackground } from "../../src/components/ui/ScreenBackground";
 import { type Post } from "../../src/data/community";
 import { useBoostRate } from "../../src/hooks/useBoost";
+import { useOpenConversation, useUnblockMessaging } from "../../src/hooks/useMessages";
 import { useKeyboardFocusScroll } from "../../src/hooks/useKeyboard";
 import { useProfile, useToggleFollow } from "../../src/hooks/useUser";
 import { useAuthStore } from "../../src/stores/authStore";
+import { useBlockedStore } from "../../src/stores/blockedStore";
 import { useFeedbackStore } from "../../src/stores/feedbackStore";
 import { useFollowStore } from "../../src/stores/followStore";
 import { useTheme } from "../../src/theme/ThemeProvider";
@@ -33,8 +35,14 @@ import { FONT } from '../../src/theme/fonts';
 /**
  * Member profile — GET /user/profile/{username}: cover, identity + stats, then
  * that member's posts (infinite). One screen serves both the logged-in user
- * (Edit Profile + referral link) and everyone else (Follow/Following). The
+ * (Edit Profile + referral link) and everyone else (Message + Follow). The
  * "me" handle resolves to the signed-in user's username.
+ *
+ * **Message** is the main way into a conversation: it opens the existing
+ * thread straight from cache (offline too), or opens-or-creates one with
+ * `POST /conversations/direct`. Someone you've blocked from this device shows
+ * **Unblock** in its place — the API can't list blocks, so that's the only way
+ * back to them (see `blockedStore`).
  */
 export default function MemberProfileScreen() {
   const { colors, radius, spacing } = useTheme();
@@ -73,6 +81,10 @@ export default function MemberProfileScreen() {
   // first post — it's an account-level figure, not a per-post one — and only on
   // your own profile, where the strip is rendered at all.
   const boostRate = useBoostRate(posts[0]?.id, isMe && posts.length > 0);
+
+  const { open: openConversation, openingFor } = useOpenConversation();
+  const unblock = useUnblockMessaging();
+  const blocked = useBlockedStore((s) => (member ? !!s.blocked[member.id] : false));
 
   const toggleFollow = useToggleFollow();
   const [followOverride, setFollowOverride] = useState<boolean | null>(null);
@@ -123,7 +135,10 @@ export default function MemberProfileScreen() {
     );
   }
 
-  if (!username || profileQuery.isError || !member) {
+  // A failed *background* refetch keeps the profile already on screen — the
+  // endpoint is slow enough to time out now and then, and swapping a loaded
+  // profile for an error would take its Message and Follow buttons with it.
+  if (!username || !member) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <ScreenBackground />
@@ -188,33 +203,79 @@ export default function MemberProfileScreen() {
                 <Text style={[styles.actionText, { color: colors.text }]}>Edit Profile</Text>
               </Pressable>
             ) : (
-              <Pressable
-                onPress={onFollow}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  following ? `Unfollow ${member.name}` : `Follow ${member.name}`
-                }
-                style={[
-                  styles.actionBtn,
-                  following
-                    ? { backgroundColor: colors.surfaceAlt, borderColor: colors.border }
-                    : { backgroundColor: colors.brand, borderColor: colors.brand },
-                ]}
-              >
-                <Ionicons
-                  name={following ? "checkmark" : "person-add-outline"}
-                  size={15}
-                  color={following ? colors.textSecondary : colors.onBrand}
-                />
-                <Text
+              <View style={styles.actions}>
+                {blocked ? (
+                  <Pressable
+                    onPress={() =>
+                      unblock.mutate(member, {
+                        onSuccess: () =>
+                          showToast(`Unblocked ${member.name} — you can message them again.`, "success"),
+                        onError: () =>
+                          showToast("Couldn't unblock — check your connection and try again.", "error"),
+                      })
+                    }
+                    disabled={unblock.isPending}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Unblock ${member.name}`}
+                    style={[
+                      styles.actionBtn,
+                      { backgroundColor: colors.surfaceAlt, borderColor: colors.danger },
+                    ]}
+                  >
+                    {unblock.isPending ? (
+                      <ActivityIndicator size="small" color={colors.danger} />
+                    ) : (
+                      <Ionicons name="ban-outline" size={15} color={colors.danger} />
+                    )}
+                    <Text style={[styles.actionText, { color: colors.danger }]}>Unblock</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={() => void openConversation(member)}
+                    disabled={!!openingFor}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Message ${member.name}`}
+                    style={[
+                      styles.actionBtn,
+                      { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+                    ]}
+                  >
+                    {openingFor === member.id ? (
+                      <ActivityIndicator size="small" color={colors.text} />
+                    ) : (
+                      <Ionicons name="chatbubble-ellipses-outline" size={15} color={colors.text} />
+                    )}
+                    <Text style={[styles.actionText, { color: colors.text }]}>Message</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={onFollow}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    following ? `Unfollow ${member.name}` : `Follow ${member.name}`
+                  }
                   style={[
-                    styles.actionText,
-                    { color: following ? colors.textSecondary : colors.onBrand },
+                    styles.actionBtn,
+                    following
+                      ? { backgroundColor: colors.surfaceAlt, borderColor: colors.border }
+                      : { backgroundColor: colors.brand, borderColor: colors.brand },
                   ]}
                 >
-                  {following ? "Following" : "Follow"}
-                </Text>
-              </Pressable>
+                  <Ionicons
+                    name={following ? "checkmark" : "person-add-outline"}
+                    size={15}
+                    color={following ? colors.textSecondary : colors.onBrand}
+                  />
+                  <Text
+                    style={[
+                      styles.actionText,
+                      { color: following ? colors.textSecondary : colors.onBrand },
+                    ]}
+                  >
+                    {following ? "Following" : "Follow"}
+                  </Text>
+                </Pressable>
+              </View>
             )}
           </View>
 
@@ -357,6 +418,7 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderRadius: 42,
   },
+  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",

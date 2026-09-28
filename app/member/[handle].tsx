@@ -120,6 +120,20 @@ export default function MemberProfileScreen() {
     });
   };
 
+  // `/user/profile/{username}` can take close to a minute on the backend (see
+  // SLOW_READ_TIMEOUT). A bare spinner for that long reads as broken, so say so
+  // once the wait is clearly not a normal one.
+  const [slowLoad, setSlowLoad] = useState(false);
+  const firstLoad = profileQuery.isLoading;
+  useEffect(() => {
+    if (!firstLoad) {
+      setSlowLoad(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlowLoad(true), 6_000);
+    return () => clearTimeout(timer);
+  }, [firstLoad]);
+
   const loadMore = useCallback(() => {
     if (profileQuery.hasNextPage && !profileQuery.isFetchingNextPage) {
       void profileQuery.fetchNextPage();
@@ -129,9 +143,20 @@ export default function MemberProfileScreen() {
   // First load (no header yet) or an unknown member: dedicated states.
   if (profileQuery.isLoading) {
     return (
-      <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
         <ScreenBackground />
-        <ActivityIndicator color={colors.brand} />
+        <View style={[styles.missing, { paddingTop: insets.top + spacing.xl }]}>
+          <BackButton onPress={() => router.back()} />
+        </View>
+        <View style={[styles.center, styles.loadingBody]}>
+          <ActivityIndicator color={colors.brand} />
+          {slowLoad ? (
+            <Text style={[styles.slowText, { color: colors.textMuted }]}>
+              Profiles are slow to load right now. Hang on — this can take up to a
+              minute.
+            </Text>
+          ) : null}
+        </View>
       </View>
     );
   }
@@ -390,6 +415,16 @@ export default function MemberProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingBody: { flex: 1, paddingHorizontal: 32, paddingBottom: 80 },
+  slowText: {
+    fontFamily: FONT,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "500",
+    textAlign: "center",
+    maxWidth: 260,
+    marginTop: 14,
+  },
   root: { flex: 1 },
   gutter: { paddingHorizontal: FEED_GUTTER },
   center: { alignItems: "center", justifyContent: "center" },

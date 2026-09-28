@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 
 import {
@@ -8,6 +9,8 @@ import {
   toggleFollow,
 } from '../api/user';
 import { useAuthStore } from '../stores/authStore';
+import { useLevelStore } from '../stores/levelStore';
+import { toUserLevel } from '../api/levels';
 
 /** GET /user/currency/list — cached long; the option list rarely changes. */
 export function useCurrencies() {
@@ -34,7 +37,7 @@ export function useChannels() {
  */
 export function useProfile(username: string | undefined) {
   const token = useAuthStore((s) => s.token);
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: ['profile', username],
     queryFn: ({ pageParam }) => fetchProfile(username!, pageParam),
     initialPageParam: 1,
@@ -42,6 +45,15 @@ export function useProfile(username: string | undefined) {
       last.data.next_page_url ? last.data.current_page + 1 : undefined,
     enabled: !!username && !!token,
   });
+  // One of only two endpoints that report a level — remember it for this
+  // member's posts, comments and DMs elsewhere. See levelStore.
+  const first = query.data?.pages[0];
+  const userId = first?.profile.id;
+  const level = toUserLevel(first?.level);
+  useEffect(() => {
+    if (userId) useLevelStore.getState().setLevel(userId, level);
+  }, [userId, level]);
+  return query;
 }
 
 /**

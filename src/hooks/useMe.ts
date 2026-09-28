@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 import { fetchMe } from '../api/auth';
+import { toUserLevel } from '../api/levels';
 import { tintFor } from '../api/timeline';
 import type { MemberTint } from '../data/community';
 import { useAuthStore } from '../stores/authStore';
+import { useLevelStore } from '../stores/levelStore';
 
 /**
  * The signed-in user's profile (GET /user/me) — name, username, referral code,
@@ -12,11 +15,19 @@ import { useAuthStore } from '../stores/authStore';
  */
 export function useMe() {
   const token = useAuthStore((s) => s.token);
-  return useQuery({
+  const query = useQuery({
     queryKey: ['me'],
     queryFn: () => fetchMe(),
     enabled: !!token,
   });
+  // Your own level is the one every screen can know — remember it so your
+  // badge and ring show wherever you appear. See levelStore.
+  const userId = query.data?.user.id;
+  const level = toUserLevel(query.data?.level);
+  useEffect(() => {
+    if (userId) useLevelStore.getState().setLevel(userId, level);
+  }, [userId, level]);
+  return query;
 }
 
 /** Public base for a share link; the code is appended as a path segment. */

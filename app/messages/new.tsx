@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { tintFor } from '../../src/api/timeline';
 import { Avatar } from '../../src/components/ui/Avatar';
+import { LevelBadge } from '../../src/components/ui/LevelBadge';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { TextField } from '../../src/components/ui/TextField';
 import type { Member } from '../../src/data/community';
@@ -202,10 +203,10 @@ export default function NewMessageScreen() {
                 },
               ]}
             >
-              <Avatar name={member.name} tint={member.tint} uri={member.avatar} size={44} />
+              <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={44} />
               <View style={styles.rowText}>
                 <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-                  {member.name}
+                  {member.name}{' '}<LevelBadge userId={member.id} level={member.level} size={14} />
                 </Text>
                 <Text style={[styles.handle, { color: colors.textMuted }]} numberOfLines={1}>
                   @{member.handle}

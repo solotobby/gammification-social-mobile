@@ -28,6 +28,7 @@ import { joinActionFor } from '../../src/components/community/communityMeta';
 import { ShareSheet } from '../../src/components/community/ShareSheet';
 import { ProfileCover } from '../../src/components/profile/ProfileCover';
 import { Avatar } from '../../src/components/ui/Avatar';
+import { LevelBadge } from '../../src/components/ui/LevelBadge';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { CopyField } from '../../src/components/ui/CopyField';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
@@ -614,10 +615,10 @@ export default function CommunityScreen() {
                   },
                 ]}
               >
-                <Avatar name={community.owner.name} tint={community.owner.tint} size={40} />
+                <Avatar userId={community.owner.id} level={community.owner.level} name={community.owner.name} tint={community.owner.tint} size={40} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.ownerName, { color: colors.text }]}>
-                    {community.owner.name}
+                    {community.owner.name}{' '}<LevelBadge userId={community.owner.id} level={community.owner.level} size={14} />
                   </Text>
                   <Text style={[styles.ownerHandle, { color: colors.textMuted }]}>
                     @{community.owner.handle}
@@ -665,6 +666,7 @@ export default function CommunityScreen() {
                       ]}
                     >
                       <Avatar
+                        userId={request.user.id}
                         name={request.user.name || request.user.username}
                         tint={toMember(request.user).tint}
                         size={38}

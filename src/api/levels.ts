@@ -144,3 +144,28 @@ export async function fetchCheckoutOutcome(
   }
   return 'pending';
 }
+
+// ---------------------------------------------------------------------------
+// A user's level, as other endpoints report it
+// ---------------------------------------------------------------------------
+
+/** The three account levels, lowercased — the app's own spelling. */
+export type UserLevel = 'basic' | 'creator' | 'influencer';
+
+/**
+ * Read a level off any user payload. `/user/me` sends the name capitalized
+ * ("Basic" | "Creator" | "Influencer"), and a user object may carry it as a
+ * plain string or as the level record (`{name}`), so both are accepted and
+ * anything unrecognised is `undefined` — which renders exactly like Basic: no
+ * mark, no ring. A badge must never be guessed.
+ */
+export function toUserLevel(raw: unknown): UserLevel | undefined {
+  const name =
+    typeof raw === 'string'
+      ? raw
+      : raw && typeof raw === 'object' && 'name' in raw && typeof raw.name === 'string'
+        ? raw.name
+        : undefined;
+  const value = name?.trim().toLowerCase();
+  return value === 'basic' || value === 'creator' || value === 'influencer' ? value : undefined;
+}

@@ -11,19 +11,21 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { toPost } from '../../src/api/timeline';
+import { toPost, uniqueById } from '../../src/api/timeline';
 import { FEED_GUTTER, PostCard } from '../../src/components/feed/PostCard';
 import { HomeHeader } from '../../src/components/home/HomeHeader';
 import { type FeedTab } from '../../src/components/home/FeedTabs';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
+import { useBoostRate } from '../../src/hooks/useBoost';
 import { useSeedFollowing } from '../../src/hooks/useConnections';
 import { useMe } from '../../src/hooks/useMe';
 import { usePostViewTracker } from '../../src/hooks/usePostViewTracker';
 import { usePushRegistration } from '../../src/hooks/usePushRegistration';
 import { useFeed } from '../../src/hooks/useTimeline';
 import { useKeyboardFocusScroll } from '../../src/hooks/useKeyboard';
+import { useAuthStore } from '../../src/stores/authStore';
 import { useFollowStore } from '../../src/stores/followStore';
 import { useHiddenStore } from '../../src/stores/hiddenStore';
 import { type Post } from '../../src/data/community';
@@ -60,7 +62,8 @@ export default function HomeScreen() {
   const hiddenIds = useHiddenStore((s) => s.ids);
   const allPosts = useMemo(
     () =>
-      (feed.data?.pages.flatMap((page) => page.data.map(toPost)) ?? []).filter(
+      // The feed is randomised, so pages overlap — see uniqueById.
+      uniqueById(feed.data?.pages.flatMap((page) => page.data.map(toPost)) ?? []).filter(
         (post) => !hiddenIds.includes(post.id),
       ),
     [feed.data, hiddenIds],
@@ -121,6 +124,17 @@ export default function HomeScreen() {
 
   const openPost = useCallback((post: Post) => router.push(`/post/${post.id}`), [router]);
 
+  // Your own posts carry the Boost / Manage strip here too, the same one your
+  // profile shows. The coins-per-click rate on it is account-level, so one
+  // config read against any post of yours covers every card — and none fires
+  // until one of your posts is actually in the feed.
+  const myUserId = useAuthStore((s) => s.user?.id);
+  const firstOwnPostId = useMemo(
+    () => (myUserId ? allPosts.find((post) => post.ownerId === myUserId)?.id : undefined),
+    [allPosts, myUserId],
+  );
+  const boostRate = useBoostRate(firstOwnPostId, !!firstOwnPostId);
+
   // Posts count as viewed once they've actually been on screen — see
   // usePostViewTracker. Silent: nothing renders, nothing can fail loudly.
   const viewTracker = usePostViewTracker();
@@ -131,7 +145,10 @@ export default function HomeScreen() {
       <FlatList
         data={posts}
         keyExtractor={(post) => post.id}
-        renderItem={({ item }) => <PostCard post={item} onOpen={openPost} />}
+        renderItem={({ item }) => (
+          // PostCard ignores the strip on anyone else's post.
+          <PostCard post={item} onOpen={openPost} showBoostStrip boostRatePerClick={boostRate} />
+        )}
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.6}

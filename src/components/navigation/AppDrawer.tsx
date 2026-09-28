@@ -24,6 +24,7 @@ import { useDrawerStore } from '../../stores/drawerStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 import { Avatar } from '../ui/Avatar';
+import { LevelBadge } from '../ui/LevelBadge';
 
 /**
  * How wide the panel is: most of the screen, but never the whole of it — the
@@ -85,9 +86,15 @@ const SECTIONS: { title: string; items: DrawerItem[] }[] = [
         route: '/bank-info',
       },
       {
+        icon: 'cash-outline',
+        label: 'Payout history',
+        sub: 'Withdrawals & their status',
+        route: '/payouts',
+      },
+      {
         icon: 'swap-horizontal-outline',
         label: 'Transactions',
-        sub: 'Payout & earning history',
+        sub: 'Every debit & credit',
         route: '/transactions',
       },
     ],
@@ -372,10 +379,10 @@ function DrawerContents() {
         ]}
       >
         <View style={styles.identityHead}>
-          <Avatar name={displayName} tint={myTint} uri={myAvatar} size={52} />
+          <Avatar userId={me?.user.id ?? sessionUser?.id} name={displayName} tint={myTint} uri={myAvatar} size={52} />
           <View style={styles.identityText}>
             <Text style={[styles.identityName, { color: colors.text }]} numberOfLines={1}>
-              {displayName}
+              {displayName} <LevelBadge userId={me?.user.id ?? sessionUser?.id} size={16} />
             </Text>
             <Text style={[styles.identityHandle, { color: colors.textMuted }]} numberOfLines={1}>
               @{displayUsername}

@@ -6,6 +6,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CommunityMember, MemberAction } from '../../api/communities';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
+import { LevelBadge } from '../ui/LevelBadge';
 import { FONT } from '../../theme/fonts';
 
 /** What a moderator can do to this row, given who they are and who it is. */
@@ -78,10 +79,10 @@ export function CommunityMemberRow({
         accessibilityLabel={`Open ${row.member.name}'s profile`}
         style={styles.identity}
       >
-        <Avatar name={row.member.name} tint={row.member.tint} uri={row.member.avatar} size={40} />
+        <Avatar userId={row.member.id} level={row.member.level} name={row.member.name} tint={row.member.tint} uri={row.member.avatar} size={40} />
         <View style={styles.identityText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {row.member.name}
+            {row.member.name}{' '}<LevelBadge userId={row.member.id} level={row.member.level} size={14} />
           </Text>
           <Text style={[styles.handle, { color: colors.textMuted }]} numberOfLines={1}>
             @{row.member.handle}
@@ -134,7 +135,7 @@ export function CommunityMemberRow({
               { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg },
             ]}
           >
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>{row.member.name}</Text>
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>{row.member.name}{' '}<LevelBadge userId={row.member.id} level={row.member.level} size={16} /></Text>
             <Text style={[styles.sheetHandle, { color: colors.textMuted }]}>
               @{row.member.handle}
             </Text>

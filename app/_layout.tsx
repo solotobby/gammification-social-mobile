@@ -10,6 +10,7 @@ import { persistOptions, queryClient } from '../src/api/queryClient';
 import { ErrorModalHost } from '../src/components/feedback/ErrorModal';
 import { OfflineBanner } from '../src/components/feedback/OfflineBanner';
 import { ToastHost } from '../src/components/feedback/Toast';
+import { GiftSplashHost } from '../src/components/gifts/GiftSplash';
 import { PaymentSheet } from '../src/components/payments/PaymentSheet';
 import { registerMessagingMutationDefaults, useMessagingSync } from '../src/hooks/useMessages';
 import { registerMutationDefaults } from '../src/hooks/useTimeline';
@@ -108,6 +109,9 @@ function ThemedStack() {
       {/* Checkout runs above every screen: a payment must not be cancelled by
           navigating, and only one can ever be in flight. */}
       <PaymentSheet />
+      {/* After a gift is sent — above every screen, since the gift sheet is a
+          Modal that closes as the celebration starts. */}
+      <GiftSplashHost />
       <ToastHost />
       <ErrorModalHost />
     </>

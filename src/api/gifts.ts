@@ -1,5 +1,5 @@
 import { api } from './client';
-import { timeAgo, tintFor } from './timeline';
+import { giftSenderOf, timeAgo, tintFor } from './timeline';
 import type {
   ApiEnvelope,
   ApiGiftArtifact,
@@ -72,13 +72,13 @@ export type PostGift = {
 };
 
 /**
- * Normalize a gift row. The shape is **inference** beyond `artifact_id` — no
- * post on staging has received one yet, so the sender is read from either
- * `sender` or `user`, and the count from either `quantity` or `count`. Narrow
- * this once real gifts exist.
+ * Normalize a gift row. `recent[]` sends the sender as a bare username string
+ * (verified live 2026-09-28), so there is no id or display name to show — the
+ * handle stands in for both.
  */
 export function toPostGift(raw: ApiPostGift, index: number): PostGift {
-  const sender = raw.sender ?? raw.user ?? null;
+  const handle = giftSenderOf(raw);
+  const senderObject = typeof raw.sender === 'object' ? raw.sender : (raw.user ?? null);
   return {
     id: raw.id ?? `${raw.artifact_id ?? 'gift'}-${index}`,
     artifactId: raw.artifact_id ?? raw.id ?? '',
@@ -86,12 +86,12 @@ export function toPostGift(raw: ApiPostGift, index: number): PostGift {
     emoji: raw.emoji ?? '🎁',
     price: typeof raw.price === 'number' ? raw.price : null,
     quantity: raw.quantity ?? raw.count ?? 1,
-    sender: sender
+    sender: handle
       ? {
-          id: sender.id,
-          name: sender.name,
-          handle: sender.username,
-          tint: tintFor(sender.id),
+          id: senderObject?.id ?? handle,
+          name: senderObject?.name ?? handle,
+          handle,
+          tint: tintFor(senderObject?.id ?? handle),
         }
       : undefined,
     timeAgo: raw.created_at ? timeAgo(raw.created_at) : '',

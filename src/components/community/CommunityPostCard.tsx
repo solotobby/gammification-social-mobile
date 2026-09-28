@@ -10,6 +10,7 @@ import {
 } from '../../hooks/useCommunities';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
+import { LevelBadge } from '../ui/LevelBadge';
 import { HashtagText } from '../ui/HashtagText';
 import { ShareSheet } from './ShareSheet';
 import { FONT } from '../../theme/fonts';
@@ -96,10 +97,10 @@ export function CommunityPostCard({
       ]}
     >
       <View style={styles.headerRow}>
-        <Avatar name={post.author.name} tint={post.author.tint} uri={post.author.avatar} size={38} />
+        <Avatar userId={post.author.id} level={post.author.level} name={post.author.name} tint={post.author.tint} uri={post.author.avatar} size={38} />
         <View style={styles.headerText}>
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {post.author.name}
+            {post.author.name}{' '}<LevelBadge userId={post.author.id} level={post.author.level} size={14} />
           </Text>
           <Text style={[styles.meta, { color: colors.textMuted }]} numberOfLines={1}>
             @{post.author.handle} · {post.timeAgo}
@@ -198,10 +199,10 @@ export function CommunityPostCard({
         <View style={[styles.previewWrap, { borderTopColor: colors.border }]}>
           {post.commentsPreview.slice(0, 2).map((comment) => (
             <View key={comment.id} style={styles.previewRow}>
-              <Avatar name={comment.author.name} tint={comment.author.tint} uri={comment.author.avatar} size={22} />
+              <Avatar userId={comment.author.id} level={comment.author.level} name={comment.author.name} tint={comment.author.tint} uri={comment.author.avatar} size={22} />
               <Text style={[styles.previewText, { color: colors.textSecondary }]} numberOfLines={2}>
                 <Text style={{ fontWeight: '800', color: colors.text }}>
-                  {comment.author.name}
+                  {comment.author.name}{' '}<LevelBadge userId={comment.author.id} level={comment.author.level} size={12} />
                 </Text>{' '}
                 {comment.body}
               </Text>

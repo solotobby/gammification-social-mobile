@@ -32,7 +32,7 @@ export function DrawerAvatarButton({ size = 40 }: { size?: number }) {
 
   return (
     <Pressable onPress={openDrawer} accessibilityRole="button" accessibilityLabel="Open menu">
-      <Avatar name={displayName} tint={tint} uri={uri} size={size} />
+      <Avatar userId={me?.user.id ?? sessionUser?.id} name={displayName} tint={tint} uri={uri} size={size} />
     </Pressable>
   );
 }

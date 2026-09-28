@@ -169,7 +169,7 @@ export default function NotificationsScreen() {
                   corner so the event is still legible at a glance. */}
               {item.actor ? (
                 <View>
-                  <Avatar name={item.actor.name} tint={item.actor.tint} size={38} />
+                  <Avatar userId={item.actor.id} level={item.actor.level} name={item.actor.name} tint={item.actor.tint} size={38} />
                   <View style={[styles.kindBadge, { backgroundColor: meta.tint }]}>
                     <Ionicons name={meta.icon} size={10} color="#FFFFFF" />
                   </View>

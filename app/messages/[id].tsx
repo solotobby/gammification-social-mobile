@@ -29,6 +29,7 @@ import { ConversationMenu } from '../../src/components/messages/ConversationMenu
 import { MessageBubble } from '../../src/components/messages/MessageBubble';
 import { dayLabel } from '../../src/components/messages/time';
 import { Avatar } from '../../src/components/ui/Avatar';
+import { LevelBadge } from '../../src/components/ui/LevelBadge';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import type { MediaItem } from '../../src/data/media';
@@ -322,10 +323,10 @@ export default function ConversationScreen() {
             accessibilityLabel={`View ${member.name}'s profile`}
             style={styles.headerIdentity}
           >
-            <Avatar name={member.name} tint={member.tint} uri={member.avatar} size={40} />
+            <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={40} />
             <View style={styles.headerText}>
               <Text style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>
-                {member.name}
+                {member.name}{' '}<LevelBadge userId={member.id} level={member.level} size={14} />
               </Text>
               <View style={styles.headerSubRow}>
                 {conversation.muted ? (
@@ -416,8 +417,8 @@ export default function ConversationScreen() {
               }
               ListEmptyComponent={
                 <View style={styles.emptyThread}>
-                  <Avatar name={member.name} tint={member.tint} uri={member.avatar} size={72} />
-                  <Text style={[styles.emptyTitle, { color: colors.text }]}>{member.name}</Text>
+                  <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={72} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>{member.name}{' '}<LevelBadge userId={member.id} level={member.level} size={18} /></Text>
                   <Text style={[styles.emptyHandle, { color: colors.textMuted }]}>
                     @{member.handle}
                   </Text>

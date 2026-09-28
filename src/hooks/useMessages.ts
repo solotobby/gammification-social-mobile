@@ -56,7 +56,7 @@ export const MESSAGES_UNREAD_KEY = ['conversations', 'unread-count'] as const;
 export const threadKey = (id: string) => ['conversation', id] as const;
 
 /** The open thread re-reads its newest page this often. */
-const THREAD_POLL_MS = 4_000;
+const THREAD_POLL_MS = 2_000;
 /** The list re-reads while the Messages tab is on screen. */
 const LIST_POLL_MS = 15_000;
 /** The tab badge, app-wide. */

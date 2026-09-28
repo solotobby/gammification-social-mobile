@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GIFT_TIERS, tierLabel } from '../../api/gifts';
 import type { ApiGiftArtifact, GiftPostType } from '../../api/types';
 import { usePostGifts, useGiftCatalog, useSendGift } from '../../hooks/useGifts';
-import { useFeedbackStore } from '../../stores/feedbackStore';
+import { useGiftSplashStore } from '../../stores/giftSplashStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 
@@ -48,7 +48,6 @@ export function GiftSheet({
   const { colors, brand, radius, spacing } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const showToast = useFeedbackStore((s) => s.showToast);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -92,7 +91,18 @@ export function GiftSheet({
       {
         onSuccess: () => {
           close();
-          showToast(`${selected.emoji} ${selected.name} sent to ${recipientName}.`, 'success');
+          // The celebration is the confirmation — no toast on top of it. It
+          // plays from the root layout, since this Modal is closing under it.
+          useGiftSplashStore.getState().play(
+            {
+              id: selected.id,
+              emoji: selected.emoji,
+              name: selected.name,
+              price: selected.price,
+              tier: selected.tier,
+            },
+            recipientName,
+          );
         },
       },
     );

@@ -89,7 +89,7 @@ export function ProfileImagePicker() {
         {avatarUri ? (
           <Image source={{ uri: avatarUri }} style={styles.avatarImage} contentFit="cover" />
         ) : (
-          <Avatar name={me?.user.name ?? 'You'} tint={tint} size={84} />
+          <Avatar userId={me?.user.id} name={me?.user.name ?? 'You'} tint={tint} size={84} />
         )}
         <View style={[styles.avatarBadge, { backgroundColor: colors.brand, borderColor: colors.surface }]}>
           {avatar.isPending ? (

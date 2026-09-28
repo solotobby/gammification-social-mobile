@@ -198,6 +198,7 @@ export default function ComposeScreen() {
           >
             <View style={styles.editorHeader}>
               <Avatar
+                userId={user?.id}
                 name={user?.name ?? 'You'}
                 tint={tintFor(user?.id ?? 'me')}
                 uri={myAvatar}

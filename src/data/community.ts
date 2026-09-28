@@ -1,3 +1,4 @@
+import type { UserLevel } from '../api/levels';
 /**
  * Dummy community/earnings data backing the dashboard screens. No API yet —
  * everything here is static seed content, with a tiny mutable feed store so
@@ -25,6 +26,12 @@ export type Member = {
    * have no photo.
    */
   avatar?: string | null;
+  /**
+   * Account level, when the endpoint sent one. Almost none do yet (only
+   * `/user/me` and `/user/profile/{username}`) — `Avatar` / `LevelBadge` fall
+   * back to levelStore by id, so leave this undefined rather than guessing.
+   */
+  level?: UserLevel;
 };
 
 export type Comment = {
@@ -59,6 +66,8 @@ export type PostGiftBadge = {
   emoji: string;
   name: string;
   quantity: number;
+  /** Usernames of who sent this gift, most recent first, without repeats. */
+  senders: string[];
 };
 
 export type Post = {

@@ -6,7 +6,9 @@ import type { MemberTint } from '../../data/community';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 import { Avatar } from '../ui/Avatar';
+import { LevelBadge } from '../ui/LevelBadge';
 import { HashtagText } from '../ui/HashtagText';
+import type { UserLevel } from '../../api/levels';
 
 /**
  * The shape both comment models already satisfy — the timeline's `Comment` and
@@ -15,7 +17,14 @@ import { HashtagText } from '../ui/HashtagText';
  */
 export type ThreadComment = {
   id: string;
-  author: { id: string; name: string; handle: string; tint: MemberTint; avatar?: string | null };
+  author: {
+    id: string;
+    name: string;
+    handle: string;
+    tint: MemberTint;
+    avatar?: string | null;
+    level?: UserLevel;
+  };
   body: string;
   timeAgo: string;
   replyCount?: number;
@@ -140,6 +149,8 @@ function CommentBody({
   return (
     <View style={styles.row}>
       <Avatar
+        userId={comment.author.id}
+        level={comment.author.level}
         name={comment.author.name}
         tint={comment.author.tint}
         uri={comment.author.avatar}
@@ -151,7 +162,8 @@ function CommentBody({
             style={[styles.name, compact && styles.nameCompact, { color: colors.text }]}
             numberOfLines={1}
           >
-            {comment.author.name}
+            {comment.author.name}{' '}
+            <LevelBadge userId={comment.author.id} level={comment.author.level} size={compact ? 12 : 14} />
           </Text>
           {comment.timeAgo ? (
             <Text style={[styles.time, { color: colors.textMuted }]}>{comment.timeAgo}</Text>

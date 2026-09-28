@@ -189,6 +189,7 @@ export default function PostDetailScreen() {
           ) : null}
           <View style={styles.inputBar}>
           <Avatar
+            userId={user?.id}
             name={user?.name ?? 'You'}
             tint={tintFor(user?.id ?? 'me')}
             uri={myAvatar}

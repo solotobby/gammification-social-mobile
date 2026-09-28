@@ -65,7 +65,7 @@ function MyStoryCard({ latest }: { latest?: StoryItem }) {
         <StoryPreview item={latest} />
       ) : (
         <View style={styles.createBody}>
-          <Avatar name={displayName} tint={myTint} uri={myAvatar} size={52} />
+          <Avatar userId={me?.user.id ?? sessionUser?.id} name={displayName} tint={myTint} uri={myAvatar} size={52} />
         </View>
       )}
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.65)']} style={styles.scrim} />
@@ -108,7 +108,7 @@ function MemberStoryCard({
           { borderColor: seen ? colors.border : brand.violet, backgroundColor: colors.surface },
         ]}
       >
-        <Avatar name={member.name} tint={member.tint} size={30} />
+        <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} size={30} />
       </View>
       <Text style={styles.cardLabel} numberOfLines={2}>
         {member.name.split(' ')[0]}

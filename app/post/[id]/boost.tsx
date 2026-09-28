@@ -10,6 +10,7 @@ import { GradientButton } from '../../../src/components/ui/GradientButton';
 import { KeyboardAwareScreen } from '../../../src/components/ui/KeyboardAwareScreen';
 import { TextField } from '../../../src/components/ui/TextField';
 import { Avatar } from '../../../src/components/ui/Avatar';
+import { LevelBadge } from '../../../src/components/ui/LevelBadge';
 import { useBoostConfig, useStartBoost } from '../../../src/hooks/useBoost';
 import { useCurrency } from '../../../src/hooks/useCurrency';
 import { useMe, useMyAvatar, useMyTint } from '../../../src/hooks/useMe';
@@ -208,7 +209,7 @@ export default function BoostPostScreen() {
         </Text>
         {postBody ? (
           <View style={styles.heroPost}>
-            <Avatar name={myName} tint={myTint} uri={myAvatar} size={26} />
+            <Avatar userId={me?.user.id} name={myName} tint={myTint} uri={myAvatar} size={26} />
             <Text style={styles.heroPostText} numberOfLines={2}>
               {postBody}
             </Text>
@@ -379,11 +380,11 @@ export default function BoostPostScreen() {
         ]}
       >
         <View style={styles.previewHead}>
-          <Avatar name={myName} tint={myTint} uri={myAvatar} size={34} />
+          <Avatar userId={me?.user.id} name={myName} tint={myTint} uri={myAvatar} size={34} />
           <View style={styles.previewWho}>
             <View style={styles.previewNameRow}>
               <Text style={[styles.previewName, { color: colors.text }]} numberOfLines={1}>
-                {myName}
+                {myName} <LevelBadge userId={me?.user.id} size={13} />
               </Text>
               <View style={[styles.sponsoredTag, { backgroundColor: `${colors.gold}22` }]}>
                 <Text style={[styles.sponsoredTagText, { color: colors.gold }]}>Sponsored</Text>

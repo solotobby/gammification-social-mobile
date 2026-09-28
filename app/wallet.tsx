@@ -252,6 +252,8 @@ export default function WalletScreen() {
 
 const styles = StyleSheet.create({
   sectionTitle: { fontFamily: FONT, fontSize: 17, fontWeight: '800' },
+  payoutHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  payoutSeeAll: { fontFamily: FONT, fontSize: 13, fontWeight: '700' },
   payoutTotals: { flexDirection: 'row', gap: 10 },
   payoutTotal: { flex: 1, padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 3 },
   payoutTotalValue: { fontFamily: FONT, fontSize: 18, fontWeight: '800' },
@@ -405,6 +407,7 @@ const styles = StyleSheet.create({
  */
 function PayoutsSection() {
   const { colors, radius, spacing } = useTheme();
+  const router = useRouter();
   const { format } = useCurrency();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = usePayouts();
 
@@ -424,7 +427,12 @@ function PayoutsSection() {
 
   return (
     <View style={{ gap: spacing.md }}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Payouts</Text>
+      <View style={styles.payoutHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Payouts</Text>
+        <Pressable onPress={() => router.push('/payouts')} hitSlop={8} accessibilityRole="button">
+          <Text style={[styles.payoutSeeAll, { color: colors.brand }]}>See all</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.payoutTotals}>
         {[

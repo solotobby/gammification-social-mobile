@@ -18,10 +18,8 @@ import { FONT } from '../../theme/fonts';
  * - **Boosted** — "Boost Active" tag, "Ad running across Payhankey & Partner
  *   Websites", and `Manage →` into the campaign list.
  *
- * Shown only on the author's own posts, and only on surfaces where the author
- * is looking at their own work (the profile and the post screen) — not in the
- * middle of the Home feed, where a promo row under every one of your posts is
- * noise rather than a tool.
+ * Shown only on the author's own posts — on their profile, the post screen and
+ * the Home timeline. `PostCard`'s `showBoostStrip` decides per surface.
  */
 export function PostBoostStrip({
   postId,

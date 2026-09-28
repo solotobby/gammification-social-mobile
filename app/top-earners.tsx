@@ -96,7 +96,7 @@ export default function TopEarnersScreen() {
                   <Text style={[styles.rank, { color: colors.textMuted }]}>{index + 1}</Text>
                 )}
               </View>
-              <Avatar name={entry.member.name} tint={entry.member.tint} size={44} />
+              <Avatar userId={entry.member.id} level={entry.member.level} name={entry.member.name} tint={entry.member.tint} size={44} />
               <View style={styles.rowText}>
                 <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
                   {entry.member.name}

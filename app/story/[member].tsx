@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StoryContent } from '../../src/components/stories/StoryContent';
 import { StoryViewersSheet } from '../../src/components/stories/StoryViewersSheet';
 import { Avatar } from '../../src/components/ui/Avatar';
+import { LevelBadge } from '../../src/components/ui/LevelBadge';
 import { currentUser } from '../../src/data/community';
 import { deleteStory, findStoryGroup, getStoryGroups, markStoriesSeen } from '../../src/data/stories';
 import { FONT } from '../../src/theme/fonts';
@@ -145,10 +146,11 @@ export default function StoryViewerScreen() {
 
       {/* Header */}
       <View style={[styles.header, { top: insets.top + 26 }]}>
-        <Avatar name={group.member.name} tint={group.member.tint} size={38} />
+        <Avatar userId={group.member.id} level={group.member.level} name={group.member.name} tint={group.member.tint} size={38} />
         <View style={styles.headerText}>
           <Text style={styles.headerName} numberOfLines={1}>
-            {isMine ? 'Your story' : group.member.name}
+            {isMine ? 'Your story' : group.member.name}{' '}
+            <LevelBadge userId={group.member.id} level={group.member.level} size={14} />
           </Text>
           <Text style={styles.headerTime}>{item.timeAgo}</Text>
         </View>

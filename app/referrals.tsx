@@ -142,7 +142,7 @@ export default function ReferralsScreen() {
                     },
                   ]}
                 >
-                  <Avatar name={user.name} tint={user.tint} size={44} />
+                  <Avatar userId={user.id} name={user.name} tint={user.tint} size={44} />
                   <View style={styles.userText}>
                     <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
                       {user.name}

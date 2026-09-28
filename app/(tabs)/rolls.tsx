@@ -23,8 +23,10 @@ import {
 } from '../../src/api/rolls';
 import { RollCommentsSheet } from '../../src/components/rolls/RollCommentsSheet';
 import { Avatar } from '../../src/components/ui/Avatar';
+import { LevelBadge } from '../../src/components/ui/LevelBadge';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { useRollsFeed } from '../../src/hooks/useRolls';
+import { uniqueById } from '../../src/api/timeline';
 import { useToggleLike } from '../../src/hooks/useTimeline';
 import { useToggleFollow } from '../../src/hooks/useUser';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -398,8 +400,11 @@ function RollItem({
                 accessibilityLabel={`View ${roll.author.name}'s profile`}
                 style={styles.authorTap}
               >
-                <Avatar name={roll.author.name} tint={roll.author.tint} uri={roll.author.avatar} size={34} />
-                <Text style={styles.authorName}>@{roll.author.handle}</Text>
+                <Avatar userId={roll.author.id} level={roll.author.level} name={roll.author.name} tint={roll.author.tint} uri={roll.author.avatar} size={34} />
+                <Text style={styles.authorName}>
+                  @{roll.author.handle}{' '}
+                  <LevelBadge userId={roll.author.id} level={roll.author.level} size={14} />
+                </Text>
               </Pressable>
               {isMine ? null : (
                 <Pressable
@@ -494,7 +499,8 @@ export default function RollsScreen() {
 
   const feed = useRollsFeed();
   const rolls = useMemo(
-    () => feed.data?.pages.flatMap((page) => page.data.map(toRoll)) ?? [],
+    // `/rolls` is randomised per request, so pages overlap — see uniqueById.
+    () => uniqueById(feed.data?.pages.flatMap((page) => page.data.map(toRoll)) ?? []),
     [feed.data],
   );
 

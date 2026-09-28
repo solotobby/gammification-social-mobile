@@ -23,6 +23,7 @@ import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
 import { useCurrency } from "../../hooks/useCurrency";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
+import { LevelBadge } from "../ui/LevelBadge";
 import { HashtagText } from "../ui/HashtagText";
 import { CommentItem, ReplyingBanner, type ThreadComment } from "./CommentThread";
 import { MediaGrid } from "./MediaGrid";
@@ -49,9 +50,9 @@ type Props = {
    * Show the author-only promotion strip (Boost / Manage + the monetize
    * upgrade line), as the web profile does on your own posts.
    *
-   * Opt-in rather than automatic: on your own profile and post screen it's a
-   * tool, but repeated under every one of your posts in the middle of the Home
-   * feed it's just noise. Ignored on posts that aren't yours.
+   * Opt-in per surface — the profile, the post screen and the Home timeline
+   * pass it; lists that are about someone else's content (a hashtag, your
+   * bookmarks) don't. Ignored on posts that aren't yours.
    */
   showBoostStrip?: boolean;
   /** Coins per click for the strip's rate line — see `useBoostRate`. */
@@ -194,6 +195,48 @@ export function CommentComposer({
 }
 
 /**
+ * "Gifted by @ada, @tunde and 3 others" under a post's gift chips.
+ *
+ * The API names gifters by **username only** (`gifts[].username` — no display
+ * name, no avatar; verified live 2026-09-28), so the handle is what's shown and
+ * each one links to that profile. Plain `<Text onPress>` spans rather than
+ * pressables: this sits inside the tappable post, and nested buttons are
+ * invalid on web (see HashtagText).
+ */
+function GiftedByLine({ gifts }: { gifts: NonNullable<Post['gifts']> }) {
+  const { colors } = useTheme();
+  const router = useRouter();
+  const senders = [...new Set(gifts.flatMap((gift) => gift.senders))];
+  if (!senders.length) return null;
+
+  const shown = senders.slice(0, 2);
+  const others = senders.length - shown.length;
+  const handle = (username: string) => (
+    <Text
+      key={username}
+      suppressHighlighting
+      style={[styles.giftedByName, { color: colors.text }]}
+      onPress={() => router.push(`/member/${encodeURIComponent(username)}`)}
+    >
+      @{username}
+    </Text>
+  );
+
+  return (
+    <Text style={[styles.giftedBy, { color: colors.textSecondary }]} numberOfLines={1}>
+      Gifted by {handle(shown[0])}
+      {shown[1] ? (
+        <>
+          {others > 0 ? ', ' : ' and '}
+          {handle(shown[1])}
+        </>
+      ) : null}
+      {others > 0 ? ` and ${others} ${others === 1 ? 'other' : 'others'}` : null}
+    </Text>
+  );
+}
+
+/**
  * Instagram-style "liked by" row — a small stack of the first few likers'
  * avatars and a "Liked by <name> and N others" line, shown just above the
  * action row. Renders only when the post carries a liker preview.
@@ -218,7 +261,7 @@ function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>;
               { borderColor: colors.surface, marginLeft: i === 0 ? 0 : -9, zIndex: avatars.length - i },
             ]}
           >
-            <Avatar name={liker.name} tint={liker.tint} size={22} />
+            <Avatar userId={liker.id} name={liker.name} tint={liker.tint} size={22} />
           </View>
         ))}
       </View>
@@ -328,19 +371,6 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
 
   const content = (
     <>
-      {/* Ads are labelled, always. `sponsored` is only non-null when the server
-          is showing this post to *this viewer* as a promotion, so its presence
-          is the whole condition — an author scrolling past their own boosted
-          post sees an ordinary card, which is correct. */}
-      {sponsored ? (
-        <View style={[styles.sponsorRow, styles.gutter]}>
-          <Ionicons name="megaphone-outline" size={13} color={colors.brand} />
-          <Text style={[styles.sponsorText, { color: colors.brand }]}>
-            {sponsored.label ?? 'Sponsored'}
-          </Text>
-        </View>
-      ) : null}
-
       <View style={[styles.headerRow, styles.gutter]}>
         {/* Author → their profile */}
         <Pressable
@@ -350,10 +380,11 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
           accessibilityLabel={`View ${post.author.name}'s profile`}
           style={styles.authorTap}
         >
-          <Avatar name={post.author.name} tint={post.author.tint} uri={post.author.avatar} size={42} />
+          <Avatar userId={post.author.id} level={post.author.level} name={post.author.name} tint={post.author.tint} uri={post.author.avatar} size={42} />
           <View style={styles.headerText}>
             <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-              {post.author.name.split(" ")[0]}
+              {post.author.name.split(" ")[0]}{' '}
+              <LevelBadge userId={post.author.id} level={post.author.level} size={15} />
             </Text>
             <Text
               style={[styles.meta, { color: colors.textMuted }]}
@@ -363,7 +394,23 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
             </Text>
           </View>
         </Pressable>
-        {post.earned != null ? (
+        {/* A promoted post shows "Boosted" where the earnings figure would be.
+            For a reader that's the ad marker (`sponsored` is only non-null when
+            the server is serving this post to *this viewer* as a promotion);
+            for the author it's "you're running a campaign on this" — the web's
+            pk-boosted-pill. An ad's earnings aren't the reader's business, and
+            one pill in that slot reads cleaner than a money figure beside it. */}
+        {sponsored || (isMine && post.boosted) ? (
+          <View
+            style={[
+              styles.boostedPill,
+              { backgroundColor: `${colors.brand}1A`, borderColor: `${colors.brand}40` },
+            ]}
+          >
+            <Ionicons name="rocket" size={12} color={colors.brand} />
+            <Text style={[styles.boostedPillText, { color: colors.brand }]}>Boosted</Text>
+          </View>
+        ) : post.earned != null ? (
           <View
             style={[
               styles.earnedPill,
@@ -380,15 +427,6 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
             <Text style={[styles.earnedText, { color: colors.mint }]}>
               {format(post.earned, post.earnedSymbol)}
             </Text>
-          </View>
-        ) : null}
-        {/* The author's own "this is promoted" marker, matching the web's
-            pk-boosted-pill. Distinct from the reader-facing "Sponsored" banner
-            above: this says *you* are running an ad, not that you're seeing one. */}
-        {isMine && post.boosted ? (
-          <View style={[styles.boostedPill, { backgroundColor: `${colors.brand}1A` }]}>
-            <Ionicons name="sparkles" size={10} color={colors.brand} />
-            <Text style={[styles.boostedPillText, { color: colors.brand }]}>Boosted</Text>
           </View>
         ) : null}
         {/* Every post gets the overflow — the menu itself decides whether to
@@ -539,38 +577,40 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
 
       </View>
 
-      {/* Gifts the post has received, grouped by artifact. Tapping opens the
-          same sheet the gift action does, so a card that already shows gifts
-          has an obvious way to add one. */}
+      {/* Gifts the post has received, grouped by artifact, and who sent them.
+          Tapping opens the same sheet the gift action does, so a card that
+          already shows gifts has an obvious way to add one. */}
       {post.gifts?.length ? (
         <Pressable
           onPress={() => (isMine ? undefined : setGiftOpen(true))}
           disabled={isMine}
-          accessibilityRole={isMine ? undefined : 'button'}
           accessibilityLabel={isMine ? undefined : 'Send a gift'}
-          style={[styles.giftRail, styles.gutter]}
+          style={[styles.giftBlock, styles.gutter]}
         >
-          {post.gifts.slice(0, 5).map((gift) => (
-            <View
-              key={gift.id}
-              style={[
-                styles.giftChip,
-                { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-              ]}
-            >
-              <Text style={styles.giftEmoji}>{gift.emoji}</Text>
-              {gift.quantity > 1 ? (
-                <Text style={[styles.giftCount, { color: colors.textSecondary }]}>
-                  ×{gift.quantity}
-                </Text>
-              ) : null}
-            </View>
-          ))}
-          {post.giftCount && post.giftCount > 5 ? (
-            <Text style={[styles.giftMore, { color: colors.textMuted }]}>
-              +{post.giftCount - 5}
-            </Text>
-          ) : null}
+          <View style={styles.giftRail}>
+            {post.gifts.slice(0, 5).map((gift) => (
+              <View
+                key={gift.id}
+                style={[
+                  styles.giftChip,
+                  { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+                ]}
+              >
+                <Text style={styles.giftEmoji}>{gift.emoji}</Text>
+                {gift.quantity > 1 ? (
+                  <Text style={[styles.giftCount, { color: colors.textSecondary }]}>
+                    ×{gift.quantity}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+            {post.giftCount && post.giftCount > 5 ? (
+              <Text style={[styles.giftMore, { color: colors.textMuted }]}>
+                +{post.giftCount - 5}
+              </Text>
+            ) : null}
+          </View>
+          <GiftedByLine gifts={post.gifts} />
         </Pressable>
       ) : null}
 
@@ -679,14 +719,6 @@ const styles = StyleSheet.create({
   },
   bare: { gap: 12 },
   gutter: { paddingHorizontal: FEED_GUTTER },
-  sponsorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingTop: 12,
-    paddingBottom: 2,
-  },
-  sponsorText: { fontFamily: FONT, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   sponsorCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -700,12 +732,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sponsorCtaText: { fontFamily: FONT, fontSize: 14, fontWeight: '700' },
+  giftBlock: { gap: 7, paddingBottom: 10 },
   giftRail: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingBottom: 10,
   },
+  giftedBy: { fontFamily: FONT, fontSize: 13, fontWeight: '500' },
+  giftedByName: { fontFamily: FONT, fontWeight: '700' },
   giftChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -718,15 +752,18 @@ const styles = StyleSheet.create({
   giftEmoji: { fontSize: 14 },
   giftCount: { fontFamily: FONT, fontSize: 11, fontWeight: '700' },
   giftMore: { fontFamily: FONT, fontSize: 12, fontWeight: '700' },
+  // Sized exactly like `earnedPill`: it takes that pill's slot on a promoted
+  // post, and the header shouldn't change height from one post to the next.
   boostedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
     borderRadius: 999,
+    borderWidth: 1,
   },
-  boostedPillText: { fontFamily: FONT, fontSize: 11, fontWeight: '800' },
+  boostedPillText: { fontFamily: FONT, fontSize: 12, fontWeight: '800' },
   boostStripWrap: { paddingBottom: 12 },
   headerRow: {
     flexDirection: "row",

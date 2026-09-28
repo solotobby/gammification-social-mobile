@@ -53,7 +53,7 @@ export function StoryViewersSheet({ item, onClose }: Props) {
         ) : (
           item.viewers.map((viewer) => (
             <View key={viewer.id} style={styles.viewerRow}>
-              <Avatar name={viewer.name} tint={viewer.tint} size={36} />
+              <Avatar userId={viewer.id} level={viewer.level} name={viewer.name} tint={viewer.tint} size={36} />
               <View style={styles.viewerText}>
                 <Text style={[styles.viewerName, { color: colors.text }]} numberOfLines={1}>
                   {viewer.name}

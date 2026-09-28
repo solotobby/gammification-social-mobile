@@ -17,6 +17,7 @@ import { FEED_GUTTER, PostCard } from "../../src/components/feed/PostCard";
 import { ProfileCover } from "../../src/components/profile/ProfileCover";
 import { InviteCard } from "../../src/components/referral/InviteCard";
 import { Avatar } from "../../src/components/ui/Avatar";
+import { LevelBadge } from "../../src/components/ui/LevelBadge";
 import { BackButton } from "../../src/components/ui/BackButton";
 import { GhostButton } from "../../src/components/ui/GhostButton";
 import { ScreenBackground } from "../../src/components/ui/ScreenBackground";
@@ -187,7 +188,7 @@ export default function MemberProfileScreen() {
         <View style={styles.cardBody}>
           <View style={styles.avatarRow}>
             <View style={[styles.avatarRing, { borderColor: colors.surface }]}>
-              <Avatar name={member.name} tint={member.tint} uri={member.avatar} size={76} />
+              <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={76} />
             </View>
             {isMe ? (
               <Pressable
@@ -279,7 +280,7 @@ export default function MemberProfileScreen() {
             )}
           </View>
 
-          <Text style={[styles.name, { color: colors.text }]}>{member.name}</Text>
+          <Text style={[styles.name, { color: colors.text }]}>{member.name}{' '}<LevelBadge userId={member.id} level={member.level} size={20} /></Text>
           <Text style={[styles.handle, { color: colors.textMuted }]}>@{member.handle}</Text>
           {/* `profile.profile` used to BE the bio string; it is now the nested
               profile record, so the blurb reads from its `about` field. */}

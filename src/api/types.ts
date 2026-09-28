@@ -482,6 +482,11 @@ export type TimelineUser = {
   name: string;
   /** CDN avatar URL when present (initials fall back to a tinted disc). */
   avatar?: string | null;
+  /**
+   * Not sent by any endpoint yet (verified 2026-09-28) — requested from the
+   * backend so badges can render without a profile fetch. Read if present.
+   */
+  level?: string | { name?: string } | null;
 };
 
 /** One entry of a post's `likers_preview` — the first few people who liked it. */
@@ -636,7 +641,20 @@ export type ApiSponsored = {
   label?: string | null;
 };
 
-/** One gift shown on a post — the artifact, who sent it, and what it cost. */
+/**
+ * One gift shown on a post — the artifact, who sent it, and what it cost.
+ *
+ * **Two real shapes, verified live 2026-09-28**, and neither sends a user
+ * object for the sender:
+ *
+ * - a post's inline `gifts[]` (feed, detail, profile): `{id, emoji, username}`
+ *   — `id` is the *gift row's* UUID, not the catalog artifact, so it can't be
+ *   grouped on; `username` is who sent it.
+ * - `GET /gifts/post/{type}/{id}` `recent[]`: `{id, emoji, name, price,
+ *   sender}` — here `sender` is that same username as a **plain string**.
+ *
+ * The object forms are kept as insurance against the backend enriching either.
+ */
 export type ApiPostGift = {
   id?: string;
   artifact_id?: string;
@@ -647,7 +665,10 @@ export type ApiPostGift = {
   tier?: string;
   quantity?: number;
   count?: number;
-  sender?: TimelineUser | null;
+  /** The sender's username — the inline `gifts[]` shape. */
+  username?: string;
+  /** A username string on `recent[]`; an object only if the API ever sends one. */
+  sender?: TimelineUser | string | null;
   user?: TimelineUser | null;
   created_at?: string;
 };

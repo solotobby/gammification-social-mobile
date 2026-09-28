@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
+import { LevelBadge } from '../ui/LevelBadge';
 import { useToggleFollow } from '../../hooks/useUser';
 import { useAuthStore } from '../../stores/authStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
@@ -85,7 +86,7 @@ export function MemberRow({
         },
       ]}
     >
-      <Avatar name={member.name} tint={member.tint} uri={member.avatar} size={44} />
+      <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={44} />
       <Pressable
         onPress={() => router.push(`/member/${member.handle}`)}
         accessibilityRole="button"
@@ -93,7 +94,7 @@ export function MemberRow({
         style={styles.memberText}
       >
         <Text style={[styles.memberName, { color: colors.text }]} numberOfLines={1}>
-          {member.name}
+          {member.name}{' '}<LevelBadge userId={member.id} level={member.level} size={14} />
         </Text>
         <Text style={[styles.memberMeta, { color: colors.textMuted }]} numberOfLines={1}>
           {subtitle ?? `@${member.handle} · ${member.followers} followers`}

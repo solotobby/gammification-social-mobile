@@ -19,6 +19,7 @@ import { keyboardInset, useKeyboard } from '../../hooks/useKeyboard';
 import { useEngagementStore } from '../../stores/engagementStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
+import { LevelBadge } from '../ui/LevelBadge';
 import { FONT } from '../../theme/fonts';
 
 /**
@@ -137,10 +138,11 @@ export function RollCommentsSheet({
               onEndReachedThreshold={0.6}
               renderItem={({ item }) => (
                 <View style={styles.row}>
-                  <Avatar name={item.author.name} tint={item.author.tint} uri={item.author.avatar} size={34} />
+                  <Avatar userId={item.author.id} level={item.author.level} name={item.author.name} tint={item.author.tint} uri={item.author.avatar} size={34} />
                   <View style={styles.rowText}>
                     <Text style={[styles.rowHandle, { color: colors.textMuted }]}>
-                      @{item.author.handle}
+                      @{item.author.handle}{' '}
+                      <LevelBadge userId={item.author.id} level={item.author.level} size={12} />
                       {item.timeAgo ? ` · ${item.timeAgo}` : ''}
                     </Text>
                     <Text style={[styles.rowBody, { color: colors.text }]}>{item.body}</Text>

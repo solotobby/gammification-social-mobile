@@ -15,6 +15,7 @@ import type {
   TimelineUser,
   UpdatePostData,
 } from './types';
+import { toUserLevel } from './levels';
 import type { Comment, Member, MemberTint, Post, PostGiftBadge } from '../data/community';
 import type { MediaItem } from '../data/media';
 
@@ -239,6 +240,7 @@ export function toMember(user: TimelineUser): Member {
     handle: user.username,
     tint: tintFor(user.id),
     avatar: user.avatar,
+    level: toUserLevel(user.level),
     engagements: 0,
     followers: 0,
     following: 0,
@@ -383,31 +385,64 @@ function earnedOf(apiPost: Record<string, unknown>): number | undefined {
   return undefined;
 }
 
+/** Who sent a gift row — a username, whichever of the shapes carried it. */
+export function giftSenderOf(gift: ApiPostGift): string | undefined {
+  if (gift.username) return gift.username;
+  if (typeof gift.sender === 'string') return gift.sender || undefined;
+  return gift.sender?.username ?? gift.user?.username ?? undefined;
+}
+
 /**
  * Collapse a post's gift list into one badge per artifact, biggest first.
  *
  * The API sends individual gift rows; showing five separate roses on a card
  * would be noise, so identical artifacts are summed into a `xN` badge — the
- * same way the web renders them.
+ * same way the web renders them. The inline rows carry no artifact id (their
+ * `id` is the row's own UUID), so the emoji is the grouping key in practice —
+ * every catalog artifact has a distinct one.
+ *
+ * Each badge also keeps who sent it, so the card can credit the gifters.
  */
 function toGiftBadges(gifts: ApiPostGift[]): PostGiftBadge[] {
   const byArtifact = new Map<string, PostGiftBadge>();
   gifts.forEach((gift, index) => {
-    const key = gift.artifact_id ?? gift.id ?? `gift-${index}`;
+    const key = gift.artifact_id ?? gift.emoji ?? gift.id ?? `gift-${index}`;
     const existing = byArtifact.get(key);
     const quantity = gift.quantity ?? gift.count ?? 1;
+    const sender = giftSenderOf(gift);
     if (existing) {
       existing.quantity += quantity;
+      if (sender && !existing.senders.includes(sender)) existing.senders.push(sender);
     } else {
       byArtifact.set(key, {
         id: key,
         emoji: gift.emoji ?? '🎁',
         name: gift.name ?? 'Gift',
         quantity,
+        senders: sender ? [sender] : [],
       });
     }
   });
   return [...byArtifact.values()].sort((a, b) => b.quantity - a.quantity);
+}
+
+/**
+ * Drop repeats from a paged list, keeping each id's first appearance.
+ *
+ * `/timeline/feed` and `/rolls` are **randomised per request**, so their pages
+ * overlap: a sponsored post is re-served as an ad on later pages, and ordinary
+ * posts drift between pages too (verified live 2026-09-28 — 9 repeats across 5
+ * feed pages). Flattening those pages straight into a list keyed by id is what
+ * threw React's "Encountered two children with the same key". The first copy
+ * wins so a row never jumps once it's on screen.
+ */
+export function uniqueById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
 
 export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {

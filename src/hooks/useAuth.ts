@@ -13,6 +13,7 @@ import {
 import { persister } from '../api/queryClient';
 import type { LoginPayload, MeData, VerifyOtpPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
+import { useLevelStore } from '../stores/levelStore';
 import { useBlockedStore } from '../stores/blockedStore';
 import { useEngagementStore } from '../stores/engagementStore';
 import { useFollowStore } from '../stores/followStore';
@@ -131,6 +132,7 @@ export function useLogout() {
     // them — the next person to sign in must not send the previous one's queue.
     useOutboxStore.getState().reset();
     useBlockedStore.getState().reset();
+    useLevelStore.getState().reset();
     await persister.removeClient();
   };
 }

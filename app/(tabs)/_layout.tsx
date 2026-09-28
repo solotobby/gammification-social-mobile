@@ -3,6 +3,7 @@ import React from 'react';
 
 import { AppDrawer } from '../../src/components/navigation/AppDrawer';
 import { TabBar } from '../../src/components/navigation/TabBar';
+import { ScreenErrorBoundary } from '../../src/components/feedback/AppErrorBoundary';
 
 /**
  * Main app shell after auth: Home (feed), Earn, Rolls, Communities, Messages,
@@ -21,6 +22,8 @@ export default function TabsLayout() {
     <>
       <Tabs
         tabBar={(props) => <TabBar {...props} />}
+        // A crash inside a tab replaces that tab only; the bar stays usable.
+        screenLayout={({ children }) => <ScreenErrorBoundary>{children}</ScreenErrorBoundary>}
         screenOptions={{
           headerShown: false,
           // Screens paint their own ScreenBackground; keep the scene transparent.

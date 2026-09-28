@@ -7,6 +7,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { startNetworkWatch } from '../src/api/network';
 import { persistOptions, queryClient } from '../src/api/queryClient';
+import {
+  AppErrorBoundary,
+  installGlobalErrorHandler,
+  ScreenErrorBoundary,
+} from '../src/components/feedback/AppErrorBoundary';
 import { ErrorModalHost } from '../src/components/feedback/ErrorModal';
 import { OfflineBanner } from '../src/components/feedback/OfflineBanner';
 import { ToastHost } from '../src/components/feedback/Toast';
@@ -23,6 +28,10 @@ import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 // from its key alone.
 registerMutationDefaults(queryClient);
 registerMessagingMutationDefaults(queryClient);
+
+// Uncaught JS errors outside rendering (tap handlers, timers) show the crash
+// screen instead of killing a release build — see AppErrorBoundary.
+installGlobalErrorHandler();
 
 // Without this the native splash hides the moment the root view mounts, which
 // is before the session has been read back — see ThemedStack below.
@@ -67,6 +76,9 @@ function ThemedStack() {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
+        // Every screen gets its own error boundary, so a crash replaces that
+        // screen and leaves navigation alive — see ScreenErrorBoundary.
+        screenLayout={({ children }) => <ScreenErrorBoundary>{children}</ScreenErrorBoundary>}
         screenOptions={{
           headerShown: false,
           // Match the app background so there's no white flash between routes.
@@ -128,18 +140,23 @@ export default function RootLayout() {
   // and refetches on reconnect instead of timing out against a dead network.
   useEffect(() => startNetworkWatch(), []);
 
+
   return (
     <SafeAreaProvider>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={persistOptions}
-        // Send anything that was paused offline as soon as the cache is back.
-        onSuccess={() => void queryClient.resumePausedMutations()}
-      >
-        <ThemeProvider>
-          <ThemedStack />
-        </ThemeProvider>
-      </PersistQueryClientProvider>
+      {/* Outermost app-level wrapper: a render error anywhere below shows the
+          "Something went wrong · Reload app" screen instead of a white one. */}
+      <AppErrorBoundary global>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={persistOptions}
+          // Send anything that was paused offline as soon as the cache is back.
+          onSuccess={() => void queryClient.resumePausedMutations()}
+        >
+          <ThemeProvider>
+            <ThemedStack />
+          </ThemeProvider>
+        </PersistQueryClientProvider>
+      </AppErrorBoundary>
     </SafeAreaProvider>
   );
 }

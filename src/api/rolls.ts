@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 
 import { api } from './client';
+import { toUserLevel } from './levels';
+import type { ApiUserLevel } from './types';
 import { timeAgo, tintFor } from './timeline';
 import type {
   ApiEnvelope,
@@ -133,7 +135,13 @@ export type RollComment = {
   body?: string;
   content?: string;
   created_at?: string;
-  user?: { id: string; name: string; username: string; avatar?: string | null };
+  user?: {
+    id: string;
+    name: string;
+    username: string;
+    avatar?: string | null;
+    level?: ApiUserLevel;
+  };
 };
 
 /**
@@ -152,6 +160,7 @@ export function toRollComment(raw: RollComment, index: number): Comment {
       name: raw.user?.name ?? 'Someone',
       handle: raw.user?.username ?? 'someone',
       tint: tintFor(userId),
+      level: toUserLevel(raw.user?.level),
       engagements: 0,
       followers: 0,
       following: 0,
@@ -216,6 +225,7 @@ export function toTopRoll(api: ApiTopRoll): TopRoll {
       name: api.user.name,
       handle: api.user.username,
       tint: tintFor(api.user.id),
+      level: toUserLevel(api.user.level),
       engagements: 0,
       followers: 0,
       following: 0,
@@ -240,6 +250,7 @@ export function toRoll(api: ApiRoll): Roll {
       name: api.user.name,
       handle: api.user.username,
       tint: tintFor(api.user.id),
+      level: toUserLevel(api.user.level),
       engagements: 0,
       followers: 0,
       following: 0,

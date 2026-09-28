@@ -1,4 +1,5 @@
 import { api, UPLOAD_TIMEOUT } from './client';
+import { toUserLevel } from './levels';
 import { tintFor } from './timeline';
 import type {
   ApiChatMessage,
@@ -191,6 +192,8 @@ function toMessagingMember(user: ApiConversationParticipant): Member {
     handle: user.username,
     tint: tintFor(user.id),
     avatar: user.avatar ?? null,
+    // Not sent on /conversations yet — read the moment it is.
+    level: toUserLevel(user.level),
     engagements: 0,
     followers: 0,
     following: 0,

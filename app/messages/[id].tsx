@@ -29,7 +29,7 @@ import { ConversationMenu } from '../../src/components/messages/ConversationMenu
 import { MessageBubble } from '../../src/components/messages/MessageBubble';
 import { dayLabel } from '../../src/components/messages/time';
 import { Avatar } from '../../src/components/ui/Avatar';
-import { LevelBadge } from '../../src/components/ui/LevelBadge';
+import { LevelBadge, NameWithBadge } from '../../src/components/ui/LevelBadge';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import type { MediaItem } from '../../src/data/media';
@@ -325,9 +325,13 @@ export default function ConversationScreen() {
           >
             <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={40} />
             <View style={styles.headerText}>
-              <Text style={[styles.headerName, { color: colors.text }]} numberOfLines={1}>
-                {member.name}{' '}<LevelBadge userId={member.id} level={member.level} size={14} />
-              </Text>
+              <NameWithBadge
+                style={[styles.headerName, { color: colors.text }]}
+                name={member.name}
+                userId={member.id}
+                level={member.level}
+                size={14}
+              />
               <View style={styles.headerSubRow}>
                 {conversation.muted ? (
                   <Ionicons name="notifications-off" size={12} color={colors.textMuted} />

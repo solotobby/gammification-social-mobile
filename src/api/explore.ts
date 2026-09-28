@@ -1,4 +1,5 @@
 import { api } from './client';
+import { toUserLevel } from './levels';
 import { tintFor } from './timeline';
 import type {
   ApiEnvelope,
@@ -62,6 +63,7 @@ export function toTrendingMember(member: TrendingMember): Member {
     name: member.name,
     handle: member.username,
     tint: tintFor(member.id),
+    level: toUserLevel(member.level),
     engagements: member.total_engagement,
     followers: 0,
     following: 0,

@@ -34,11 +34,12 @@ export async function fetchPayKoinBalance(): Promise<ApiPayKoinBalance> {
  * against `/paykoin/balance`** (that entry is a copy-paste error; a GET answers
  * 405 "Supported methods: POST").
  *
- * `amount` is in **coins**, not fiat: 100 coins costs 100 × `rates.list`. The
- * server's own rejection below the minimum says "Minimum top-up is 100 USD",
- * which is a backend copy bug — the figure is coins and the currency name is
- * interpolated wrongly. The screen says "coins" and shows the fiat cost beside
- * it rather than repeating the server's wording.
+ * **`amount` is money in the wallet currency, not coins** (verified live
+ * 2026-09-28 on an NGN account: `amount: 1000` wrote a `paykoin_topup` ledger
+ * row of `1000 NGN`, and `amount: 50` was refused "Minimum top-up is 100
+ * NGN."). So buying N coins sends `N × rates.list`, and `min_top_up` is a money
+ * floor too. An earlier reading of this as coins made every top-up charge
+ * `rates.list` times too little — 100 PK opened a ₦100 checkout, worth 10 PK.
  *
  * **Returns only `checkout_url` — no reference.** So unlike a level upgrade,
  * the app has no handle to confirm the payment with afterwards

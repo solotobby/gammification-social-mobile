@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { Dimensions, Keyboard, Platform, TextInput, type KeyboardEvent } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type KeyboardState = {
   visible: boolean;
   /**
    * The keyboard panel's own height, as the OS reports it. On Android this is
-   * **less than** what the keyboard costs you at the bottom of the window —
-   * use `overlap` for layout and keep this for diagnostics.
+   * **less than** what the keyboard costs you at the bottom of the window (it
+   * excludes the navigation bar under the keys) — use `overlap` for layout and
+   * keep this for diagnostics.
    */
   height: number;
   /**
-   * How much of the window's bottom edge is unusable while the keyboard is up:
-   * the keyboard panel plus anything under it. This is the number to pad a
-   * bottom-anchored bar by, or to add as scroll headroom. See `measureOverlap`.
+   * How much of the app's bottom edge is unusable while the keyboard is up:
+   * the keyboard panel plus the navigation bar under it. This is the number to
+   * pad a bottom-anchored bar by, or to add as scroll headroom. See
+   * `measureOverlap`.
    */
   overlap: number;
 };
@@ -34,22 +37,20 @@ export type KeyboardState = {
  * Android only reliably emits the `Did` pair.
  */
 export function useKeyboard(): KeyboardState {
-  const [state, setState] = useState<KeyboardState>({ visible: false, height: 0, overlap: 0 });
+  // The navigation bar's inset — never the keyboard's: safe-area-context reads
+  // navigationBars (API 30+) or the *stable* inset (older), both of which
+  // exclude the IME. Part of the Android overlap; see `measureOverlap`.
+  const navInset = useSafeAreaInsets().bottom;
+  const [event, setEvent] = useState<KeyboardEvent['endCoordinates'] | null>(null);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const show = Keyboard.addListener(showEvent, (event: KeyboardEvent) => {
-      setState({
-        visible: true,
-        height: event.endCoordinates?.height ?? 0,
-        overlap: measureOverlap(event),
-      });
+    const show = Keyboard.addListener(showEvent, (e: KeyboardEvent) => {
+      setEvent(e.endCoordinates ?? { height: 0, screenX: 0, screenY: 0, width: 0 });
     });
-    const hide = Keyboard.addListener(hideEvent, () => {
-      setState({ visible: false, height: 0, overlap: 0 });
-    });
+    const hide = Keyboard.addListener(hideEvent, () => setEvent(null));
 
     return () => {
       show.remove();
@@ -57,40 +58,69 @@ export function useKeyboard(): KeyboardState {
     };
   }, []);
 
-  return state;
+  if (!event) return HIDDEN;
+  return {
+    visible: true,
+    height: event.height ?? 0,
+    overlap: measureOverlap(event, navInset),
+  };
 }
+
+const HIDDEN: KeyboardState = { visible: false, height: 0, overlap: 0 };
 
 /**
- * How much of the window's bottom edge the keyboard costs, measured from where
- * its top edge actually lands rather than from its reported height.
+ * How much of the app's bottom edge the keyboard covers — the number to lift a
+ * bottom-anchored composer by, or to add as scroll headroom.
  *
- * **The two differ, and the difference is not decoration.** Measured on a
- * Pixel 9 / Android 16 emulator with the keyboard up:
+ * **This was wrong on physical phones for a long time, and only right on the
+ * emulator it was tuned on.** It used to be `Dimensions.get('window').height -
+ * screenY`. Read React Native's Android source (`ReactRootView`,
+ * `DisplayMetricsHolder`) and the two sides of that subtraction are in
+ * different spaces:
  *
- * ```
- * window / screen  923.43dp   (identical — the window is NOT resized)
- * keyboard height  312.38dp   screenY 587.05dp
- * keyboard panel spans 587.05 -> 899.43, leaving 24dp to the window bottom
- * ```
+ * - `screenY` is `getWindowVisibleDisplayFrame().bottom` — **screen**
+ *   coordinates, the keyboard's top edge.
+ * - the window height is `context.resources.displayMetrics`, which on
+ *   **Android 14 and older excludes the navigation bar**. Only once Android 15
+ *   enforces edge-to-edge do window and screen agree.
  *
- * That 24dp strip under the keyboard is the **gesture navigation bar**, which
- * an edge-to-edge window draws under and which the keyboard does not count as
- * its own height. Pad by `height` and the input is clipped by exactly that
- * strip — verified, it cuts the composer in half. Pad by `window.height -
- * screenY` and it sits flush. So the top edge is the honest measurement.
+ * The app is edge-to-edge everywhere (Expo SDK 54+), so its root spans the whole
+ * screen, nav bar included. On an Android ≤14 phone the old formula therefore
+ * came out short by the navigation bar — 48dp with 3-button navigation, about
+ * a composer's height — and the input sat behind the keys while the list above
+ * it still rose a little. The Pixel 9 / Android 16 emulator it was verified on
+ * reports window == screen (923.43dp both), which is exactly why it looked fixed.
  *
- * Deriving it from the window also self-corrects on a window that *did* get
- * resized out from under the keyboard: there the window's own bottom has
- * already risen to meet `screenY`, the difference is ~0, and nothing more is
- * padded — which is what makes this safe if Android ever stops being
- * edge-to-edge here.
+ * So neither height is used any more:
+ *
+ * - **Android 11+ (API 30+).** RN reports `height = ime.bottom -
+ *   systemBars.bottom`, i.e. the keyboard minus the nav bar under it. Adding the
+ *   nav-bar inset back gives `ime.bottom` — Android's own measure of how much
+ *   of the window the keyboard covers — with no screen/window size involved,
+ *   which also holds in split-screen. Emulator check (3-button nav): 288.38 +
+ *   48 = 336.38 = 923.43 − 587.05.
+ * - **Android 10 and below.** RN's legacy path derives `height` from the window
+ *   metrics (so it has the same nav-bar error), but `screenY` is still the
+ *   keyboard's top edge in screen coordinates — so measure from the *screen*.
+ * - **iOS.** Window and screen are the same thing; unchanged.
  */
-function measureOverlap(event: KeyboardEvent): number {
-  const screenY = event.endCoordinates?.screenY;
-  if (typeof screenY !== 'number') return event.endCoordinates?.height ?? 0;
+function measureOverlap(end: KeyboardEvent['endCoordinates'], navInset: number): number {
+  const height = end?.height ?? 0;
+  const screenY = end?.screenY;
+
+  if (Platform.OS === 'android') {
+    if (typeof Platform.Version === 'number' && Platform.Version >= 30) {
+      return Math.max(0, height + navInset);
+    }
+    if (typeof screenY === 'number') {
+      return Math.max(0, Dimensions.get('screen').height - screenY);
+    }
+    return Math.max(0, height + navInset);
+  }
+
+  if (typeof screenY !== 'number') return height;
   return Math.max(0, Dimensions.get('window').height - screenY);
 }
-
 
 /**
  * Bottom padding for a composer bar: the safe-area inset while the keyboard is

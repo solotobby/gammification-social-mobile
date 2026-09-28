@@ -129,7 +129,7 @@ export type Post = {
    * few, for the Instagram-style "liked by" avatar row. The true count is
    * `likes`; anyone beyond this preview is folded into the "and N others" text.
    */
-  likedBy?: { id: string; name: string; handle: string; tint: MemberTint }[];
+  likedBy?: { id: string; name: string; handle: string; tint: MemberTint; level?: UserLevel }[];
 };
 
 export type Topic = {

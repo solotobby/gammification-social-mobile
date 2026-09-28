@@ -1,4 +1,5 @@
 import { api } from './client';
+import { toUserLevel } from './levels';
 import { tintFor, timeAgo } from './timeline';
 import type {
   ApiCommunity,
@@ -151,6 +152,7 @@ export function toMember(user: ApiCommunityUser | null | undefined): Member {
     handle: user?.username ?? 'unknown',
     tint: tintFor(user?.id ?? 'unknown'),
     avatar: user?.avatar,
+    level: toUserLevel(user?.level),
     engagements: 0,
     followers: 0,
     following: 0,

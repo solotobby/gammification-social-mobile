@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -56,8 +57,19 @@ export const useLevelStore = create<LevelState>()(
   ),
 );
 
-/** The level to show for a user: what the payload said, else what we've been told. */
+/**
+ * The level to show for a user: what the payload said, else what we've been
+ * told. A level that arrives on a payload is also remembered, so it carries to
+ * surfaces whose endpoint doesn't send one — `/conversations` participants
+ * still don't (verified 2026-09-28), and this is how a Creator you've seen in
+ * the feed keeps their badge in Messages.
+ */
 export function useUserLevel(userId: string | undefined, explicit?: UserLevel) {
   const remembered = useLevelStore((s) => (userId ? s.byId[userId] : undefined));
+  useEffect(() => {
+    if (userId && explicit && explicit !== remembered) {
+      useLevelStore.getState().setLevel(userId, explicit);
+    }
+  }, [userId, explicit, remembered]);
   return explicit ?? remembered;
 }

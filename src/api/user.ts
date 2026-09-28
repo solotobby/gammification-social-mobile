@@ -1,4 +1,6 @@
 import { api, SLOW_READ_TIMEOUT } from './client';
+import { toUserLevel } from './levels';
+import type { UserLevel } from './levels';
 import { tintFor } from './timeline';
 import type {
   ApiConnectionUser,
@@ -83,6 +85,7 @@ export function toMemberFromSearch(user: SearchUser): Member {
     name: user.name,
     handle: user.username,
     tint: tintFor(user.id),
+    level: toUserLevel(user.level),
     engagements: 0,
     followers: user.followers ?? 0,
     following: user.following ?? 0,
@@ -97,6 +100,7 @@ export function toMemberFromProfile(profile: ApiProfile): Member {
     handle: profile.username,
     tint: tintFor(profile.id),
     avatar: profile.avatar,
+    level: toUserLevel(profile.level),
     engagements: 0,
     followers: profile.followers ?? 0,
     following: profile.following ?? 0,
@@ -122,6 +126,7 @@ export type Connection = {
   handle: string;
   tint: MemberTint;
   avatar?: string | null;
+  level?: UserLevel;
   about?: string | null;
   /** Does the signed-in viewer follow this member? Seeds the follow button. */
   isFollowing: boolean;
@@ -136,6 +141,7 @@ function toConnection(raw: ApiConnectionUser): Connection {
     handle: raw.username,
     tint: tintFor(raw.id),
     avatar: raw.avatar,
+    level: toUserLevel(raw.level),
     about: raw.about,
     isFollowing: !!raw.is_following,
     isMe: !!raw.is_me,

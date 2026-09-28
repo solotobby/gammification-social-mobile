@@ -6,7 +6,7 @@ import { previewText, type Conversation } from '../../data/messages';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 import { Avatar } from '../ui/Avatar';
-import { LevelBadge } from '../ui/LevelBadge';
+import { NameWithBadge } from '../ui/LevelBadge';
 import { listStamp } from './time';
 
 /** Avatar diameter — also what `CONVERSATION_DIVIDER_INSET` is derived from. */
@@ -95,12 +95,13 @@ export function ConversationRow({
 
       <View style={styles.body}>
         <View style={styles.line}>
-          <Text
+          <NameWithBadge
             style={[styles.name, { color: colors.text, fontWeight: unread ? '800' : '700' }]}
-            numberOfLines={1}
-          >
-            {conversation.member.name}{' '}<LevelBadge userId={conversation.member.id} level={conversation.member.level} size={15} />
-          </Text>
+            name={conversation.member.name}
+            userId={conversation.member.id}
+            level={conversation.member.level}
+            size={15}
+          />
           <Text
             style={[
               styles.age,

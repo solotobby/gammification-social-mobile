@@ -9,6 +9,8 @@ import { useUnreadNotificationCount } from '../../hooks/useNotifications';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { DrawerAvatarButton } from '../navigation/DrawerAvatarButton';
+import { LevelBadge } from '../ui/LevelBadge';
+import { toUserLevel } from '../../api/levels';
 // import { StoriesRail } from '../stories/StoriesRail';
 import { EarningsPulse } from './EarningsPulse';
 import { FeedTabs, type FeedTab } from './FeedTabs';
@@ -65,8 +67,16 @@ export function HomeHeader({
         <DrawerAvatarButton size={46} />
         <View style={styles.headerText}>
           <Text style={[styles.hello, { color: colors.textMuted }]}>{greeting}</Text>
+          {/* Your own level, straight from /user/me: a Creator's blue check or
+              an Influencer's purple one (the avatar beside it wears the ring). */}
           <Text style={[styles.helloName, { color: colors.text }]}>
-            {displayName.split(' ')[0]} 👋
+            {displayName.split(' ')[0]}{' '}
+            <LevelBadge
+              userId={me?.user.id ?? sessionUser?.id}
+              level={toUserLevel(me?.level)}
+              size={20}
+            />{' '}
+            👋
           </Text>
         </View>
         <Pressable

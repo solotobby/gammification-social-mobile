@@ -24,7 +24,7 @@ import { useDrawerStore } from '../../stores/drawerStore';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 import { Avatar } from '../ui/Avatar';
-import { LevelBadge } from '../ui/LevelBadge';
+import { NameWithBadge } from '../ui/LevelBadge';
 
 /**
  * How wide the panel is: most of the screen, but never the whole of it — the
@@ -381,9 +381,12 @@ function DrawerContents() {
         <View style={styles.identityHead}>
           <Avatar userId={me?.user.id ?? sessionUser?.id} name={displayName} tint={myTint} uri={myAvatar} size={52} />
           <View style={styles.identityText}>
-            <Text style={[styles.identityName, { color: colors.text }]} numberOfLines={1}>
-              {displayName} <LevelBadge userId={me?.user.id ?? sessionUser?.id} size={16} />
-            </Text>
+            <NameWithBadge
+              style={[styles.identityName, { color: colors.text }]}
+              name={displayName}
+              userId={me?.user.id ?? sessionUser?.id}
+              size={16}
+            />
             <Text style={[styles.identityHandle, { color: colors.textMuted }]} numberOfLines={1}>
               @{displayUsername}
             </Text>

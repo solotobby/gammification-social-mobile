@@ -3,6 +3,7 @@ import { Pressable } from 'react-native';
 
 import { currentUser } from '../../data/community';
 import { useMe, useMyAvatar, useMyTint } from '../../hooks/useMe';
+import { toUserLevel } from '../../api/levels';
 import { useAuthStore } from '../../stores/authStore';
 import { useDrawerStore } from '../../stores/drawerStore';
 import { Avatar } from '../ui/Avatar';
@@ -32,7 +33,10 @@ export function DrawerAvatarButton({ size = 40 }: { size?: number }) {
 
   return (
     <Pressable onPress={openDrawer} accessibilityRole="button" accessibilityLabel="Open menu">
-      <Avatar userId={me?.user.id ?? sessionUser?.id} name={displayName} tint={tint} uri={uri} size={size} />
+      <Avatar
+        userId={me?.user.id ?? sessionUser?.id}
+        level={toUserLevel(me?.level)}
+        name={displayName} tint={tint} uri={uri} size={size} />
     </Pressable>
   );
 }

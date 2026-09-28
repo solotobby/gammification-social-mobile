@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { UserLevel } from '../api/levels';
 
@@ -18,8 +20,16 @@ import type { UserLevel } from '../api/levels';
  * gets theirs on their posts, comments and DMs too. A user object that starts
  * carrying `level` itself needs no store — the explicit prop wins.
  *
- * In memory only: levels change when someone upgrades, and a stale badge on a
- * money-adjacent app is worse than a missing one. Cleared on sign-out.
+ * **Persisted**, so a reload doesn't strip every badge until each profile is
+ * opened again — the profile endpoint takes up to a minute (see
+ * SLOW_READ_TIMEOUT), so "open it again" is not a cheap fix. It can't go stale
+ * for long: every read of `/user/me` or a profile overwrites the entry with
+ * what the server says now. Cleared on sign-out with the other per-account
+ * stores.
+ *
+ * It is deliberately **never filled by fetching profiles in the background**:
+ * that would be one minute-long request per author in the feed, and a profile
+ * read is what the web reports as "X viewed your profile".
  */
 type LevelState = {
   byId: Record<string, UserLevel>;
@@ -27,15 +37,24 @@ type LevelState = {
   reset: () => void;
 };
 
-export const useLevelStore = create<LevelState>((set) => ({
-  byId: {},
-  setLevel: (userId, level) =>
-    set((state) => {
-      if (!level || state.byId[userId] === level) return state;
-      return { byId: { ...state.byId, [userId]: level } };
+export const useLevelStore = create<LevelState>()(
+  persist(
+    (set) => ({
+      byId: {},
+      setLevel: (userId, level) =>
+        set((state) => {
+          if (!level || state.byId[userId] === level) return state;
+          return { byId: { ...state.byId, [userId]: level } };
+        }),
+      reset: () => set({ byId: {} }),
     }),
-  reset: () => set({ byId: {} }),
-}));
+    {
+      name: 'payhankey.levels',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ byId: state.byId }),
+    },
+  ),
+);
 
 /** The level to show for a user: what the payload said, else what we've been told. */
 export function useUserLevel(userId: string | undefined, explicit?: UserLevel) {

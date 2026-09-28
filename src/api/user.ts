@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, SLOW_READ_TIMEOUT } from './client';
 import { tintFor } from './timeline';
 import type {
   ApiConnectionUser,
@@ -33,9 +33,10 @@ export async function fetchProfile(
   username: string,
   page = 1,
 ): Promise<ProfileViewResponse> {
+  // Slow on the backend — see SLOW_READ_TIMEOUT.
   const { data } = await api.get<ProfileViewResponse>(
     `/user/profile/${encodeURIComponent(username)}`,
-    { params: { page } },
+    { params: { page }, timeout: SLOW_READ_TIMEOUT },
   );
   return data;
 }

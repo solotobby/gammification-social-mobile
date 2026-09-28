@@ -33,6 +33,16 @@ export class ApiError extends Error {
  */
 export const UPLOAD_TIMEOUT = 120_000;
 
+/**
+ * Budget for reads the backend is known to be slow on. `/user/profile/{username}`
+ * measured 27–58s to first byte on 2026-09-28 (against 0.7s for `/user/me`),
+ * and the gateway in front of it gives up with a 504 at 60s. Cutting it off at
+ * our own 30s turned every slow-but-successful profile into "We couldn't load
+ * this profile", and a timeout isn't retried. So these wait past the gateway's
+ * limit and let *it* decide: a real answer lands, a real 504 surfaces as one.
+ */
+export const SLOW_READ_TIMEOUT = 75_000;
+
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30_000,

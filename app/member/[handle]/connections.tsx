@@ -153,6 +153,7 @@ function toMemberVM(row: Connection) {
     handle: row.handle,
     tint: row.tint,
     avatar: row.avatar,
+    level: row.level,
     engagements: 0,
     followers: 0,
     following: 0,

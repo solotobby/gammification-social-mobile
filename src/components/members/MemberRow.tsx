@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
-import { LevelBadge } from '../ui/LevelBadge';
+import { NameWithBadge } from '../ui/LevelBadge';
 import { useToggleFollow } from '../../hooks/useUser';
 import { useAuthStore } from '../../stores/authStore';
 import { useFeedbackStore } from '../../stores/feedbackStore';
@@ -93,9 +93,13 @@ export function MemberRow({
         accessibilityLabel={`View ${member.name}'s profile`}
         style={styles.memberText}
       >
-        <Text style={[styles.memberName, { color: colors.text }]} numberOfLines={1}>
-          {member.name}{' '}<LevelBadge userId={member.id} level={member.level} size={14} />
-        </Text>
+        <NameWithBadge
+          style={[styles.memberName, { color: colors.text }]}
+          name={member.name}
+          userId={member.id}
+          level={member.level}
+          size={14}
+        />
         <Text style={[styles.memberMeta, { color: colors.textMuted }]} numberOfLines={1}>
           {subtitle ?? `@${member.handle} · ${member.followers} followers`}
         </Text>

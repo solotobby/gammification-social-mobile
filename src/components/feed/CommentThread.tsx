@@ -6,7 +6,7 @@ import type { MemberTint } from '../../data/community';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 import { Avatar } from '../ui/Avatar';
-import { LevelBadge } from '../ui/LevelBadge';
+import { NameWithBadge } from '../ui/LevelBadge';
 import { HashtagText } from '../ui/HashtagText';
 import type { UserLevel } from '../../api/levels';
 
@@ -158,13 +158,13 @@ function CommentBody({
       />
       <View style={styles.body}>
         <View style={styles.header}>
-          <Text
+          <NameWithBadge
             style={[styles.name, compact && styles.nameCompact, { color: colors.text }]}
-            numberOfLines={1}
-          >
-            {comment.author.name}{' '}
-            <LevelBadge userId={comment.author.id} level={comment.author.level} size={compact ? 12 : 14} />
-          </Text>
+            name={comment.author.name}
+            userId={comment.author.id}
+            level={comment.author.level}
+            size={compact ? 12 : 14}
+          />
           {comment.timeAgo ? (
             <Text style={[styles.time, { color: colors.textMuted }]}>{comment.timeAgo}</Text>
           ) : null}

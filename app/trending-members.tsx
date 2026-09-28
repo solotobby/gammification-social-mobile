@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { toTrendingMember } from '../src/api/explore';
 import { Avatar } from '../src/components/ui/Avatar';
-import { LevelBadge } from '../src/components/ui/LevelBadge';
+import { NameWithBadge } from '../src/components/ui/LevelBadge';
 import { BackButton } from '../src/components/ui/BackButton';
 import { GhostButton } from '../src/components/ui/GhostButton';
 import { ScreenBackground } from '../src/components/ui/ScreenBackground';
@@ -70,9 +70,13 @@ function TrendingRow({ member, index }: { member: Member; index: number }) {
       >
         <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={44} />
         <View style={styles.rowText}>
-          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {member.name}{' '}<LevelBadge userId={member.id} level={member.level} size={14} />
-          </Text>
+          <NameWithBadge
+            style={[styles.name, { color: colors.text }]}
+            name={member.name}
+            userId={member.id}
+            level={member.level}
+            size={14}
+          />
           <View style={styles.metaRow}>
             <Ionicons name="pulse" size={13} color={colors.mint} />
             <Text style={[styles.meta, { color: colors.textMuted }]}>

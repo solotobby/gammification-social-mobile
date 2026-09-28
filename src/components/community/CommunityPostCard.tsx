@@ -10,7 +10,7 @@ import {
 } from '../../hooks/useCommunities';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
-import { LevelBadge } from '../ui/LevelBadge';
+import { LevelBadge, NameWithBadge } from '../ui/LevelBadge';
 import { HashtagText } from '../ui/HashtagText';
 import { ShareSheet } from './ShareSheet';
 import { FONT } from '../../theme/fonts';
@@ -99,9 +99,13 @@ export function CommunityPostCard({
       <View style={styles.headerRow}>
         <Avatar userId={post.author.id} level={post.author.level} name={post.author.name} tint={post.author.tint} uri={post.author.avatar} size={38} />
         <View style={styles.headerText}>
-          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {post.author.name}{' '}<LevelBadge userId={post.author.id} level={post.author.level} size={14} />
-          </Text>
+          <NameWithBadge
+            style={[styles.name, { color: colors.text }]}
+            name={post.author.name}
+            userId={post.author.id}
+            level={post.author.level}
+            size={14}
+          />
           <Text style={[styles.meta, { color: colors.textMuted }]} numberOfLines={1}>
             @{post.author.handle} · {post.timeAgo}
           </Text>

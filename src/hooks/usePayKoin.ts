@@ -45,6 +45,7 @@ export function usePayKoinTopUp() {
   const openCheckout = useCheckoutStore((s) => s.open);
 
   return useMutation({
+    // `amount` is money in the wallet currency, not coins — see startPayKoinTopUp.
     mutationFn: (amount: number) => startPayKoinTopUp(amount),
     onSuccess: (result, amount) => {
       openCheckout({

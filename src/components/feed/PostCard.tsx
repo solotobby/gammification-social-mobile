@@ -23,7 +23,7 @@ import { NO_COMMENTS, useEngagementStore } from "../../stores/engagementStore";
 import { useCurrency } from "../../hooks/useCurrency";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Avatar } from "../ui/Avatar";
-import { LevelBadge } from "../ui/LevelBadge";
+import { NameWithBadge } from "../ui/LevelBadge";
 import { HashtagText } from "../ui/HashtagText";
 import { CommentItem, ReplyingBanner, type ThreadComment } from "./CommentThread";
 import { MediaGrid } from "./MediaGrid";
@@ -261,7 +261,7 @@ function LikedByRow({ likedBy, count }: { likedBy: NonNullable<Post['likedBy']>;
               { borderColor: colors.surface, marginLeft: i === 0 ? 0 : -9, zIndex: avatars.length - i },
             ]}
           >
-            <Avatar userId={liker.id} name={liker.name} tint={liker.tint} size={22} />
+            <Avatar userId={liker.id} level={liker.level} name={liker.name} tint={liker.tint} size={22} />
           </View>
         ))}
       </View>
@@ -382,10 +382,13 @@ export function PostCard({ post, onOpen, bare, showBoostStrip, boostRatePerClick
         >
           <Avatar userId={post.author.id} level={post.author.level} name={post.author.name} tint={post.author.tint} uri={post.author.avatar} size={42} />
           <View style={styles.headerText}>
-            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-              {post.author.name.split(" ")[0]}{' '}
-              <LevelBadge userId={post.author.id} level={post.author.level} size={15} />
-            </Text>
+            <NameWithBadge
+              style={[styles.name, { color: colors.text }]}
+              name={post.author.name.split(" ")[0]}
+              userId={post.author.id}
+              level={post.author.level}
+              size={15}
+            />
             <Text
               style={[styles.meta, { color: colors.textMuted }]}
               numberOfLines={1}

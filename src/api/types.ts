@@ -135,6 +135,7 @@ export type Currency = {
  * their posts come back as a Laravel paginator under `data`.
  */
 export type ApiProfile = {
+  level?: ApiUserLevel;
   id: string;
   avatar: string | null;
   /** Uploaded cover image (POST /user/banner); null until one is set. */
@@ -167,6 +168,7 @@ export type ProfileViewResponse = {
 
 /** GET /user/search — a person match (their own follower/following counts). */
 export type SearchUser = {
+  level?: ApiUserLevel;
   id: string;
   name: string;
   username: string;
@@ -482,15 +484,21 @@ export type TimelineUser = {
   name: string;
   /** CDN avatar URL when present (initials fall back to a tinted disc). */
   avatar?: string | null;
-  /**
-   * Not sent by any endpoint yet (verified 2026-09-28) — requested from the
-   * backend so badges can render without a profile fetch. Read if present.
-   */
-  level?: string | { name?: string } | null;
+  level?: ApiUserLevel;
 };
+
+/**
+ * A user's account level — "Basic" | "Creator" | "Influencer". Added to the
+ * shared user object on 2026-09-28 (verified live on the feed, post detail,
+ * comments + replies, likers, profile, search, followers/following, trending
+ * and community owners). **Not yet on `/conversations` participants.** Read
+ * through `toUserLevel`, which also accepts a `{name}` record.
+ */
+export type ApiUserLevel = string | { name?: string } | null;
 
 /** One entry of a post's `likers_preview` — the first few people who liked it. */
 export type LikerPreview = {
+  level?: ApiUserLevel;
   id: string;
   name: string;
   username: string;
@@ -791,6 +799,7 @@ export type TrendingHashtag = {
 
 /** A trending member (GET /explore/trending + /explore/trending/members). */
 export type TrendingMember = {
+  level?: ApiUserLevel;
   id: string;
   name: string;
   username: string;
@@ -928,6 +937,7 @@ export type ApiCommunityCategory = {
 };
 
 export type ApiCommunityUser = {
+  level?: ApiUserLevel;
   id: string;
   username: string;
   name: string;
@@ -1543,6 +1553,7 @@ export type AvatarUploadData = {
 // ---------------------------------------------------------------------------
 
 export type ApiConnectionUser = {
+  level?: ApiUserLevel;
   id: string;
   name: string;
   username: string;
@@ -1740,6 +1751,7 @@ export type DeviceTokenRecord = {
 
 /** The other person in a direct conversation. */
 export type ApiConversationParticipant = {
+  level?: ApiUserLevel;
   id: string;
   name: string;
   /** Free text on this backend: can hold spaces, emoji or an email address. */

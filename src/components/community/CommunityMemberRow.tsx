@@ -6,7 +6,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CommunityMember, MemberAction } from '../../api/communities';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Avatar } from '../ui/Avatar';
-import { LevelBadge } from '../ui/LevelBadge';
+import { LevelBadge, NameWithBadge } from '../ui/LevelBadge';
 import { FONT } from '../../theme/fonts';
 
 /** What a moderator can do to this row, given who they are and who it is. */
@@ -81,9 +81,13 @@ export function CommunityMemberRow({
       >
         <Avatar userId={row.member.id} level={row.member.level} name={row.member.name} tint={row.member.tint} uri={row.member.avatar} size={40} />
         <View style={styles.identityText}>
-          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {row.member.name}{' '}<LevelBadge userId={row.member.id} level={row.member.level} size={14} />
-          </Text>
+          <NameWithBadge
+            style={[styles.name, { color: colors.text }]}
+            name={row.member.name}
+            userId={row.member.id}
+            level={row.member.level}
+            size={14}
+          />
           <Text style={[styles.handle, { color: colors.textMuted }]} numberOfLines={1}>
             @{row.member.handle}
             {row.joinedAgo ? ` · joined ${row.joinedAgo}` : ''}

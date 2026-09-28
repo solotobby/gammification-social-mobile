@@ -32,10 +32,11 @@ import { FONT } from '../src/theme/fonts';
  * field under them takes any amount at or above the minimum, since a gift the
  * user is saving for rarely lands on a round number.
  *
- * The backend enforces a minimum it reports as `min_top_up`; its rejection
- * message says "100 USD", but the figure is coins — a copy bug on their side,
- * so this screen says PK and prints the cash cost beside it rather than
- * repeating the server's wording.
+ * The screen is priced in coins because coins are what's being bought, but
+ * **the API is priced in money**: `POST /paykoin/topup`'s `amount` and the
+ * balance's `min_top_up` are both in the wallet currency (see
+ * `startPayKoinTopUp`). So the coin figure is converted at `rates.list` on the
+ * way out, and the minimum is converted back into coins for display.
  */
 const TOP_UP_STEPS = [100, 250, 500, 1000];
 
@@ -148,8 +149,14 @@ export default function PayKoinScreen() {
   // Digits only, so an empty field is 0 rather than NaN and every figure below
   // stays printable while the user is still typing.
   const amount = amountText === '' ? 0 : Number.parseInt(amountText, 10);
-  const cost = amount * balance.rates.list;
-  const belowMinimum = amount < balance.min_top_up;
+  // What the checkout charges, in the wallet currency — and what the API takes
+  // as `amount`. Rounded to the minor unit so 0.1-per-coin dollar pricing can't
+  // post 15.000000000000002.
+  const cost = Math.round(amount * balance.rates.list * 100) / 100;
+  // `min_top_up` is money too ("Minimum top-up is 100 NGN."), so the smallest
+  // whole number of coins that reaches it is the floor the field shows.
+  const minCoins = Math.ceil(balance.min_top_up / balance.rates.list);
+  const belowMinimum = cost < balance.min_top_up;
   const canBuy = amount > 0 && !belowMinimum && !topUp.isPending;
 
   // Convert is capped by `earned`, not by the headline total: the server
@@ -460,14 +467,15 @@ export default function PayKoinScreen() {
               ]}
             >
               {amountText === '' || amount === 0
-                ? `Minimum ${balance.min_top_up.toLocaleString()} PK.`
+                ? `Minimum ${minCoins.toLocaleString()} PK (${formatMoney(balance.min_top_up, symbol)}).`
                 : belowMinimum
-                  ? `Minimum top-up is ${balance.min_top_up.toLocaleString()} PK.`
-                  : `${amount.toLocaleString()} PK costs ${formatMoney(cost, symbol)}. Minimum ${balance.min_top_up.toLocaleString()} PK.`}
+                  ? `Minimum top-up is ${minCoins.toLocaleString()} PK (${formatMoney(balance.min_top_up, symbol)}).`
+                  : `${amount.toLocaleString()} PK costs ${formatMoney(cost, symbol)}. Minimum ${minCoins.toLocaleString()} PK.`}
             </Text>
 
             <Pressable
-              onPress={() => topUp.mutate(amount)}
+              // The API takes the money amount, not the coin count.
+              onPress={() => topUp.mutate(cost)}
               disabled={!canBuy}
               accessibilityRole="button"
               accessibilityState={{ disabled: !canBuy }}

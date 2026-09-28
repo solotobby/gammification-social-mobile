@@ -475,6 +475,7 @@ export function toPost(apiPost: TimelinePost | TimelinePostDetail): Post {
       name: liker.name,
       handle: liker.username,
       tint: tintFor(liker.id),
+      level: toUserLevel(liker.level),
     })),
     views: apiPost.views,
     earned: earnedOf(apiPost as unknown as Record<string, unknown>),

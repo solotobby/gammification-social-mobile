@@ -16,7 +16,8 @@ import { FONT } from '../../theme/fonts';
  * - **Not boosted** — "Boost Post" tag, the rate per click, and a `Boost →`
  *   button into the ad studio.
  * - **Boosted** — "Boost Active" tag, "Ad running across Payhankey & Partner
- *   Websites", and `Manage →` into the campaign list.
+ *   Websites", and `Manage →` into this post's campaign analytics
+ *   (`/post/[id]/analytics?tab=boost`), where it can be paused or resumed.
  *
  * Shown only on the author's own posts — on their profile, the post screen and
  * the Home timeline. `PostCard`'s `showBoostStrip` decides per surface.
@@ -66,7 +67,9 @@ export function PostBoostStrip({
         </Text>
 
         <Pressable
-          onPress={() => router.push(boosted ? '/boosts' : `/post/${postId}/boost`)}
+          onPress={() =>
+            router.push(boosted ? `/post/${postId}/analytics?tab=boost` : `/post/${postId}/boost`)
+          }
           accessibilityRole="button"
           accessibilityLabel={boosted ? 'Manage this promotion' : 'Boost this post'}
           style={[

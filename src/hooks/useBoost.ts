@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 import {
   fetchBoost,
@@ -14,6 +15,7 @@ import {
   startBoost,
   toBoostCampaign,
   toBoostConfig,
+  toBoostDetail,
 } from '../api/boost';
 import type { BoostPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
@@ -63,14 +65,63 @@ export function useBoosts() {
   });
 }
 
-/** `GET /boosts/{id}`. */
+/** `GET /boosts/{id}` — the campaign and its click breakdown. */
 export function useBoost(boostId: string | undefined) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
     queryKey: ['boost', boostId],
-    queryFn: async () => toBoostCampaign(await fetchBoost(boostId!)),
+    queryFn: async () => toBoostDetail(await fetchBoost(boostId!)),
     enabled: !!token && !!boostId,
   });
+}
+
+/**
+ * The campaign behind one post, for its analytics screen.
+ *
+ * **Nothing resolves a post to its campaign** — the post carries only
+ * `is_boosted`, and `/boosts` has no `post_id` filter — so this reads the
+ * caller's own campaign list and matches it here. A post can have had more
+ * than one campaign over time; a live one wins over a finished one, and the
+ * newest wins among equals (the list is newest first). Pages further back are
+ * walked only while nothing has matched.
+ */
+export function usePostBoost(postId: string | undefined) {
+  const list = useBoosts();
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = list;
+
+  const mine = (list.data?.pages ?? [])
+    .flatMap((page) => page.data)
+    .filter((campaign) => campaign.postId === postId);
+  const campaign = mine.find((c) => !c.isComplete) ?? mine[0];
+
+  useEffect(() => {
+    if (!campaign && hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [campaign, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const detail = useBoost(campaign?.id);
+  const fresh = detail.data?.campaign;
+  return {
+    // The detail read is fresher (it's refetched after pause/resume), but its
+    // `boost` object omits `platform_*` and `rate_pk`, which only the list
+    // sends — so those come from the list row.
+    campaign:
+      fresh && campaign
+        ? {
+            ...fresh,
+            onPayhankey: campaign.onPayhankey,
+            onPartners: campaign.onPartners,
+            coinsPerClick: campaign.coinsPerClick ?? fresh.coinsPerClick,
+          }
+        : (fresh ?? campaign),
+    detail: detail.data,
+    /** Still looking — the list, a further page, or the detail read. */
+    isLoading: list.isLoading || (!campaign && !!hasNextPage) || detail.isLoading,
+    isError: list.isError || detail.isError,
+    refetch: async () => {
+      await list.refetch();
+      if (campaign) await detail.refetch();
+    },
+  };
 }
 
 /**

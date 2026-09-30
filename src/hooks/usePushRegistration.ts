@@ -9,7 +9,7 @@ import { Platform } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 
-import { registerDeviceToken } from '../api/notifications';
+import { markNotificationRead, readPushData, registerDeviceToken } from '../api/notifications';
 import type { DeviceTokenPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
 
@@ -192,22 +192,48 @@ export function usePushRegistration() {
   }, [token, userId]);
 
   /**
-   * Tapping a notification opens the notifications screen.
+   * Tapping a push opens what it's about — the same screen its row in
+   * /notifications opens, because both go through `notificationRoute`. A
+   * payload the app can't place falls back to the list, which is always right.
    *
-   * Deliberately **not** deep-linked to the post/community the payload refers
-   * to: no engagement writes a notification row on staging (see
-   * `src/api/notifications.ts`), so there is no real payload to read the ids
-   * out of, and a route built on a guessed field name would send people to the
-   * wrong place. The list is always correct. Narrow this once real rows exist.
+   * Two paths, because a tap can arrive two ways:
+   *
+   * - **App running** (foreground or background): the response listener.
+   * - **Cold start** — the tap is what launched the app, so it happened before
+   *   this hook (on Home, after auth) could subscribe. The OS keeps it as the
+   *   "last response", read once on mount and then cleared so a later remount
+   *   of Home doesn't replay it.
+   *
+   * `handled` guards the overlap: on some launches both paths see the same tap.
    */
   useEffect(() => {
     if (!token) return;
-    const subscription = Notifications.addNotificationResponseReceivedListener(() => {
+    const open = (response: Notifications.NotificationResponse | null) => {
+      if (!response) return;
+      const key = response.notification.request.identifier;
+      if (handledResponses.has(key)) return;
+      handledResponses.add(key);
+
+      const { id, route } = readPushData(response.notification.request.content.data);
+      // Opening a push is reading it. Fire-and-forget: a failed mark-read must
+      // not stand between the user and the thing they tapped.
+      if (id) void markNotificationRead(id).catch(() => undefined);
       // The prefix covers both `['notifications','list']` and the badge's
       // `['notifications','unread-count']`.
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      router.push('/notifications');
-    });
+      router.push(route ?? '/notifications');
+    };
+
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        open(response);
+        return Notifications.clearLastNotificationResponseAsync();
+      })
+      .catch(() => undefined);
+    const subscription = Notifications.addNotificationResponseReceivedListener(open);
     return () => subscription.remove();
   }, [queryClient, token]);
 }
+
+/** Push taps already acted on, by request identifier — see the effect above. */
+const handledResponses = new Set<string>();

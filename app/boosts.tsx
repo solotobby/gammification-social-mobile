@@ -114,7 +114,7 @@ function CampaignCard({ campaign }: { campaign: BoostCampaign }) {
               { color: campaign.isPaused ? colors.gold : colors.mint },
             ]}
           >
-            {campaign.isPaused ? 'Paused' : 'Running'}
+            {campaign.isComplete ? 'Completed' : campaign.isPaused ? 'Paused' : 'Running'}
           </Text>
         </View>
         {campaign.timeAgo ? (
@@ -180,21 +180,34 @@ function CampaignCard({ campaign }: { campaign: BoostCampaign }) {
       </View>
 
       <View style={[styles.actions, { borderTopColor: colors.border }]}>
-        <Pressable
-          onPress={() => toggle.mutate({ boostId: campaign.id, paused: campaign.isPaused })}
-          disabled={toggle.isPending}
-          accessibilityRole="button"
-          style={styles.action}
-        >
-          <Ionicons
-            name={campaign.isPaused ? 'play-outline' : 'pause-outline'}
-            size={16}
-            color={colors.text}
-          />
-          <Text style={[styles.actionText, { color: colors.text }]}>
-            {campaign.isPaused ? 'Resume' : 'Pause'}
-          </Text>
-        </Pressable>
+        {/* A finished campaign has nothing left to pause. */}
+        {campaign.isComplete ? null : (
+          <Pressable
+            onPress={() => toggle.mutate({ boostId: campaign.id, paused: campaign.isPaused })}
+            disabled={toggle.isPending}
+            accessibilityRole="button"
+            style={styles.action}
+          >
+            <Ionicons
+              name={campaign.isPaused ? 'play-outline' : 'pause-outline'}
+              size={16}
+              color={colors.text}
+            />
+            <Text style={[styles.actionText, { color: colors.text }]}>
+              {campaign.isPaused ? 'Resume' : 'Pause'}
+            </Text>
+          </Pressable>
+        )}
+        {campaign.postId ? (
+          <Pressable
+            onPress={() => router.push(`/post/${campaign.postId}/analytics?tab=boost`)}
+            accessibilityRole="button"
+            style={styles.action}
+          >
+            <Ionicons name="stats-chart-outline" size={16} color={colors.text} />
+            <Text style={[styles.actionText, { color: colors.text }]}>Analytics</Text>
+          </Pressable>
+        ) : null}
         {campaign.postId ? (
           <Pressable
             onPress={() => router.push(`/post/${campaign.postId}`)}

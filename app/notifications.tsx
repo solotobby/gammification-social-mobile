@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
@@ -26,7 +27,10 @@ import {
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FONT } from '../src/theme/fonts';
 
-/** Icon + accent per notification kind. */
+/**
+ * Icon + accent per notification kind. Each event gets its own glyph so a
+ * scan down the list reads as "likes, a message, a gift" before any text is.
+ */
 function useKindMeta(): Record<
   NotificationKind,
   { icon: keyof typeof Ionicons.glyphMap; tint: string }
@@ -35,13 +39,17 @@ function useKindMeta(): Record<
   return {
     like: { icon: 'heart', tint: colors.pink },
     comment: { icon: 'chatbubble', tint: colors.brand },
-    follow: { icon: 'person-add', tint: colors.brandBright },
+    reply: { icon: 'arrow-undo', tint: colors.brand },
     mention: { icon: 'at', tint: colors.brandBright },
+    follow: { icon: 'person-add', tint: colors.brandBright },
+    message: { icon: 'chatbubbles', tint: colors.brandBright },
+    gift: { icon: 'gift', tint: colors.gold },
     profile_view: { icon: 'eye', tint: colors.brand },
+    boost: { icon: 'rocket', tint: colors.brand },
     community: { icon: 'people', tint: colors.brandBright },
     payout: { icon: 'cash', tint: colors.mint },
-    referral: { icon: 'gift', tint: colors.gold },
-    gift: { icon: 'gift', tint: colors.gold },
+    referral: { icon: 'people-circle', tint: colors.gold },
+    level: { icon: 'ribbon', tint: colors.gold },
     system: { icon: 'megaphone', tint: colors.brand },
     generic: { icon: 'notifications', tint: colors.brand },
   };
@@ -51,10 +59,10 @@ function useKindMeta(): Record<
  * Notification center — `GET /notifications`, with per-row and bulk
  * mark-as-read.
  *
- * Rows never materialise on the staging backend (every route answers 200 but no
- * engagement writes one), so the empty state below is what this screen shows
- * today. The mapper is alias-tolerant for the same reason — see
- * src/api/notifications.ts.
+ * Rows are structured (`type` + `target` + `actor`) for anything written since
+ * 2026-09-29; older rows are backfilled as `system` and only their web icon and
+ * link say what they were. `toAppNotification` resolves both into a kind and an
+ * app route — see src/api/notifications.ts.
  */
 export default function NotificationsScreen() {
   const { colors, radius, spacing } = useTheme();
@@ -89,15 +97,14 @@ export default function NotificationsScreen() {
   }, [query]);
 
   /**
-   * Tapping a row marks it read and follows whatever target the payload named.
-   * With no target it just reads — better than navigating somewhere arbitrary.
+   * Tapping a row marks it read and opens what it's about — the post, the
+   * thread, the profile, the campaign. With no destination it just reads,
+   * which beats navigating somewhere arbitrary.
    */
   const onOpen = useCallback(
     (item: AppNotificationItem) => {
       if (item.unread) markRead.mutate(item.id);
-      if (item.postId) router.push(`/post/${item.postId}`);
-      else if (item.communityId) router.push(`/community/${item.communityId}`);
-      else if (item.kind === 'follow' && item.username) router.push(`/member/${item.username}`);
+      if (item.route) router.push(item.route);
     },
     [markRead, router],
   );
@@ -151,7 +158,7 @@ export default function NotificationsScreen() {
             <Pressable
               onPress={() => onOpen(item)}
               accessibilityRole="button"
-              accessibilityLabel={item.text}
+              accessibilityLabel={item.body ? `${item.title}. ${item.body}` : item.title}
               style={({ pressed }) => [
                 styles.row,
                 {
@@ -169,31 +176,70 @@ export default function NotificationsScreen() {
                   corner so the event is still legible at a glance. */}
               {item.actor ? (
                 <View>
-                  <Avatar userId={item.actor.id} level={item.actor.level} name={item.actor.name} tint={item.actor.tint} size={38} />
-                  <View style={[styles.kindBadge, { backgroundColor: meta.tint }]}>
+                  <Avatar
+                    userId={item.actor.id}
+                    level={item.actor.level}
+                    name={item.actor.name}
+                    tint={item.actor.tint}
+                    uri={item.actor.avatar}
+                    size={40}
+                  />
+                  <View
+                    style={[
+                      styles.kindBadge,
+                      { backgroundColor: meta.tint, borderColor: colors.surface },
+                    ]}
+                  >
                     <Ionicons name={meta.icon} size={10} color="#FFFFFF" />
                   </View>
                 </View>
               ) : (
                 <View style={[styles.iconWrap, { backgroundColor: `${meta.tint}1A` }]}>
-                  <Ionicons name={meta.icon} size={18} color={meta.tint} />
+                  <Ionicons name={meta.icon} size={19} color={meta.tint} />
                 </View>
               )}
 
               <View style={styles.rowText}>
-                <Text style={[styles.text, { color: colors.text }]}>{item.text}</Text>
+                <Text style={[styles.text, { color: colors.text }]} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                {item.body ? (
+                  <Text
+                    style={[styles.body, { color: colors.textSecondary }]}
+                    numberOfLines={2}
+                  >
+                    {/* A DM's body is what they said — quote it. */}
+                    {item.kind === 'message' ? `“${item.body}”` : item.body}
+                  </Text>
+                ) : null}
                 <View style={styles.metaRow}>
                   {item.timeAgo ? (
                     <Text style={[styles.time, { color: colors.textMuted }]}>{item.timeAgo}</Text>
                   ) : null}
-                  {item.amount != null ? (
+                  {item.amountLabel ? (
+                    <Text style={[styles.amount, { color: colors.mint }]}>{item.amountLabel}</Text>
+                  ) : item.amount != null ? (
                     <Text style={[styles.amount, { color: colors.mint }]}>
-                      +{format(item.amount, item.currencySymbol ?? undefined)}
+                      +{format(item.amount, item.currency ?? undefined)}
                     </Text>
+                  ) : null}
+                  {item.coins != null ? (
+                    <View style={[styles.coinPill, { backgroundColor: `${colors.gold}1F` }]}>
+                      <Text style={[styles.coinText, { color: colors.gold }]}>
+                        +{item.coins.toLocaleString()} PK
+                      </Text>
+                    </View>
                   ) : null}
                 </View>
               </View>
 
+              {item.previewImage ? (
+                <Image
+                  source={{ uri: item.previewImage }}
+                  style={[styles.preview, { backgroundColor: colors.surfaceAlt }]}
+                  contentFit="cover"
+                />
+              ) : null}
               {item.unread ? (
                 <View style={[styles.unreadDot, { backgroundColor: colors.brand }]} />
               ) : null}
@@ -277,27 +323,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   iconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   kindBadge: {
     position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 17,
-    height: 17,
-    borderRadius: 9,
+    right: -3,
+    bottom: -3,
+    width: 19,
+    height: 19,
+    borderRadius: 10,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowText: { flex: 1, gap: 4 },
+  rowText: { flex: 1, gap: 3 },
   text: { fontFamily: FONT, fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  body: { fontFamily: FONT, fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 1 },
   time: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   amount: { fontFamily: FONT, fontSize: 12, fontWeight: '800' },
+  coinPill: { borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
+  coinText: { fontFamily: FONT, fontSize: 11, fontWeight: '800' },
+  preview: { width: 44, height: 44, borderRadius: 8 },
   unreadDot: { width: 8, height: 8, borderRadius: 4 },
   footer: { alignItems: 'center', paddingVertical: 14 },
   stateWrap: { alignItems: 'center', gap: 12, paddingVertical: 48, paddingHorizontal: 24 },

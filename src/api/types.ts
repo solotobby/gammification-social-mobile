@@ -1242,40 +1242,72 @@ export type ApiLevelCheckout = {
 // ---------------------------------------------------------------------------
 // Notifications
 //
-// Added to the collection 2026-09-07. Every route answers 200, but no
-// engagement writes a row on staging, so the row fields below are inference —
-// see the caveat at the top of src/api/notifications.ts.
+// Added to the collection 2026-09-07; the structured row below landed on
+// 2026-09-29 and was verified live against a real account on 2026-09-30. The
+// collection still shows an empty list, so this type is the reference.
 // ---------------------------------------------------------------------------
 
 /**
- * One notification row. Deliberately loose: the backend may flatten its payload
- * onto the row or nest it under `data`/`payload` (Laravel's own column), so
- * `toAppNotification` reads both and this type permits both.
+ * What a notification is about. `type` is the entity, `id` its key:
+ *
+ * - `post` → a timeline post id
+ * - `conversation` → a DM thread id
+ * - `profile` → a **username**, not a user id
+ * - `system` → nothing (`id: ""`) — every row written before the structured
+ *   shape shipped is backfilled as `system`, and only its `url` says where it
+ *   points
+ *
+ * `parent_id` is the comment a reply hangs off, where there is one.
+ */
+export type ApiNotificationTarget = {
+  type?: string | null;
+  id?: string | null;
+  parent_id?: string | null;
+};
+
+/** The actor. On some types (`message_received`, `gift_received`) `name` and
+ *  `username` arrive as empty strings — only `id` is dependable. */
+export type ApiNotificationActor = {
+  id: string;
+  username?: string | null;
+  name?: string | null;
+  avatar?: string | null;
+  level?: string | null;
+};
+
+/**
+ * One notification row.
+ *
+ * `type` is the event (`post_liked`, `followed`, `message_received`,
+ * `gift_received`, … or the legacy catch-all `system`). `icon` is the web's
+ * Font Awesome class (`"fa-heart text-danger"`) — it's the only thing that
+ * tells one legacy `system` row from another. `url` is the **web** page for
+ * the row (payhankey.com or the API host), never an app route.
  */
 export type ApiNotification = {
-  id?: string;
-  type?: string;
-  kind?: string;
-  event?: string;
-  message?: string;
-  text?: string;
-  title?: string;
-  body?: string;
-  created_at?: string;
-  read_at?: string | null;
+  id: string;
+  type?: string | null;
+  title?: string | null;
+  body?: string | null;
+  message?: string | null;
+  actor?: ApiNotificationActor | null;
+  actor_count?: number | null;
+  target?: ApiNotificationTarget | null;
+  preview?: { text?: string | null; image_url?: string | null } | null;
+  amount?: number | string | null;
+  currency?: string | null;
+  formatted?: string | null;
+  formatted_amount?: string | null;
+  /** `emoji` is a generic 🎁 on every row seen so far — `body` names the real gift. */
+  gift?: { id?: string; emoji?: string; name?: string; price?: number } | null;
   is_read?: boolean;
-  read?: boolean;
-  post_id?: string;
-  community_id?: string;
-  amount?: number | string;
-  currency_symbol?: string;
-  actor?: ApiCommunityUser | null;
-  user?: ApiCommunityUser | null;
-  sender?: ApiCommunityUser | null;
-  from?: ApiCommunityUser | null;
-  /** Laravel nests the payload here; an API resource usually flattens it. */
-  data?: Record<string, unknown> | null;
-  payload?: Record<string, unknown> | null;
+  read_at?: string | null;
+  created_at?: string | null;
+  icon?: string | null;
+  url?: string | null;
+  /** Per-type extras (`post_id`, `conversation_id`, `pk_amount`, …). An empty
+   *  PHP array — `[]` — when there are none. */
+  meta?: Record<string, unknown> | unknown[] | null;
 };
 
 /** `unread_count` sits *beside* `data`, not inside it. */
@@ -1684,20 +1716,57 @@ export type BoostPayload = {
 export type ApiBoostCampaign = {
   id: string;
   post_id?: string;
+  /** `active` | `paused` | `completed`. */
   status?: string;
   cta?: string | null;
   target_url?: string | null;
-  /** Clicks bought vs. clicks served. */
+  /**
+   * Clicks bought vs. clicks served. `GET /boosts` and `GET /boosts/{id}` send
+   * `total_clicks` / `delivered_clicks` / `remaining_clicks` (verified live
+   * 2026-09-30) — the `/boosts` screen read only the older spellings and so
+   * showed every campaign as "0 of 0". Those are kept as fallbacks.
+   */
+  total_clicks?: number;
+  delivered_clicks?: number;
+  remaining_clicks?: number;
+  /** 0–100; the list only. */
+  progress_percent?: number;
   clicks?: number;
   clicks_purchased?: number;
   clicks_delivered?: number;
   clicks_used?: number;
   impressions?: number;
   pk_cost?: number;
+  /** Coins per click; the list only. */
+  rate_pk?: number;
   platform_payhankey?: boolean;
   platform_partner?: boolean;
+  /** Human-readable campaign reference ("PKY-20260916095656-39282198"). */
+  ref?: string | null;
   created_at?: string;
-  post?: TimelinePost | null;
+  post?: { id: string; content?: string | null } | null;
+};
+
+/**
+ * `GET /boosts/{id}` — **not** a bare campaign: `{boost, analytics, post}`.
+ *
+ * `analytics` counts recorded clicks by device, browser and network, keyed by
+ * the backend's own labels ("Mobile", "Desktop", "Chrome", "payhankey"). That
+ * is all of it: the web's impressions, CTR, locations, click log and
+ * clicks-over-time chart have no API behind them (probed 2026-09-30 — every
+ * `/boosts/{id}/*` and `/timeline/post/{id}/boost/*` sub-route 404s, and
+ * `?tab=boost` / `?include=` on the post analytics route change nothing).
+ * An empty breakdown may arrive as `[]` (a PHP empty array), not `{}`.
+ */
+export type ApiBoostDetail = {
+  boost: ApiBoostCampaign;
+  analytics?: {
+    total_clicks_recorded?: number;
+    by_device?: Record<string, number> | unknown[];
+    by_browser?: Record<string, number> | unknown[];
+    by_platform?: Record<string, number> | unknown[];
+  } | null;
+  post?: { id: string; content?: string | null; is_boosted?: boolean } | null;
 };
 
 // ---------------------------------------------------------------------------

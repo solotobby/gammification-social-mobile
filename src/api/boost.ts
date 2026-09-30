@@ -3,6 +3,7 @@ import { timeAgo } from './timeline';
 import type {
   ApiBoostCampaign,
   ApiBoostConfig,
+  ApiBoostDetail,
   ApiBoostPackage,
   ApiEnvelope,
   BoostPayload,
@@ -65,9 +66,13 @@ export async function fetchBoosts(page: number): Promise<Paginated<ApiBoostCampa
   return data.data;
 }
 
-/** `GET /boosts/{id}` — one campaign. 404s "Boost campaign not found". */
-export async function fetchBoost(boostId: string): Promise<ApiBoostCampaign> {
-  const { data } = await api.get<ApiEnvelope<ApiBoostCampaign>>(`/boosts/${boostId}`);
+/**
+ * `GET /boosts/{id}` — one campaign plus its click breakdown, wrapped as
+ * `{boost, analytics, post}` (see `ApiBoostDetail`). 404s "Boost campaign not
+ * found".
+ */
+export async function fetchBoost(boostId: string): Promise<ApiBoostDetail> {
+  const { data } = await api.get<ApiEnvelope<ApiBoostDetail>>(`/boosts/${boostId}`);
   return data.data;
 }
 
@@ -146,14 +151,24 @@ export type BoostCampaign = {
   status: string;
   /** Lowercased status, for the one place that branches on it. */
   isPaused: boolean;
+  /** Every bought click has been served — nothing left to pause or resume. */
+  isComplete: boolean;
   cta: string | null;
   targetUrl: string | null;
   clicksBought: number;
   clicksDelivered: number;
+  clicksRemaining: number;
   /** 0–1, clamped — the progress bar's width. */
   progress: number;
   impressions: number | null;
   coinCost: number | null;
+  /** Coins per click. The list sends it; the detail doesn't, so it's derived. */
+  coinsPerClick: number | null;
+  /** Where the ad may be served. */
+  onPayhankey: boolean;
+  onPartners: boolean;
+  reference: string | null;
+  createdAt: string | null;
   timeAgo: string;
   /** The promoted post's text, when the campaign embeds it. */
   postBody?: string;
@@ -165,22 +180,81 @@ function firstNumber(...values: (number | undefined)[]): number {
 }
 
 export function toBoostCampaign(raw: ApiBoostCampaign): BoostCampaign {
-  const status = raw.status ?? 'active';
-  const clicksBought = firstNumber(raw.clicks_purchased, raw.clicks);
-  const clicksDelivered = firstNumber(raw.clicks_delivered, raw.clicks_used);
+  const clicksBought = firstNumber(raw.total_clicks, raw.clicks_purchased, raw.clicks);
+  const clicksDelivered = firstNumber(raw.delivered_clicks, raw.clicks_delivered, raw.clicks_used);
+  const clicksRemaining =
+    typeof raw.remaining_clicks === 'number'
+      ? raw.remaining_clicks
+      : Math.max(0, clicksBought - clicksDelivered);
+  const coinCost = typeof raw.pk_cost === 'number' ? raw.pk_cost : null;
+  const status = (raw.status ?? 'active').toLowerCase();
   return {
     id: raw.id,
     postId: raw.post_id ?? raw.post?.id,
     status,
-    isPaused: status.toLowerCase() === 'paused',
+    isPaused: status === 'paused',
+    isComplete: status === 'completed' || (clicksBought > 0 && clicksRemaining === 0),
     cta: raw.cta ?? null,
     targetUrl: raw.target_url ?? null,
     clicksBought,
     clicksDelivered,
+    clicksRemaining,
     progress: clicksBought > 0 ? Math.min(1, clicksDelivered / clicksBought) : 0,
     impressions: typeof raw.impressions === 'number' ? raw.impressions : null,
-    coinCost: typeof raw.pk_cost === 'number' ? raw.pk_cost : null,
+    coinCost,
+    coinsPerClick:
+      typeof raw.rate_pk === 'number'
+        ? raw.rate_pk
+        : coinCost != null && clicksBought > 0
+          ? coinCost / clicksBought
+          : null,
+    // Absent means the older campaign shape, which only ever ran in-feed.
+    onPayhankey: raw.platform_payhankey ?? true,
+    onPartners: raw.platform_partner ?? false,
+    reference: raw.ref ?? null,
+    createdAt: raw.created_at ?? null,
     timeAgo: raw.created_at ? timeAgo(raw.created_at) : '',
-    postBody: raw.post?.content,
+    postBody: raw.post?.content ?? undefined,
+  };
+}
+
+/** One bar in a click breakdown. */
+export type BoostBreakdownRow = { label: string; clicks: number; share: number };
+
+/**
+ * A `by_device` / `by_browser` / `by_platform` map into sorted rows. An empty
+ * breakdown comes back as `[]` — a PHP empty array — so anything that isn't a
+ * plain object is treated as no clicks.
+ */
+function toBreakdown(
+  raw: Record<string, number> | unknown[] | undefined,
+  total: number,
+): BoostBreakdownRow[] {
+  if (!raw || Array.isArray(raw)) return [];
+  return Object.entries(raw)
+    .filter(([, clicks]) => typeof clicks === 'number')
+    .map(([label, clicks]) => ({ label, clicks, share: total > 0 ? clicks / total : 0 }))
+    .sort((a, b) => b.clicks - a.clicks);
+}
+
+export type BoostDetail = {
+  campaign: BoostCampaign;
+  /** Clicks the tracker actually recorded — the denominator for every share. */
+  clicksRecorded: number;
+  byDevice: BoostBreakdownRow[];
+  byBrowser: BoostBreakdownRow[];
+  byNetwork: BoostBreakdownRow[];
+};
+
+export function toBoostDetail(raw: ApiBoostDetail): BoostDetail {
+  const campaign = toBoostCampaign({ ...raw.boost, post: raw.boost.post ?? raw.post });
+  const analytics = raw.analytics ?? {};
+  const clicksRecorded = analytics.total_clicks_recorded ?? campaign.clicksDelivered;
+  return {
+    campaign,
+    clicksRecorded,
+    byDevice: toBreakdown(analytics.by_device, clicksRecorded),
+    byBrowser: toBreakdown(analytics.by_browser, clicksRecorded),
+    byNetwork: toBreakdown(analytics.by_platform, clicksRecorded),
   };
 }

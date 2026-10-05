@@ -66,10 +66,16 @@ export const useLevelStore = create<LevelState>()(
  */
 export function useUserLevel(userId: string | undefined, explicit?: UserLevel) {
   const remembered = useLevelStore((s) => (userId ? s.byId[userId] : undefined));
+  // Written when *this payload's* level changes — never in reaction to the
+  // store. Payloads can disagree about one user (a persisted feed from before
+  // they upgraded beside a fresh post detail, a notification's snapshot beside
+  // a live comment), and with `remembered` in the deps two such avatars on
+  // screen overwrote each other forever: basic → creator → basic until React
+  // threw "Maximum update depth exceeded" and the screen's error boundary
+  // showed "Something went wrong". Each avatar renders its own payload's level
+  // regardless, so the last write winning costs nothing.
   useEffect(() => {
-    if (userId && explicit && explicit !== remembered) {
-      useLevelStore.getState().setLevel(userId, explicit);
-    }
-  }, [userId, explicit, remembered]);
+    if (userId && explicit) useLevelStore.getState().setLevel(userId, explicit);
+  }, [userId, explicit]);
   return explicit ?? remembered;
 }

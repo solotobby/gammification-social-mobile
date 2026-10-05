@@ -13,9 +13,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { toPost, uniqueById } from '../../src/api/timeline';
 import { FEED_GUTTER, PostCard } from '../../src/components/feed/PostCard';
-import { HomeHeader } from '../../src/components/home/HomeHeader';
+import { HomeGreetingRow, HomeHeader } from '../../src/components/home/HomeHeader';
 import { type FeedTab } from '../../src/components/home/FeedTabs';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
+import {
+  TabScreenHeader,
+  useScrolledPastTop,
+} from '../../src/components/navigation/TabScreenHeader';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { useBoostRate } from '../../src/hooks/useBoost';
@@ -139,10 +143,17 @@ export default function HomeScreen() {
   // usePostViewTracker. Silent: nothing renders, nothing can fail loudly.
   const viewTracker = usePostViewTracker();
 
+  const header = useScrolledPastTop();
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenBackground />
+      {/* Fixed: the greeting row stays put while the feed scrolls under it. */}
+      <TabScreenHeader scrolled={header.scrolled} gutter={FEED_GUTTER}>
+        <HomeGreetingRow />
+      </TabScreenHeader>
       <FlatList
+        style={styles.list}
         data={posts}
         keyExtractor={(post) => post.id}
         renderItem={({ item }) => (
@@ -152,6 +163,8 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.6}
+        onScroll={header.onScroll}
+        scrollEventThrottle={header.scrollEventThrottle}
         onViewableItemsChanged={viewTracker.onViewableItemsChanged}
         viewabilityConfig={viewTracker.viewabilityConfig}
         keyboardShouldPersistTaps="handled"
@@ -239,7 +252,9 @@ export default function HomeScreen() {
           ) : null
         }
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.lg,
+          // The fixed header above owns the safe area; this only restores the
+          // gap the greeting row used to leave before the pulse card.
+          paddingTop: spacing.xl - spacing.md,
           paddingBottom: insets.bottom + TAB_BAR_CLEARANCE,
         }}
       />
@@ -249,6 +264,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  list: { flex: 1 },
   headerWrap: { paddingHorizontal: FEED_GUTTER, paddingBottom: 18 },
   footer: {
     flexDirection: 'row',

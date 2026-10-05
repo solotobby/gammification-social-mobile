@@ -6,6 +6,10 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DrawerAvatarButton } from '../../src/components/navigation/DrawerAvatarButton';
+import {
+  TabScreenHeader,
+  useScrolledPastTop,
+} from '../../src/components/navigation/TabScreenHeader';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { GhostButton } from '../../src/components/ui/GhostButton';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
@@ -89,6 +93,7 @@ export default function EarnScreen() {
   const format = money;
 
   const yearly = useYearlyAnalytics(CURRENT_YEAR);
+  const header = useScrolledPastTop();
 
   // Month chips come from the year's reported months; fall back to the current
   // month so the picker is never empty before any post exists.
@@ -134,23 +139,40 @@ export default function EarnScreen() {
     { icon: 'flash-outline' as const, label: 'Total engagement', value: monetized.total_engagement },
   ];
 
+  // Fixed above the content in every state, so the drawer is reachable while
+  // the earnings load (or fail to).
+  const titleHeader = (
+    <TabScreenHeader scrolled={header.scrolled} gutter={spacing.xl}>
+      <View style={styles.titleRow}>
+        <DrawerAvatarButton />
+        <Text style={[styles.title, { color: colors.text }]}>Earn</Text>
+      </View>
+    </TabScreenHeader>
+  );
+
   if (yearly.isLoading) {
     return (
-      <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
         <ScreenBackground />
-        <ActivityIndicator color={colors.brand} />
+        {titleHeader}
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.brand} />
+        </View>
       </View>
     );
   }
 
   if (yearly.isError && !yearly.data) {
     return (
-      <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
         <ScreenBackground />
-        <Text style={[styles.errorText, { color: colors.textMuted }]}>
-          We couldn't load your earnings.
-        </Text>
-        <GhostButton label="Retry" onPress={() => void yearly.refetch()} />
+        {titleHeader}
+        <View style={styles.center}>
+          <Text style={[styles.errorText, { color: colors.textMuted }]}>
+            We couldn't load your earnings.
+          </Text>
+          <GhostButton label="Retry" onPress={() => void yearly.refetch()} />
+        </View>
       </View>
     );
   }
@@ -158,20 +180,21 @@ export default function EarnScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenBackground />
+      {titleHeader}
       <ScrollView
+        style={styles.root}
         showsVerticalScrollIndicator={false}
+        onScroll={header.onScroll}
+        scrollEventThrottle={header.scrollEventThrottle}
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.lg,
+          // The fixed header owns the safe area; this restores the gap the
+          // title row used to leave before the month chips.
+          paddingTop: spacing.xl - spacing.md,
           paddingBottom: insets.bottom + TAB_BAR_CLEARANCE,
           paddingHorizontal: spacing.xl,
           gap: spacing.xl,
         }}
       >
-        <View style={styles.titleRow}>
-          <DrawerAvatarButton />
-          <Text style={[styles.title, { color: colors.text }]}>Earn</Text>
-        </View>
-
         {/* Month selector */}
         <View style={styles.monthRow}>
           {monthList.map((month) => {
@@ -346,7 +369,7 @@ export default function EarnScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  center: { alignItems: 'center', justifyContent: 'center', gap: 14 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   errorText: { fontFamily: FONT, fontSize: 14, fontWeight: '600' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontFamily: FONT, fontSize: 26, fontWeight: '800' },

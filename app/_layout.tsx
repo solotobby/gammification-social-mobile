@@ -1,8 +1,9 @@
+import { useIsRestoring } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { startNetworkWatch } from '../src/api/network';
@@ -16,6 +17,7 @@ import { ErrorModalHost } from '../src/components/feedback/ErrorModal';
 import { OfflineBanner } from '../src/components/feedback/OfflineBanner';
 import { ToastHost } from '../src/components/feedback/Toast';
 import { GiftSplashHost } from '../src/components/gifts/GiftSplash';
+import { LaunchSplash } from '../src/components/launch/LaunchSplash';
 import { PaymentSheet } from '../src/components/payments/PaymentSheet';
 import { registerMessagingMutationDefaults, useMessagingSync } from '../src/hooks/useMessages';
 import { registerMutationDefaults } from '../src/hooks/useTimeline';
@@ -34,9 +36,12 @@ registerMessagingMutationDefaults(queryClient);
 installGlobalErrorHandler();
 
 // Without this the native splash hides the moment the root view mounts, which
-// is before the session has been read back — see ThemedStack below.
+// is before the session has been read back. LaunchSplash hides it, once the
+// app is ready underneath — see ThemedStack below.
 void SplashScreen.preventAutoHideAsync();
-SplashScreen.setOptions({ duration: 350, fade: true });
+// No fade: LaunchSplash's first frame is a copy of the native splash, so the
+// hand-off is a straight cut, and the animation starts the instant it lands.
+SplashScreen.setOptions({ fade: false });
 
 /**
  * Messaging upkeep that must outlive any one screen: the outbox keeps sending
@@ -51,24 +56,31 @@ function MessagingSync() {
 function ThemedStack() {
   const { colors, isDark } = useTheme();
   const status = useAuthStore((s) => s.status);
+  const isRestoring = useIsRestoring();
   const { checkForUpdate } = useUpdateCheck();
 
-  // Hold the splash until the persisted session loads, so launch lands
-  // directly on the right side of the auth guard with no flash.
-  useEffect(() => {
-    if (status !== 'hydrating') void SplashScreen.hideAsync();
-  }, [status]);
+  // The native splash is held until the persisted session AND the persisted
+  // query cache are back, so launch lands directly on the right side of the
+  // auth guard and the first screen mounts with its cached data under the
+  // native splash — not under the launch animation, where that burst of
+  // UI-thread work would stall it. LaunchSplash then hides the native splash
+  // and plays over the mounted app.
+  const ready = status !== 'hydrating' && !isRestoring;
+  const [splashDone, setSplashDone] = useState(false);
+  const onSplashDone = useCallback(() => setSplashDone(true), []);
 
-  // Ask Play for a newer build once the first route is up — the same beat
-  // Freebyz checks on, right after its splash animation finishes. Delayed a
-  // little so the launch route settles before /app-update can push over it.
+  // Ask Play for a newer build once the launch animation has handed over —
+  // the same beat Freebyz checks on. Delayed a little so the launch route
+  // settles before /app-update can push over it.
   useEffect(() => {
-    if (status === 'hydrating') return;
+    if (!splashDone) return;
     const timer = setTimeout(() => void checkForUpdate(), 600);
     return () => clearTimeout(timer);
-  }, [status, checkForUpdate]);
+  }, [splashDone, checkForUpdate]);
 
-  if (status === 'hydrating') return null;
+  const splash = splashDone ? null : <LaunchSplash ready={ready} onDone={onSplashDone} />;
+
+  if (status === 'hydrating') return splash;
 
   const signedIn = status === 'signedIn';
 
@@ -126,6 +138,9 @@ function ThemedStack() {
       <GiftSplashHost />
       <ToastHost />
       <ErrorModalHost />
+      {/* Last, so it covers everything — including the hosts above — until
+          it has dissolved into the app. */}
+      {splash}
     </>
   );
 }

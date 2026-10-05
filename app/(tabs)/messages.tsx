@@ -17,6 +17,10 @@ import {
   ConversationRow,
 } from '../../src/components/messages/ConversationRow';
 import { DrawerAvatarButton } from '../../src/components/navigation/DrawerAvatarButton';
+import {
+  TabScreenHeader,
+  useScrolledPastTop,
+} from '../../src/components/navigation/TabScreenHeader';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import { TextField } from '../../src/components/ui/TextField';
@@ -66,6 +70,7 @@ export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
 
   const offline = useIsOffline();
+  const header = useScrolledPastTop();
 
   // Poll only while the tab is actually in front.
   const [focused, setFocused] = useState(true);
@@ -148,7 +153,43 @@ export default function MessagesScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenBackground />
+      {/* Fixed: the title row stays put while the inbox scrolls under it. */}
+      <TabScreenHeader scrolled={header.scrolled} gutter={spacing.xl}>
+        <View style={styles.titleRow}>
+          <DrawerAvatarButton />
+          <View style={styles.titleText}>
+            <Text style={[styles.title, { color: colors.text }]}>Messages</Text>
+            <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+              {offline
+                ? 'Offline · showing saved messages'
+                : firstLoad
+                  ? 'Loading your conversations…'
+                  : unreadCount > 0
+                    ? `${unreadCount} conversation${unreadCount === 1 ? '' : 's'} waiting on you`
+                    : pinnedCount > 0
+                      ? `${pinnedCount} pinned · you’re all caught up`
+                      : 'You’re all caught up'}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/messages/new')}
+            accessibilityRole="button"
+            accessibilityLabel="New message"
+            style={({ pressed }) => [
+              styles.composeButton,
+              {
+                backgroundColor: colors.brand,
+                opacity: pressed ? 0.8 : 1,
+                shadowColor: colors.brand,
+              },
+            ]}
+          >
+            <Ionicons name="create-outline" size={21} color={colors.onBrand} />
+          </Pressable>
+        </View>
+      </TabScreenHeader>
       <FlatList
+        style={styles.root}
         data={visible}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
@@ -165,47 +206,18 @@ export default function MessagesScreen() {
           ) : null
         }
         keyboardShouldPersistTaps="handled"
+        onScroll={header.onScroll}
+        scrollEventThrottle={header.scrollEventThrottle}
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.lg,
+          // The fixed header owns the safe area; this restores the gap the
+          // title row used to leave before the search field.
+          paddingTop: spacing.lg - spacing.md,
           paddingBottom: insets.bottom + TAB_BAR_CLEARANCE,
         }}
         ListHeaderComponent={
           <View
             style={{ gap: spacing.lg, paddingBottom: spacing.md, paddingHorizontal: spacing.xl }}
           >
-            <View style={styles.titleRow}>
-              <DrawerAvatarButton />
-              <View style={styles.titleText}>
-                <Text style={[styles.title, { color: colors.text }]}>Messages</Text>
-                <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                  {offline
-                    ? 'Offline · showing saved messages'
-                    : firstLoad
-                      ? 'Loading your conversations…'
-                      : unreadCount > 0
-                        ? `${unreadCount} conversation${unreadCount === 1 ? '' : 's'} waiting on you`
-                        : pinnedCount > 0
-                          ? `${pinnedCount} pinned · you’re all caught up`
-                          : 'You’re all caught up'}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => router.push('/messages/new')}
-                accessibilityRole="button"
-                accessibilityLabel="New message"
-                style={({ pressed }) => [
-                  styles.composeButton,
-                  {
-                    backgroundColor: colors.brand,
-                    opacity: pressed ? 0.8 : 1,
-                    shadowColor: colors.brand,
-                  },
-                ]}
-              >
-                <Ionicons name="create-outline" size={21} color={colors.onBrand} />
-              </Pressable>
-            </View>
-
             <TextField
               icon="search-outline"
               placeholder="Search conversations"

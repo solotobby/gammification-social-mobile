@@ -16,6 +16,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toCommunity, type Community } from '../../src/api/communities';
 import { CommunityCard } from '../../src/components/community/CommunityCard';
 import { DrawerAvatarButton } from '../../src/components/navigation/DrawerAvatarButton';
+import {
+  TabScreenHeader,
+  useScrolledPastTop,
+} from '../../src/components/navigation/TabScreenHeader';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
@@ -51,6 +55,8 @@ export default function CommunitiesScreen() {
   const { colors, brand, radius, spacing } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const header = useScrolledPastTop();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<CommunityFilter>('all');
@@ -102,12 +108,22 @@ export default function CommunitiesScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenBackground />
+      {/* Fixed: the title row stays put while the list scrolls under it. */}
+      <TabScreenHeader scrolled={header.scrolled} gutter={spacing.xl}>
+        <View style={styles.headerRow}>
+          <DrawerAvatarButton />
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Communities</Text>
+        </View>
+      </TabScreenHeader>
       <FlatList
+        style={styles.root}
         data={communities}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <CommunityCard community={item} />}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScroll={header.onScroll}
+        scrollEventThrottle={header.scrollEventThrottle}
         onRefresh={refetch}
         refreshing={isRefetching && !isFetchingNextPage}
         onEndReachedThreshold={0.5}
@@ -115,18 +131,15 @@ export default function CommunitiesScreen() {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();
         }}
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.lg,
+          // The fixed header owns the safe area; this restores the gap the
+          // title row used to leave before the create banner.
+          paddingTop: spacing.xl - spacing.md,
           paddingBottom: insets.bottom + TAB_BAR_CLEARANCE,
           paddingHorizontal: spacing.xl,
           gap: spacing.md,
         }}
         ListHeaderComponent={
           <View style={{ gap: spacing.xl, marginBottom: spacing.md }}>
-            <View style={styles.headerRow}>
-              <DrawerAvatarButton />
-              <Text style={[styles.headerTitle, { color: colors.text }]}>Communities</Text>
-            </View>
-
             {/* Create banner */}
             <LinearGradient
               colors={[brand.violetBright, brand.violet]}

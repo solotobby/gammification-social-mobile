@@ -19,7 +19,9 @@ import { FONT } from '../../theme/fonts';
 /**
  * Everything above the feed on Home: greeting row (avatar, search,
  * notifications), the monetization signal, the composer trigger, and the
- * For You / Following filter. (The stories rail is commented out below.)
+ * For You / Following filter. (The stories rail is commented out below.) The
+ * greeting row is its own component, `HomeGreetingRow`, because it is fixed
+ * above the feed while the rest scrolls with it.
  *
  * The avatar at the left of the greeting row opens the **side drawer** rather
  * than pushing a profile screen — the drawer is the way to every account
@@ -35,14 +37,13 @@ function getGreeting() {
   return 'Good evening';
 }
 
-export function HomeHeader({
-  feedTab,
-  onChangeFeedTab,
-}: {
-  feedTab: FeedTab;
-  onChangeFeedTab: (tab: FeedTab) => void;
-}) {
-  const { colors, radius, spacing } = useTheme();
+/**
+ * The greeting row — avatar (drawer), greeting + name, search, notifications.
+ * Rendered by Home in a `TabScreenHeader` above the feed, so it stays fixed
+ * while everything below it (including the rest of `HomeHeader`) scrolls.
+ */
+export function HomeGreetingRow() {
+  const { colors } = useTheme();
   const router = useRouter();
   const greeting = getGreeting();
 
@@ -61,54 +62,67 @@ export function HomeHeader({
   ];
 
   return (
-    <View style={{ gap: spacing.xl }}>
-      {/* Greeting row */}
-      <View style={styles.headerRow}>
-        <DrawerAvatarButton size={46} />
-        <View style={styles.headerText}>
-          <Text style={[styles.hello, { color: colors.textMuted }]}>{greeting}</Text>
-          {/* Your own level, straight from /user/me: a Creator's blue check or
-              an Influencer's purple one (the avatar beside it wears the ring). */}
-          <Text style={[styles.helloName, { color: colors.text }]}>
-            {displayName.split(' ')[0]}{' '}
-            <LevelBadge
-              userId={me?.user.id ?? sessionUser?.id}
-              level={toUserLevel(me?.level)}
-              size={20}
-            />{' '}
-            👋
-          </Text>
-        </View>
-        <Pressable
-          onPress={() => router.push('/search')}
-          accessibilityRole="button"
-          accessibilityLabel="Search people"
-          style={iconButton}
-        >
-          <Ionicons name="search-outline" size={22} color={colors.text} />
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/notifications')}
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-          style={iconButton}
-        >
-          <Ionicons name="notifications-outline" size={22} color={colors.text} />
-          {unreadCount > 0 ? (
-            <View
-              style={[
-                styles.bellBadge,
-                { backgroundColor: colors.pink, borderColor: colors.surface },
-              ]}
-            >
-              <Text style={styles.bellBadgeText} numberOfLines={1}>
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </Text>
-            </View>
-          ) : null}
-        </Pressable>
+    <View style={styles.headerRow}>
+      <DrawerAvatarButton size={46} />
+      <View style={styles.headerText}>
+        <Text style={[styles.hello, { color: colors.textMuted }]}>{greeting}</Text>
+        {/* Your own level, straight from /user/me: a Creator's blue check or
+            an Influencer's purple one (the avatar beside it wears the ring). */}
+        <Text style={[styles.helloName, { color: colors.text }]}>
+          {displayName.split(' ')[0]}{' '}
+          <LevelBadge
+            userId={me?.user.id ?? sessionUser?.id}
+            level={toUserLevel(me?.level)}
+            size={20}
+          />{' '}
+          👋
+        </Text>
       </View>
+      <Pressable
+        onPress={() => router.push('/search')}
+        accessibilityRole="button"
+        accessibilityLabel="Search people"
+        style={iconButton}
+      >
+        <Ionicons name="search-outline" size={22} color={colors.text} />
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/notifications')}
+        accessibilityRole="button"
+        accessibilityLabel="Notifications"
+        style={iconButton}
+      >
+        <Ionicons name="notifications-outline" size={22} color={colors.text} />
+        {unreadCount > 0 ? (
+          <View
+            style={[
+              styles.bellBadge,
+              { backgroundColor: colors.pink, borderColor: colors.surface },
+            ]}
+          >
+            <Text style={styles.bellBadgeText} numberOfLines={1}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Text>
+          </View>
+        ) : null}
+      </Pressable>
+    </View>
+  );
+}
 
+/** Everything under the greeting row; scrolls with the feed. */
+export function HomeHeader({
+  feedTab,
+  onChangeFeedTab,
+}: {
+  feedTab: FeedTab;
+  onChangeFeedTab: (tab: FeedTab) => void;
+}) {
+  const { colors, radius, spacing } = useTheme();
+  const router = useRouter();
+
+  return (
+    <View style={{ gap: spacing.xl }}>
       {/* Monetization signal — earning stays visible without a dashboard */}
       <EarningsPulse />
 

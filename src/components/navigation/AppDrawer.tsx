@@ -132,6 +132,12 @@ const SECTIONS: { title: string; items: DrawerItem[] }[] = [
         route: '/settings',
       },
       {
+        icon: 'chatbox-ellipses-outline',
+        label: 'Send feedback',
+        sub: 'Complaints, ideas & bugs',
+        route: '/feedback',
+      },
+      {
         icon: 'help-buoy-outline',
         label: 'How it works',
         sub: 'Earning explained',

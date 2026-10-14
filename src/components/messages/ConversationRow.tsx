@@ -2,10 +2,11 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { previewText, type Conversation } from '../../data/messages';
+import { parseCallLog, previewText, type Conversation } from '../../data/messages';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 import { Avatar } from '../ui/Avatar';
+import { OnlineDot } from '../ui/OnlineDot';
 import { NameWithBadge } from '../ui/LevelBadge';
 import { listStamp } from './time';
 
@@ -39,8 +40,9 @@ export const CONVERSATION_DIVIDER_INSET = AVATAR_SIZE + AVATAR_GAP;
  * states shown are the ones this device *does* know — a clock while a message
  * is still in the outbox, and a red "!" when the server refused one.
  *
- * **No presence dot.** The API has no online/last-seen signal, so a green dot
- * would be invented.
+ * **The presence dot is live**, from `presence-messaging.online` (2026-10-14):
+ * green while they have Payhankey open. There's still no last-seen, so an
+ * offline person shows nothing rather than a guessed "last active".
  *
  * **The row carries no overflow menu.** Pin, mute and block all live in the
  * thread's own header (`ConversationMenu`) — one place to act on a
@@ -66,6 +68,10 @@ export function ConversationRow({
   const mine = !!last?.mine;
   const unread = conversation.unread > 0;
   const preview = previewText(last);
+  // A call log previews as the call ("Voice call · 1m 0s", "Missed video
+  // call") behind a call icon — the arrow of who rang whom is in the icon's
+  // colour, not a "You:" prefix that reads oddly for a call.
+  const call = last ? (last.call ?? parseCallLog(last.body, last.mine)) : null;
 
   return (
     <Pressable
@@ -84,14 +90,17 @@ export function ConversationRow({
         },
       ]}
     >
-      <Avatar
-        userId={conversation.member.id}
-        level={conversation.member.level}
-        name={conversation.member.name}
-        tint={conversation.member.tint}
-        uri={conversation.member.avatar}
-        size={AVATAR_SIZE}
-      />
+      <View>
+        <Avatar
+          userId={conversation.member.id}
+          level={conversation.member.level}
+          name={conversation.member.name}
+          tint={conversation.member.tint}
+          uri={conversation.member.avatar}
+          size={AVATAR_SIZE}
+        />
+        <OnlineDot userId={conversation.member.id} avatarSize={AVATAR_SIZE} />
+      </View>
 
       <View style={styles.body}>
         <View style={styles.line}>
@@ -119,7 +128,15 @@ export function ConversationRow({
             ) : last?.status === 'failed' ? (
               <Ionicons name="alert-circle" size={16} color={colors.danger} />
             ) : null}
-            {last?.hasImage ? (
+            {call ? (
+              // Filled and in brand violet, matching the call card in the
+              // thread — red only for a missed one, as it is there.
+              <Ionicons
+                name={call.type === 'video' ? 'videocam' : 'call'}
+                size={15}
+                color={call.missed ? colors.danger : colors.brand}
+              />
+            ) : last?.hasImage ? (
               <Ionicons name="camera-outline" size={15} color={colors.textMuted} />
             ) : null}
             <Text
@@ -134,7 +151,7 @@ export function ConversationRow({
             >
               {last?.status === 'failed'
                 ? 'Message not sent'
-                : mine
+                : mine && !call
                   ? `You: ${preview}`
                   : preview}
             </Text>

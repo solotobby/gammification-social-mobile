@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 
 import { markNotificationRead, readPushData, registerDeviceToken } from '../api/notifications';
+import { resumeIncomingCall } from '../calls/callEngine';
 import type { DeviceTokenPayload } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
 
@@ -214,7 +215,16 @@ export function usePushRegistration() {
       if (handledResponses.has(key)) return;
       handledResponses.add(key);
 
-      const { id, route } = readPushData(response.notification.request.content.data);
+      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+      // An incoming-call push: ring it here if it's still ringing (the call
+      // screen presents itself), rather than opening a notification.
+      if (data?.type === 'call_incoming' && typeof data.call_id === 'string') {
+        void resumeIncomingCall(data.call_id);
+        return;
+      }
+      if (data?.type === 'call_cancelled') return;
+
+      const { id, route } = readPushData(data);
       // Opening a push is reading it. Fire-and-forget: a failed mark-read must
       // not stand between the user and the thing they tapped.
       if (id) void markNotificationRead(id).catch(() => undefined);

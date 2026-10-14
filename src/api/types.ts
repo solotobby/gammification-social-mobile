@@ -1871,7 +1871,8 @@ export type ConversationListResponse = {
 /** A message as the thread and send endpoints return it. */
 export type ApiChatMessage = {
   id: string;
-  type: 'text' | 'image';
+  /** `call` is a call log — its `body` is JSON, see `parseCallLog`. */
+  type: 'text' | 'image' | 'call';
   mine: boolean;
   body: string | null;
   /** Absolute CDN URLs. Up to 5 per message. */

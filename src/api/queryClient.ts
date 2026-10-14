@@ -27,6 +27,7 @@ const MAX_AGE = 24 * 60 * 60 * 1000;
  */
 const PERSISTED_KEYS = new Set([
   'feed',
+  'calls',
   'bookmarks',
   'wallet',
   'top-rolls',

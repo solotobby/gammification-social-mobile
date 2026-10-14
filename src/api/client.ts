@@ -1,5 +1,7 @@
 import axios, { AxiosError } from 'axios';
+import { Platform } from 'react-native';
 
+import { realtimeSocketId } from '../realtime/socket';
 import { useAuthStore } from '../stores/authStore';
 
 export const BASE_URL = 'https://pky.e-portal.com.ng/api/v1';
@@ -55,6 +57,10 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Laravel's `toOthers()` skips the socket named here, so our own typing,
+  // messages and call signals aren't echoed back to us (verified 2026-10-14).
+  const socketId = realtimeSocketId();
+  if (socketId && Platform.OS !== 'web') config.headers['X-Socket-ID'] = socketId;
   return config;
 });
 

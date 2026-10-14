@@ -19,7 +19,10 @@ import { ToastHost } from '../src/components/feedback/Toast';
 import { GiftSplashHost } from '../src/components/gifts/GiftSplash';
 import { LaunchSplash } from '../src/components/launch/LaunchSplash';
 import { PaymentSheet } from '../src/components/payments/PaymentSheet';
+import { abandonCall } from '../src/calls/callEngine';
+import { CallHost } from '../src/components/calls/CallHost';
 import { registerMessagingMutationDefaults, useMessagingSync } from '../src/hooks/useMessages';
+import { useRealtimeSync } from '../src/realtime/useRealtimeSync';
 import { registerMutationDefaults } from '../src/hooks/useTimeline';
 import { useUpdateCheck } from '../src/hooks/useInAppUpdate';
 import { useAuthStore } from '../src/stores/authStore';
@@ -50,6 +53,18 @@ SplashScreen.setOptions({ fade: false });
  */
 function MessagingSync() {
   useMessagingSync();
+  return null;
+}
+
+/**
+ * The realtime socket and everything it feeds app-wide — your own channel
+ * (notifications, wallet, incoming calls), presence and timeline counts. See
+ * src/realtime/useRealtimeSync.ts. Rendered only while signed in; unmounting
+ * (sign-out) drops the socket, its channels and any call in progress.
+ */
+function RealtimeSync() {
+  useRealtimeSync();
+  useEffect(() => () => abandonCall(), []);
   return null;
 }
 
@@ -108,6 +123,19 @@ function ThemedStack() {
               people picker is a modal, the same shape as /compose. */}
           <Stack.Screen name="messages/[id]" />
           <Stack.Screen name="messages/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="calls" />
+          {/* Calls cover everything, modals included. No swipe-to-dismiss:
+              leaving mid-call minimises it (see app/call.tsx), and that's
+              done with the screen's own chevron. */}
+          <Stack.Screen
+            name="call"
+            options={{
+              presentation: 'fullScreenModal',
+              animation: 'fade',
+              gestureEnabled: false,
+              contentStyle: { backgroundColor: '#000000' },
+            }}
+          />
           <Stack.Screen
             name="story/[member]"
             options={{ animation: 'fade', contentStyle: { backgroundColor: '#000000' } }}
@@ -129,6 +157,8 @@ function ThemedStack() {
         <Stack.Screen name="app-update" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       {signedIn ? <MessagingSync /> : null}
+      {signedIn ? <RealtimeSync /> : null}
+      {signedIn ? <CallHost /> : null}
       <OfflineBanner />
       {/* Checkout runs above every screen: a payment must not be cancelled by
           navigating, and only one can ever be in flight. */}

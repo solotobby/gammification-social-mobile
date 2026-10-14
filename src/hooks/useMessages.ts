@@ -13,6 +13,7 @@ import { AppState } from 'react-native';
 
 import { ApiError } from '../api/client';
 import {
+  toChatMessage,
   blockMessagingUser,
   fetchConversations,
   fetchMessagesUnreadCount,
@@ -27,6 +28,7 @@ import {
   type ConversationPage,
 } from '../api/messages';
 import type { Member } from '../data/community';
+import type { ApiChatMessage } from '../api/types';
 import type { ChatMessage, Conversation, Thread } from '../data/messages';
 import { useAuthStore } from '../stores/authStore';
 import { useBlockedStore } from '../stores/blockedStore';
@@ -43,20 +45,29 @@ import { outboxToMessage, useOutboxStore, type OutboxItem } from '../stores/outb
  * (`src/stores/outboxStore.ts`) and are drawn into their thread beside the
  * server's.
  *
- * **Freshness without a socket.** The API has no push channel for messages, so
- * everything is polled — and only while someone is looking: the open thread
- * every few seconds, the list while the Messages tab is focused, and the tab
- * badge app-wide once a minute-ish. React Query pauses all of it while the app
- * is backgrounded or offline (`focusManager` / `onlineManager`, see
- * src/api/network.ts), so none of this costs anything in a pocket.
+ * **Freshness.** Since 2026-10-14 messages arrive over the realtime socket
+ * (src/realtime/): `message.sent` lands on your `private-user.{id}` channel
+ * for every thread and on the open thread's `private-conversation.{id}`, and
+ * `receiveRealtimeMessage` writes it straight into these caches. Polling
+ * stays as the safety net for anything lost while the socket was down — the
+ * open thread every 2s with no socket and every 20s with one, the list while
+ * the Messages tab is focused, the tab badge app-wide. React Query pauses all
+ * of it while the app is backgrounded or offline (`focusManager` /
+ * `onlineManager`, see src/api/network.ts).
  */
 
 export const CONVERSATIONS_KEY = ['conversations', 'list'] as const;
 export const MESSAGES_UNREAD_KEY = ['conversations', 'unread-count'] as const;
 export const threadKey = (id: string) => ['conversation', id] as const;
 
-/** The open thread re-reads its newest page this often. */
+/** The open thread re-reads its newest page this often — with no socket. */
 const THREAD_POLL_MS = 2_000;
+/**
+ * …and this often while the socket is connected and carrying the thread's
+ * `message.sent` / `messages.read` events. Still polled, as a safety net for an
+ * event lost across a reconnect.
+ */
+const THREAD_POLL_LIVE_MS = 20_000;
 /** The list re-reads while the Messages tab is on screen. */
 const LIST_POLL_MS = 15_000;
 /** The tab badge, app-wide. */
@@ -259,9 +270,14 @@ export function useMessagesUnreadCount() {
 
 /**
  * `GET /conversations/{id}` — the newest page, merged over any history already
- * loaded (`mergeNewest`). Pass `live` while the thread is on screen.
+ * loaded (`mergeNewest`). Pass `live` while the thread is on screen, and
+ * `pushed` while its socket channel is subscribed — polling then drops to a
+ * slow safety net.
  */
-export function useThread(id: string | undefined, { live = false }: { live?: boolean } = {}) {
+export function useThread(
+  id: string | undefined,
+  { live = false, pushed = false }: { live?: boolean; pushed?: boolean } = {},
+) {
   const token = useAuthStore((s) => s.token);
   const queryClient = useQueryClient();
   return useQuery({
@@ -283,7 +299,7 @@ export function useThread(id: string | undefined, { live = false }: { live?: boo
       };
     },
     enabled: !!token && !!id,
-    refetchInterval: live ? THREAD_POLL_MS : false,
+    refetchInterval: live ? (pushed ? THREAD_POLL_LIVE_MS : THREAD_POLL_MS) : false,
     // A chat is always worth re-reading on open; the cached copy renders
     // meanwhile, so this costs no spinner.
     staleTime: 0,
@@ -516,6 +532,69 @@ export function useMessagingSync() {
     }
     previous.current = unread;
   }, [queryClient, unread]);
+}
+
+// ---------------------------------------------------------------------------
+// Realtime (private-conversation.{id})
+// ---------------------------------------------------------------------------
+
+/**
+ * `message.sent` — a message arrived over the socket. Payload (verified
+ * 2026-10-14): `{message: {id, conversation_id, user_id, type, body, images,
+ * created_at, at, sender}}` — no `mine` and no `status`, so ownership comes
+ * from `user_id`. Our own sends aren't echoed (`X-Socket-ID`), but one from
+ * this account on another device is, and lands as ours.
+ */
+export function receiveRealtimeMessage(queryClient: QueryClient, raw: unknown) {
+  const payload = (raw as { message?: Partial<ApiChatMessage> & { user_id?: string; conversation_id?: string } })
+    ?.message;
+  if (!payload?.id || !payload.conversation_id) return;
+  const me = useAuthStore.getState().user?.id;
+  const mine = !!me && payload.user_id === me;
+  const message = toChatMessage({
+    id: payload.id,
+    type: payload.type ?? 'text',
+    mine,
+    body: payload.body ?? '',
+    images: payload.images ?? [],
+    created_at: payload.created_at ?? new Date().toISOString(),
+    status: mine ? 'sent' : undefined,
+  });
+  const conversationId = payload.conversation_id;
+  queryClient.setQueryData<Thread>(threadKey(conversationId), (old) => {
+    if (!old || old.messages.some((m) => m.id === message.id)) return old;
+    return { ...old, messages: [...old.messages, message].sort((a, b) => a.sentAt - b.sentAt) };
+  });
+  patchConversation(queryClient, conversationId, (c) => ({
+    ...c,
+    last: {
+      body: message.body,
+      hasImage: message.images.length > 0,
+      mine,
+      sentAt: message.sentAt,
+      call: message.call,
+    },
+  }));
+}
+
+/** `messages.read {conversation_id, reader_id, read_at}` — their side read ours: ticks go blue. */
+export function receiveRealtimeRead(queryClient: QueryClient, raw: unknown) {
+  const data = raw as { conversation_id?: string; reader_id?: string; read_at?: string };
+  const me = useAuthStore.getState().user?.id;
+  if (!data?.conversation_id || !data.reader_id || data.reader_id === me) return;
+  const readAt = data.read_at ? Date.parse(data.read_at) : Date.now();
+  // A little slack: the server's clock stamped both, but `sentAt` may be ours.
+  const cutoff = (Number.isFinite(readAt) ? readAt : Date.now()) + 5_000;
+  queryClient.setQueryData<Thread>(threadKey(data.conversation_id), (old) => {
+    if (!old) return old;
+    let changed = false;
+    const messages = old.messages.map((m) => {
+      if (!m.mine || m.status === 'read' || m.sentAt > cutoff) return m;
+      changed = true;
+      return { ...m, status: 'read' as const };
+    });
+    return changed ? { ...old, messages } : old;
+  });
 }
 
 // ---------------------------------------------------------------------------

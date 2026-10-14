@@ -236,7 +236,7 @@ export function useToggleBookmark() {
 }
 
 /** Apply `patch` to a post everywhere it's cached (feed pages + detail). */
-function patchCachedPost(
+export function patchCachedPost(
   queryClient: QueryClient,
   postId: string,
   patch: <T extends TimelinePost>(post: T) => T,
@@ -259,7 +259,7 @@ function patchCachedPost(
   );
 }
 
-function shiftCount(count: number | unknown, delta: number): number | unknown {
+export function shiftCount(count: number | unknown, delta: number): number | unknown {
   return typeof count === 'number' ? Math.max(0, count + delta) : count;
 }
 

@@ -12,7 +12,14 @@ import type {
   UploadFile,
 } from './types';
 import type { Member } from '../data/community';
-import type { ChatMessage, Conversation, MessageStatus, Thread } from '../data/messages';
+import {
+  callLogPreview,
+  parseCallLog,
+  type ChatMessage,
+  type Conversation,
+  type MessageStatus,
+  type Thread,
+} from '../data/messages';
 
 /**
  * Direct messages — `/conversations` (added to the collection 2026-09-27).
@@ -209,6 +216,12 @@ function toEpoch(iso: string | null | undefined): number {
   return Number.isFinite(ms) ? ms : Date.now();
 }
 
+/** The list's `last_message`, with a call log turned into words. */
+function previewBody(body: string | null | undefined, mine: boolean): string {
+  const call = parseCallLog(body, mine);
+  return call ? callLogPreview(call) : (body ?? '');
+}
+
 export function toConversation(raw: ApiConversation): Conversation {
   return {
     id: raw.id,
@@ -220,7 +233,8 @@ export function toConversation(raw: ApiConversation): Conversation {
     // ("Start a conversation") that must not be shown as if someone said it.
     last: raw.last_at
       ? {
-          body: raw.last_message ?? '',
+          body: previewBody(raw.last_message, !!raw.last_from_me),
+          call: parseCallLog(raw.last_message, !!raw.last_from_me) ?? undefined,
           hasImage: !!raw.has_image,
           mine: !!raw.last_from_me,
           sentAt: toEpoch(raw.last_at),
@@ -230,10 +244,14 @@ export function toConversation(raw: ApiConversation): Conversation {
 }
 
 export function toChatMessage(raw: ApiChatMessage): ChatMessage {
+  const call = raw.type === 'call' || (raw.body ?? '').startsWith('{"call_type"')
+    ? parseCallLog(raw.body, !!raw.mine)
+    : null;
   return {
     id: raw.id,
     mine: !!raw.mine,
-    body: raw.body ?? '',
+    ...(call ? { call } : {}),
+    body: call ? callLogPreview(call) : (raw.body ?? ''),
     images: Array.isArray(raw.images) ? raw.images.filter(Boolean) : [],
     sentAt: toEpoch(raw.created_at),
     status: raw.mine ? (toStatus(raw.status) ?? 'sent') : undefined,

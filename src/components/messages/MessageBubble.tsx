@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ChatMessage } from '../../data/messages';
+import { brand } from '../../theme/colors';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONT } from '../../theme/fonts';
 import { clockTime } from './time';
@@ -34,15 +35,22 @@ export function MessageBubble({
   onPressImage,
   onPressFailed,
   onLongPress,
+  onPressCall,
 }: {
   message: ChatMessage;
   onPressImage?: (index: number) => void;
   onPressFailed?: () => void;
   onLongPress?: () => void;
+  /** A call log was tapped — call back with the same kind of call. */
+  onPressCall?: (type: 'audio' | 'video') => void;
 }) {
   const { colors, brand, radius } = useTheme();
   const mine = message.mine;
   const failed = message.status === 'failed';
+
+  if (message.call) {
+    return <CallLogBubble message={message} onPress={onPressCall} />;
+  }
 
   const metaColor = mine ? 'rgba(255,255,255,0.78)' : colors.textMuted;
   const meta = (
@@ -128,6 +136,81 @@ export function MessageBubble({
   );
 }
 
+/**
+ * A call, logged in the thread — on the caller's side like any message, but
+ * drawn as a card: the kind of call, how it went, and a tap to call back.
+ * Missed calls are red. No delivery ticks: a call isn't something sent.
+ */
+function CallLogBubble({
+  message,
+  onPress,
+}: {
+  message: ChatMessage;
+  onPress?: (type: 'audio' | 'video') => void;
+}) {
+  const { colors, brand } = useTheme();
+  const call = message.call!;
+  const mine = message.mine;
+  const video = call.type === 'video';
+  const accent = call.missed ? colors.danger : mine ? '#FFFFFF' : colors.brand;
+  const title = call.missed
+    ? `Missed ${video ? 'video' : 'voice'} call`
+    : video
+      ? 'Video call'
+      : 'Voice call';
+  const inner = (
+    <View style={styles.callRow}>
+      <View
+        style={[
+          styles.callIcon,
+          { backgroundColor: mine ? 'rgba(255,255,255,0.18)' : call.missed ? `${colors.danger}1A` : colors.surfaceAlt },
+        ]}
+      >
+        <Ionicons name={video ? 'videocam' : 'call'} size={17} color={accent} />
+      </View>
+      <View style={styles.callText}>
+        <Text style={[styles.callTitle, { color: mine ? '#FFFFFF' : colors.text }]}>{title}</Text>
+        <Text style={[styles.callMeta, { color: mine ? 'rgba(255,255,255,0.78)' : colors.textMuted }]}>
+          {call.missed ? 'Tap to call back' : call.label}
+          {' · '}
+          {clockTime(message.sentAt)}
+        </Text>
+      </View>
+    </View>
+  );
+  return (
+    <View style={[styles.row, { alignItems: mine ? 'flex-end' : 'flex-start' }]}>
+      <Pressable
+        onPress={onPress ? () => onPress(call.type) : undefined}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={`${title}${call.missed ? '' : `, ${call.label}`}. ${onPress ? 'Double tap to call back.' : ''}`}
+        style={({ pressed }) => [styles.pressable, { opacity: pressed ? 0.75 : 1 }]}
+      >
+        {mine ? (
+          <LinearGradient
+            colors={[brand.violetBright, brand.violet]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.bubble, styles.mine]}
+          >
+            {inner}
+          </LinearGradient>
+        ) : (
+          <View
+            style={[
+              styles.bubble,
+              styles.theirs,
+              { backgroundColor: colors.surface, borderColor: call.missed ? `${colors.danger}55` : colors.border },
+            ]}
+          >
+            {inner}
+          </View>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
 function StatusGlyph({ status, dim }: { status: ChatMessage['status']; dim: string }) {
   switch (status) {
     case 'sending':
@@ -135,7 +218,9 @@ function StatusGlyph({ status, dim }: { status: ChatMessage['status']; dim: stri
     case 'failed':
       return <Ionicons name="alert-circle" size={13} color="#FFFFFF" />;
     case 'read':
-      return <Ionicons name="checkmark-done" size={14} color="#FFFFFF" />;
+      // Read gets its own colour, like every chat app's blue ticks — mint,
+      // because blue disappears on the violet bubble.
+      return <Ionicons name="checkmark-done" size={15} color={brand.mintBright} />;
     case 'delivered':
       return <Ionicons name="checkmark-done" size={14} color={dim} />;
     default:
@@ -304,5 +389,10 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   failedText: { fontFamily: FONT, fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  callRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2, paddingRight: 6 },
+  callIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  callText: { gap: 1 },
+  callTitle: { fontFamily: FONT, fontSize: 14, fontWeight: '800' },
+  callMeta: { fontFamily: FONT, fontSize: 12, fontWeight: '600' },
   failedAction: { fontWeight: '800', textDecorationLine: 'underline' },
 });

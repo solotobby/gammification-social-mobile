@@ -31,6 +31,7 @@ import { dayLabel } from '../../src/components/messages/time';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { LevelBadge, NameWithBadge } from '../../src/components/ui/LevelBadge';
 import { BackButton } from '../../src/components/ui/BackButton';
+import { OnlineDot } from '../../src/components/ui/OnlineDot';
 import { ScreenBackground } from '../../src/components/ui/ScreenBackground';
 import type { MediaItem } from '../../src/data/media';
 import {
@@ -48,8 +49,11 @@ import {
   useThread,
   withOutbox,
 } from '../../src/hooks/useMessages';
+import { callsSupported, startCall } from '../../src/calls/callEngine';
+import { useConversationChannel } from '../../src/realtime/useConversationChannel';
 import { useFeedbackStore } from '../../src/stores/feedbackStore';
 import { useOutboxStore } from '../../src/stores/outboxStore';
+import { useIsOnline } from '../../src/stores/presenceStore';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { FONT } from '../../src/theme/fonts';
 
@@ -79,9 +83,12 @@ const drafts = new Map<string, string>();
  *   and re-reads in the background; a thread opened from the list has its
  *   header before its first read lands. Sending never waits: a message joins
  *   the outbox and shows at once, with a clock until the server has it.
- * - **Live while open.** The newest page is re-read every few seconds while
- *   this screen is focused (there's no socket), and any new incoming message
- *   is marked read as it arrives, because you are looking at it.
+ * - **Live while open.** `private-conversation.{id}` delivers messages, read
+ *   receipts and "typing…" as they happen (`useConversationChannel`); polling
+ *   only fills in while that channel is down. Any new incoming message is
+ *   marked read as it arrives, because you are looking at it.
+ * - **Calls.** Voice and video buttons in the header ring them through the
+ *   call engine (src/calls/callEngine.ts) — hidden on a binary without WebRTC.
  * - **History on demand.** Scrolling up pages back with `before_id`.
  *
  * It lives on the root stack, not in `(tabs)`, so it covers the tab bar the
@@ -109,7 +116,8 @@ export default function ConversationScreen() {
     }, []),
   );
 
-  const thread = useThread(id, { live: focused });
+  const channel = useConversationChannel(id);
+  const thread = useThread(id, { live: focused, pushed: channel.subscribed });
   const { loadOlder, loading: loadingOlder } = useLoadOlderMessages(id);
   const markRead = useMarkConversationRead();
   const send = useSendMessage();
@@ -176,6 +184,7 @@ export default function ConversationScreen() {
   const setDraft = (text: string) => {
     setDraftState(text);
     if (id) drafts.set(id, text);
+    channel.onDraftChange(text);
   };
   const [attachments, setAttachments] = useState<UploadFile[]>([]);
   // The input's height is driven from its content rather than left to the
@@ -193,6 +202,7 @@ export default function ConversationScreen() {
     const body = bodyOverride ?? draft;
     if (!body.trim() && attachments.length === 0) return;
     send(id, body, bodyOverride ? [] : attachments);
+    channel.stopTyping();
     if (!bodyOverride) {
       setDraft('');
       setAttachments([]);
@@ -295,6 +305,19 @@ export default function ConversationScreen() {
 
   const { member } = conversation;
   const firstLoad = !thread.data && thread.isLoading;
+  const canCall = callsSupported();
+  const call = (type: 'audio' | 'video') =>
+    void startCall({
+      type,
+      conversationId: conversation.id,
+      peer: {
+        id: member.id,
+        name: member.name,
+        username: member.handle,
+        avatar: member.avatar ?? null,
+        level: member.level,
+      },
+    });
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -323,7 +346,10 @@ export default function ConversationScreen() {
             accessibilityLabel={`View ${member.name}'s profile`}
             style={styles.headerIdentity}
           >
-            <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={40} />
+            <View>
+              <Avatar userId={member.id} level={member.level} name={member.name} tint={member.tint} uri={member.avatar} size={40} />
+              <OnlineDot userId={member.id} avatarSize={40} ringColor={colors.surface} />
+            </View>
             <View style={styles.headerText}>
               <NameWithBadge
                 style={[styles.headerName, { color: colors.text }]}
@@ -333,19 +359,40 @@ export default function ConversationScreen() {
                 size={14}
               />
               <View style={styles.headerSubRow}>
-                {conversation.muted ? (
+                {conversation.muted && !channel.peerTyping ? (
                   <Ionicons name="notifications-off" size={12} color={colors.textMuted} />
                 ) : null}
-                <Text
-                  style={[styles.headerSub, { color: colors.textMuted }]}
-                  numberOfLines={1}
-                >
-                  @{member.handle}
-                  {conversation.muted ? ' · Muted' : ''}
-                </Text>
+                <HeaderStatus
+                  userId={member.id}
+                  handle={member.handle}
+                  muted={conversation.muted}
+                  typing={channel.peerTyping}
+                />
               </View>
             </View>
           </Pressable>
+          {canCall ? (
+            <>
+              <Pressable
+                onPress={() => call('audio')}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={`Voice call ${member.name}`}
+                style={({ pressed }) => [styles.headerAction, { opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Ionicons name="call-outline" size={21} color={colors.text} />
+              </Pressable>
+              <Pressable
+                onPress={() => call('video')}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={`Video call ${member.name}`}
+                style={({ pressed }) => [styles.headerAction, { opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Ionicons name="videocam-outline" size={23} color={colors.text} />
+              </Pressable>
+            </>
+          ) : null}
           <ConversationMenu conversation={conversation} onBlocked={() => router.back()} />
         </View>
 
@@ -403,6 +450,7 @@ export default function ConversationScreen() {
                     onPressImage={(index) => openImages(item.message, index)}
                     onPressFailed={() => onFailedPress(item.message)}
                     onLongPress={() => onLongPress(item.message)}
+                    onPressCall={canCall ? call : undefined}
                   />
                 )
               }
@@ -601,6 +649,39 @@ export default function ConversationScreen() {
   );
 }
 
+/**
+ * The line under their name: "typing…" beats "Online", which beats the handle.
+ * Online comes from `presence-messaging.online`; there's no last-seen, so an
+ * offline person just shows their handle.
+ */
+function HeaderStatus({
+  userId,
+  handle,
+  muted,
+  typing,
+}: {
+  userId: string;
+  handle: string;
+  muted: boolean;
+  typing: boolean;
+}) {
+  const { colors } = useTheme();
+  const online = useIsOnline(userId);
+  if (typing) {
+    return (
+      <Text style={[styles.headerSub, { color: colors.brand }]} numberOfLines={1}>
+        typing…
+      </Text>
+    );
+  }
+  return (
+    <Text style={[styles.headerSub, { color: online ? colors.mint : colors.textMuted }]} numberOfLines={1}>
+      {online ? 'Online' : `@${handle}`}
+      {muted ? ' · Muted' : ''}
+    </Text>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: {
@@ -616,6 +697,7 @@ const styles = StyleSheet.create({
   headerName: { fontFamily: FONT, fontSize: 15, fontWeight: '800' },
   headerSubRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerSub: { fontFamily: FONT, fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  headerAction: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { flexGrow: 1 },
   dayRow: { alignItems: 'center', paddingVertical: 6 },

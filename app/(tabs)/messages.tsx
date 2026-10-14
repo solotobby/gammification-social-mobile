@@ -172,6 +172,18 @@ export default function MessagesScreen() {
             </Text>
           </View>
           <Pressable
+            onPress={() => router.push('/calls')}
+            accessibilityRole="button"
+            accessibilityLabel="Call history"
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.historyButton,
+              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Ionicons name="call-outline" size={19} color={colors.text} />
+          </Pressable>
+          <Pressable
             onPress={() => router.push('/messages/new')}
             accessibilityRole="button"
             accessibilityLabel="New message"
@@ -337,6 +349,14 @@ const styles = StyleSheet.create({
   titleText: { flex: 1, gap: 2 },
   title: { fontFamily: FONT, fontSize: 26, fontWeight: '800' },
   subtitle: { fontFamily: FONT, fontSize: 13, fontWeight: '600' },
+  historyButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   composeButton: {
     width: 44,
     height: 44,

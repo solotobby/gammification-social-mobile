@@ -2,7 +2,7 @@
   "expo": {
     "name": "Payhankey",
     "slug": "payhankey",
-    "version": "1.4.2",
+    "version": "1.5.0",
     "orientation": "portrait",
     "scheme": "payhankey",
     "icon": "./assets/icon.png",
@@ -14,7 +14,12 @@
         "dark": "./assets/ios-icon-dark.png",
         "tinted": "./assets/ios-icon-tinted.png"
       },
-      "bundleIdentifier": "com.payhankey.app"
+      "bundleIdentifier": "com.payhankey.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "android": {
       "package": "com.payhankey.app",
@@ -39,9 +44,18 @@
       "expo-image",
       "expo-video",
       [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Payhankey uses your camera for video calls and for photos you attach to posts.",
+          "microphonePermission": "Payhankey uses your microphone for voice and video calls and for videos you record."
+        }
+      ],
+      [
         "expo-image-picker",
         {
-          "photosPermission": "Payhankey needs access to your photos so you can attach them to posts and stories."
+          "photosPermission": "Payhankey needs access to your photos so you can attach them to posts and stories.",
+          "cameraPermission": "Payhankey uses your camera for video calls and for photos you attach to posts.",
+          "microphonePermission": "Payhankey uses your microphone for voice and video calls and for videos you record."
         }
       ],
       [

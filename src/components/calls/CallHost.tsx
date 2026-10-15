@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { setShowOverLockScreen } from '../../../modules/call-lock-screen';
 import { setMinimized } from '../../calls/callEngine';
 import { useCallStore } from '../../calls/callStore';
 import { brand } from '../../theme/colors';
@@ -28,6 +29,19 @@ export function CallHost() {
 
   const active = !!call && call.phase !== 'ended';
   const wantsScreen = !!call && (!call.minimized || call.phase === 'incoming');
+
+  // A call — ringing or live — shows over the lock screen and wakes it, so an
+  // incoming call opened by its full-screen notification is actually seen.
+  // Off again the moment the call is over, or the app would sit on top of the
+  // lock screen whenever it happened to be open when the phone locked. Not
+  // cleared on mount: a call's full-screen launch sets it natively before
+  // this mounts, and useCallNotifications takes it back if no call follows.
+  const wasActive = useRef(false);
+  useEffect(() => {
+    if (active) setShowOverLockScreen(true);
+    else if (wasActive.current) setShowOverLockScreen(false);
+    wasActive.current = active;
+  }, [active]);
 
   useEffect(() => {
     if (wantsScreen && !onCallScreen && call?.phase !== 'ended') {

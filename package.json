@@ -1,7 +1,7 @@
 {
   "name": "payhankey",
-  "version": "1.5.0",
-  "main": "expo-router/entry",
+  "version": "1.6.0",
+  "main": "index.ts",
   "dependencies": {
     "@config-plugins/react-native-webrtc": "15.0.2",
     "@expo/metro-runtime": "~56.0.15",
@@ -30,6 +30,7 @@
     "expo-secure-store": "~56.0.4",
     "expo-splash-screen": "~56.0.14",
     "expo-status-bar": "~56.0.4",
+    "expo-task-manager": "~56.0.27",
     "expo-video": "~56.1.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -37,6 +38,7 @@
     "react-native": "0.85.3",
     "react-native-device-info": "^15.0.2",
     "react-native-incall-manager": "4.3.0",
+    "react-native-notify-kit": "10.8.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
     "react-native-web": "^0.21.2",

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Payhankey",
     "slug": "payhankey",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "orientation": "portrait",
     "scheme": "payhankey",
     "icon": "./assets/icon.png",
@@ -32,7 +32,10 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_FULL_SCREEN_INTENT",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.FOREGROUND_SERVICE"
       ]
     },
     "web": {
@@ -62,7 +65,24 @@
         "expo-notifications",
         {
           "icon": "./assets/android-icon-monochrome.png",
-          "color": "#5A4FDC"
+          "color": "#5A4FDC",
+          "sounds": [
+            "./assets/sounds/ringtone.wav"
+          ]
+        }
+      ],
+      "expo-task-manager",
+      [
+        "react-native-notify-kit",
+        {
+          "android": {
+            "foregroundService": {
+              "types": [
+                "microphone",
+                "camera"
+              ]
+            }
+          }
         }
       ],
       "expo-secure-store",

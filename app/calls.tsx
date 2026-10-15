@@ -16,6 +16,7 @@ import type { ApiCall, ApiCallParty } from '../src/api/calls';
 import { toUserLevel } from '../src/api/levels';
 import { tintFor } from '../src/api/timeline';
 import { callsSupported, startCall } from '../src/calls/callEngine';
+import { CallRingingSetupCard } from '../src/components/calls/CallRingingSetupCard';
 import { listStamp } from '../src/components/messages/time';
 import { Avatar } from '../src/components/ui/Avatar';
 import { BackButton } from '../src/components/ui/BackButton';
@@ -101,6 +102,7 @@ export default function CallsScreen() {
               <Text style={[styles.headerTitle, { color: colors.text }]}>Calls</Text>
               <View style={styles.headerSpacer} />
             </View>
+            <CallRingingSetupCard />
             <View style={styles.chips}>
               {FILTERS.map((item) => {
                 const active = item.value === filter;

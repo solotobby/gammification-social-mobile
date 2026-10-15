@@ -15,6 +15,7 @@ import type { Member } from '../data/community';
 import {
   callLogPreview,
   parseCallLog,
+  parseCallPreview,
   type ChatMessage,
   type Conversation,
   type MessageStatus,
@@ -216,13 +217,20 @@ function toEpoch(iso: string | null | undefined): number {
   return Number.isFinite(ms) ? ms : Date.now();
 }
 
-/** The list's `last_message`, with a call log turned into words. */
-function previewBody(body: string | null | undefined, mine: boolean): string {
-  const call = parseCallLog(body, mine);
-  return call ? callLogPreview(call) : (body ?? '');
+/**
+ * The list row's call, if its newest message is one: the readable preview the
+ * backend sends now ("Audio call · 31s", `last_message_type: "call"`), or the
+ * JSON body it used to send cut at ~80 chars.
+ */
+function previewCall(raw: ApiConversation) {
+  const mine = !!raw.last_from_me;
+  const json = parseCallLog(raw.last_message, mine);
+  if (json) return json;
+  return raw.last_message_type === 'call' ? parseCallPreview(raw.last_message, mine) : null;
 }
 
 export function toConversation(raw: ApiConversation): Conversation {
+  const call = raw.last_at ? previewCall(raw) : null;
   return {
     id: raw.id,
     member: toMessagingMember(raw.participant),
@@ -233,8 +241,8 @@ export function toConversation(raw: ApiConversation): Conversation {
     // ("Start a conversation") that must not be shown as if someone said it.
     last: raw.last_at
       ? {
-          body: previewBody(raw.last_message, !!raw.last_from_me),
-          call: parseCallLog(raw.last_message, !!raw.last_from_me) ?? undefined,
+          body: call ? callLogPreview(call) : (raw.last_message ?? ''),
+          call: call ?? undefined,
           hasImage: !!raw.has_image,
           mine: !!raw.last_from_me,
           sentAt: toEpoch(raw.last_at),

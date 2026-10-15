@@ -68,6 +68,23 @@ export function realtimeSocketId(): string | null {
   return realtime.state === 'connected' ? realtime.socketId : null;
 }
 
+/**
+ * Resolve once `channel` is subscribed on a live connection (true), or after
+ * `timeoutMs` regardless (false). For work that must not race the socket —
+ * answering a call before we can hear the caller's offer would lose it.
+ */
+export function waitForChannel(channel: string, timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const check = () => {
+      if (realtime.state === 'connected' && realtime.isSubscribed(channel)) return resolve(true);
+      if (Date.now() - started >= timeoutMs) return resolve(false);
+      setTimeout(check, 150);
+    };
+    check();
+  });
+}
+
 /** True while the socket is connected — the cue for polling to back off. */
 export function useRealtimeConnected(): boolean {
   return useRealtimeStore((s) => s.state === 'connected');

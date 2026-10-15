@@ -1,4 +1,4 @@
-import { Vibration } from 'react-native';
+import { AppState, Platform, Vibration } from 'react-native';
 
 import { ApiError } from '../api/client';
 import {
@@ -20,7 +20,16 @@ import { holdRealtime } from '../realtime/socket';
 import { useAuthStore } from '../stores/authStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
 import { useCallStore, type ActiveCall, type CallPeer } from './callStore';
+import {
+  cancelIncomingCallNotification,
+  showIncomingCallNotification,
+  showMissedCallNotification,
+  startOngoingCallService,
+  stopOngoingCallService,
+} from './callNotifications';
+import { isDeviceLocked } from '../../modules/call-lock-screen';
 import { loadInCallManager, loadWebRTC, type WebRTCModule } from './native';
+import { waitForChannel } from '../realtime/socket';
 
 /**
  * Peer-to-peer voice and video calls over WebRTC, signalled through the API.
@@ -81,6 +90,8 @@ type Session = {
   iceRestarted: boolean;
   /** `end`/`reject` has been sent — never twice (it corrupts the record). */
   closedOnServer: boolean;
+  /** Accept is under way — a second tap (or a notification action) is ignored. */
+  accepting: boolean;
   finished: boolean;
   timers: Set<ReturnType<typeof setTimeout>>;
   releaseHold: () => void;
@@ -133,6 +144,7 @@ export async function startCall(input: {
     if (!opened) finish(s, 'Microphone access is needed to call.');
     return;
   }
+  void startOngoingCallService(input.peer.name, !!s.localStream?.getVideoTracks().length);
 
   try {
     const { call, iceServers } = await initiateCall({
@@ -168,8 +180,10 @@ export async function startCall(input: {
 export async function acceptIncoming(): Promise<void> {
   const s = session;
   const rtc = loadWebRTC();
-  if (!s || !rtc || s.direction !== 'incoming' || s.pc || !s.callId) return;
+  if (!s || !rtc || s.direction !== 'incoming' || s.pc || !s.callId || s.accepting) return;
+  s.accepting = true;
   audio.stopRinging();
+  void cancelIncomingCallNotification(s.callId);
   audio.startCall(s.type);
   patch({ phase: 'connecting' });
 
@@ -180,6 +194,8 @@ export async function acceptIncoming(): Promise<void> {
     toastAfterEnd('Microphone access is needed to answer calls.');
     return;
   }
+  const peerName = useCallStore.getState().call?.peer.name ?? 'Payhankey';
+  void startOngoingCallService(peerName, !!s.localStream?.getVideoTracks().length);
   const pc = createPeerConnection(s, rtc);
 
   try {
@@ -303,8 +319,14 @@ export function handleCallSignal(raw: unknown) {
   const signal = raw as CallSignal;
   if (!signal || typeof signal !== 'object' || !signal.signal_type) return;
   const me = useAuthStore.getState().user?.id;
-  // Our own signals echo back on the conversation channel.
-  if (me && signal.from_user_id === me) return;
+  if (me && signal.from_user_id === me) {
+    // Another of *our* devices answered or declined the call this one is
+    // ringing for — the backend sends that to our other devices since
+    // 2026-10-15 (`data.accepted_by_other_device`). Anything else from
+    // ourselves is an echo (the conversation channel) and is dropped.
+    onOtherDevice(signal);
+    return;
+  }
   if (me && signal.to_user_id && signal.to_user_id !== me) return;
   if (isDuplicate(signal)) return;
 
@@ -353,7 +375,13 @@ export function handleCallSignal(raw: unknown) {
       finish(s, missed ? 'Missed call' : 'Call ended', { quiet: missed });
       if (missed) {
         const name = useCallStore.getState().call?.peer.name;
-        toastAfterEnd(name ? `Missed call from ${name}.` : 'Missed call.', 'info');
+        // Over the lock screen the call screen goes as the phone re-locks,
+        // taking any toast with it — leave a notification there too.
+        if ((ringsInBackground() || isDeviceLocked()) && s.callId) {
+          void showMissedCallNotification(s.callId, name ?? '', s.type);
+        } else {
+          toastAfterEnd(name ? `Missed call from ${name}.` : 'Missed call.', 'info');
+        }
       }
       return;
     }
@@ -366,6 +394,20 @@ export function handleCallSignal(raw: unknown) {
       patch({ remoteCameraOn: on });
       return;
     }
+  }
+}
+
+function onOtherDevice(signal: CallSignal) {
+  const s = session;
+  const callId = signal.call_id ?? signal.data?.call_id;
+  if (!s || s.finished || s.direction !== 'incoming' || s.pc || !callId || s.callId !== callId) return;
+  if (signal.signal_type === 'accepted') {
+    s.closedOnServer = true;
+    finish(s, 'Answered on another device', { quiet: true });
+    toastAfterEnd('Answered on another device.', 'info');
+  } else if (signal.signal_type === 'rejected' || signal.signal_type === 'ended') {
+    s.closedOnServer = true;
+    finish(s, 'Declined', { quiet: true });
   }
 }
 
@@ -413,7 +455,20 @@ function onIncoming(signal: CallSignal, callId: string | undefined) {
     conversationId: s.conversationId,
     phase: 'incoming',
   });
-  audio.ring();
+  if (ringsInBackground()) {
+    // Backgrounded but alive (the socket outlives the screen for a minute):
+    // our own UI can't be seen, so ring through the notification instead.
+    void showIncomingCallNotification({
+      callId,
+      callerName: caller.name?.trim() || caller.username || 'Someone',
+      callerAvatar: caller.avatar ?? null,
+      callType: type,
+    });
+  } else {
+    audio.ring();
+    // The push may have put the notification up first; the screen has it now.
+    void cancelIncomingCallNotification(callId);
+  }
   // The caller gives up at 45s and ends the call, which reaches us as `ended`.
   // This is the backstop for an `ended` we never hear.
   timer(s, RING_TIMEOUT_MS + 5_000, () => {
@@ -425,10 +480,11 @@ function onIncoming(signal: CallSignal, callId: string | undefined) {
 /**
  * Stop ringing once another of *your* devices has answered or declined.
  *
- * The backend tells only the caller that a call was accepted or rejected
- * (verified 2026-10-14: with the account signed in on Android and iOS, the
- * iPhone kept ringing after Android picked up). So a ringing device asks the
- * server every few seconds whether the call is still ringing.
+ * Since 2026-10-15 the backend says so directly (`onOtherDevice`). Before that
+ * it told only the caller (verified 2026-10-14: the iPhone kept ringing after
+ * Android picked up), and an event can still be lost across a reconnect, so a
+ * ringing device also asks the server every few seconds whether the call is
+ * still ringing.
  */
 function watchForAnswerElsewhere(s: Session) {
   const check = async () => {
@@ -770,6 +826,7 @@ function newSession(init: Pick<Session, 'type' | 'direction' | 'conversationId'>
     everConnected: false,
     iceRestarted: false,
     closedOnServer: false,
+    accepting: false,
     finished: false,
     timers: new Set(),
     // The socket carries the signalling — keep it up even if the app is
@@ -854,6 +911,8 @@ function finish(s: Session, reason: string, { quiet = false }: { quiet?: boolean
   s.localStream = null;
   s.remoteStream = null;
   s.releaseHold();
+  if (s.callId) void cancelIncomingCallNotification(s.callId);
+  void stopOngoingCallService();
 
   // The call history should already show this one when it's next opened.
   setTimeout(() => void queryClient.invalidateQueries({ queryKey: ['calls'] }), 1_500);
@@ -889,6 +948,9 @@ function toastAfterEnd(message: string, kind: 'info' | 'error' = 'error') {
 // Audio routing, ringtone and ringback (react-native-incall-manager)
 // ---------------------------------------------------------------------------
 
+/** The in-app ringtone is playing (it must not be started twice). */
+let ringing = false;
+
 const audio = {
   /** Claim the audio session for a call: earpiece for voice, speaker for video. */
   startCall(type: CallType) {
@@ -913,6 +975,8 @@ const audio = {
     }
   },
   ring() {
+    if (ringing) return;
+    ringing = true;
     const m = loadInCallManager();
     const pattern = [0, 900, 1100];
     try {
@@ -923,6 +987,7 @@ const audio = {
     }
   },
   stopRinging() {
+    ringing = false;
     const m = loadInCallManager();
     try {
       m?.stopRingtone();
@@ -959,19 +1024,47 @@ export function abandonCall() {
 }
 
 /**
- * Pick a ringing call back up from its push (`data.type: "call_incoming"`).
- * A push tap usually launches the app *after* the socket's `incoming_call`
- * went out, so the call is read back from `GET /calls/{id}` and rung locally
- * if it's still ringing for us.
+ * Pick a ringing call back up when the app is opened for it — from the
+ * incoming-call notification (tapped, its full-screen takeover, or Answer),
+ * or a launch while one is still ringing. The socket's `incoming_call` went out
+ * before this process was listening, so the call is read back from
+ * `GET /calls/{id}` and rung locally if it's still ringing for us.
+ *
+ * With `autoAccept` (the notification's Answer) it's picked up at once — but
+ * only after our `private-user` channel is subscribed: the caller sends its
+ * offer the moment we accept, and a socket that isn't listening yet would miss
+ * it. Safe to call twice for one call (a cold start can deliver the same tap
+ * through two paths).
  */
-export async function resumeIncomingCall(callId: string): Promise<void> {
-  if (session || !loadWebRTC()) return;
+const resuming = new Set<string>();
+export async function resumeIncomingCall(
+  callId: string,
+  { autoAccept = false }: { autoAccept?: boolean } = {},
+): Promise<void> {
+  if (!loadWebRTC()) return;
+  if (session) {
+    if (autoAccept && session.callId === callId && session.direction === 'incoming' && !session.pc) {
+      await waitForCallChannel();
+      await acceptIncoming();
+    }
+    return;
+  }
+  if (resuming.has(callId)) return;
+  resuming.add(callId);
   try {
     const call = await fetchCall(callId);
     const me = useAuthStore.getState().user?.id;
     if (call.status !== 'ringing' || call.receiver_id !== me) {
+      void cancelIncomingCallNotification(callId);
       const name = call.caller?.name?.trim() || call.caller?.username;
-      toast(name ? `Missed call from ${name}.` : 'That call has ended.', 'info');
+      toast(
+        call.status === 'ongoing' || call.status === 'completed'
+          ? 'That call was answered on another device.'
+          : name
+            ? `Missed call from ${name}.`
+            : 'That call has ended.',
+        'info',
+      );
       return;
     }
     handleCallSignal({
@@ -982,9 +1075,59 @@ export async function resumeIncomingCall(callId: string): Promise<void> {
       signal_type: 'incoming_call',
       call_type: call.call_type,
       caller: call.caller ?? { id: call.caller_id },
-      data: { call_id: call.id },
+      data: { call_id: call.id, resumed: true },
     } satisfies CallSignal);
+    if (autoAccept) {
+      await waitForCallChannel();
+      await acceptIncoming();
+    }
   } catch {
     toast('That call has ended.', 'info');
+  } finally {
+    resuming.delete(callId);
   }
+}
+
+/** Decline the call this process is ringing for, if it is. True when it was. */
+export function declineIfRinging(callId: string): boolean {
+  const s = session;
+  if (!s || s.callId !== callId || s.direction !== 'incoming' || s.pc) return false;
+  decline();
+  return true;
+}
+
+/** Up to 10s for the socket to be listening on our own channel. */
+async function waitForCallChannel(): Promise<void> {
+  const me = useAuthStore.getState().user?.id;
+  if (me) await waitForChannel(`private-user.${me}`, 10_000);
+}
+
+/** Ring through the notification, not the screen: Android, app not in front. */
+function ringsInBackground(): boolean {
+  return Platform.OS === 'android' && AppState.currentState !== 'active';
+}
+
+/**
+ * Hand ringing between the screen and the notification as the app comes and
+ * goes: in front, the call screen rings; behind, the notification does (and
+ * shows over the lock screen). Android only — iOS has no notification to ring.
+ */
+if (Platform.OS === 'android') {
+  AppState.addEventListener('change', (state) => {
+    const s = session;
+    if (!s || s.finished || s.direction !== 'incoming' || s.pc || !s.callId) return;
+    if (state === 'active') {
+      void cancelIncomingCallNotification(s.callId);
+      audio.ring();
+    } else if (state === 'background') {
+      audio.stopRinging();
+      const call = useCallStore.getState().call;
+      void showIncomingCallNotification({
+        callId: s.callId,
+        callerName: call?.peer.name ?? 'Someone',
+        callerAvatar: call?.peer.avatar ?? null,
+        callType: s.type,
+      });
+    }
+  });
 }

@@ -20,6 +20,7 @@ import { GiftSplashHost } from '../src/components/gifts/GiftSplash';
 import { LaunchSplash } from '../src/components/launch/LaunchSplash';
 import { PaymentSheet } from '../src/components/payments/PaymentSheet';
 import { abandonCall } from '../src/calls/callEngine';
+import { useCallNotifications } from '../src/calls/useCallNotifications';
 import { CallHost } from '../src/components/calls/CallHost';
 import { registerMessagingMutationDefaults, useMessagingSync } from '../src/hooks/useMessages';
 import { useRealtimeSync } from '../src/realtime/useRealtimeSync';
@@ -59,11 +60,13 @@ function MessagingSync() {
 /**
  * The realtime socket and everything it feeds app-wide — your own channel
  * (notifications, wallet, incoming calls), presence and timeline counts. See
- * src/realtime/useRealtimeSync.ts. Rendered only while signed in; unmounting
+ * src/realtime/useRealtimeSync.ts. Also picks up a call the app was opened
+ * for from its notification (src/calls/useCallNotifications.ts). Rendered only while signed in; unmounting
  * (sign-out) drops the socket, its channels and any call in progress.
  */
 function RealtimeSync() {
   useRealtimeSync();
+  useCallNotifications();
   useEffect(() => () => abandonCall(), []);
   return null;
 }

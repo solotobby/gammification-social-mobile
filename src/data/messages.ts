@@ -122,7 +122,13 @@ export function byRecency(a: Conversation, b: Conversation): number {
  */
 export function parseCallLog(body: string | null | undefined, mine: boolean): CallLog | null {
   if (!body || !body.startsWith('{') || !body.includes('"call_type"')) return null;
-  let raw: { call_type?: string; status?: string; duration?: number; formatted_duration?: string };
+  let raw: {
+    call_type?: string;
+    status?: string;
+    duration?: number;
+    formatted_duration?: string;
+    reason?: string;
+  };
   try {
     raw = JSON.parse(body);
   } catch {
@@ -142,6 +148,9 @@ export function parseCallLog(body: string | null | undefined, mine: boolean): Ca
   const type = raw.call_type;
   switch (raw.status) {
     case 'completed':
+      // Answered but media never connected — the backend still logs it as
+      // completed, timing from the pickup (seen 2026-10-15: "completed, 31s").
+      if (raw.reason === 'connection_failed') return { type, missed: false, label: 'Couldn’t connect' };
       return {
         type,
         missed: false,
@@ -160,6 +169,26 @@ export function parseCallLog(body: string | null | undefined, mine: boolean): Ca
     default:
       return { type, missed: false, label: '' };
   }
+}
+
+/**
+ * The conversation list's readable call preview — `last_message: "Audio call ·
+ * 31s"` with `last_message_type: "call"`, which replaced the truncated JSON on
+ * 2026-10-15. Only the completed wording has been seen; the rest is matched by
+ * keyword so a missed or declined call still reads right.
+ */
+export function parseCallPreview(text: string | null | undefined, mine: boolean): CallLog | null {
+  if (!text) return null;
+  const type = /video/i.test(text) ? 'video' : 'audio';
+  const after = text.includes('·') ? text.split('·').slice(1).join('·').trim() : '';
+  if (/declin|reject/i.test(text)) return { type, missed: false, label: 'Declined' };
+  if (/missed|no answer|cancel|busy/i.test(text)) {
+    return mine
+      ? { type, missed: false, label: /busy/i.test(text) ? 'Busy' : 'No answer' }
+      : { type, missed: true, label: 'Missed' };
+  }
+  if (/couldn.?t connect|failed/i.test(text)) return { type, missed: false, label: 'Couldn’t connect' };
+  return { type, missed: false, label: after };
 }
 
 /** "8m 14s", "45s", "1h 2m" — the backend's own `formatted_duration` style. */

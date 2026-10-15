@@ -13,22 +13,38 @@ import type { ApiEnvelope } from './types';
  * - **`call.signal` goes to the conversation channel too**, when the call has
  *   a `conversation_id`, as well as to the receiver's `private-user.{id}`. A
  *   client holding both channels sees each signal twice, so the engine dedupes.
- * - **Ending a call twice corrupts it.** A cancelled call `end`ed a second time
- *   flips to `completed` and broadcasts a second `ended` (with
- *   `status: "completed"`). The engine ends each call exactly once.
+ * - ~~Ending a call twice corrupts it~~ — **fixed 2026-10-15** (a second `end`
+ *   now leaves status, duration and `ended_at` alone). The engine still ends
+ *   each call exactly once.
  * - `POST /calls/signal` (the generic relay) validates `call_type` against
  *   `audio|video`, not the guide's `voice`. The engine uses the per-call
  *   `POST /calls/{id}/signal`, which needs no addressing at all.
  * - Calling yourself is a 422 "You cannot call yourself."; accepting someone
  *   else's call is a 403 "Only the designated recipient can accept this call."
  * - A busy receiver is **HTTP 486** with the call row already `status: "busy"`.
- * - **The relay strips the SDP's trailing `\r\n`** (Laravel's TrimStrings
- *   middleware), which libwebrtc rejects. `readSdp` in the engine restores it;
- *   the backend should exempt `data.sdp` from trimming.
- * - **`ice_servers` is STUN only** (three Google servers) on every response.
- *   STUN can't traverse symmetric NATs — common on mobile carriers — so some
- *   calls will connect signalling and never carry media until the backend
- *   adds TURN credentials (its own docs say TURN is configurable via `.env`).
+ * - ~~The relay strips the SDP's trailing `\r\n`~~ — **fixed 2026-10-15**.
+ *   `readSdp` in the engine still restores it; harmless now, and it protects
+ *   against a regression that would make every call fail.
+ * - **The TURN server added on 2026-10-15 is dead.** `ice_servers` now lists
+ *   `turn:openrelay.metered.ca` with the public `openrelayproject` login, but
+ *   that free service has been shut down: the host resolves to `192.0.2.1` /
+ *   `100::1` (reserved, unroutable) and a raw TURN Allocate gets no answer.
+ *   Calls still work wherever STUN does; symmetric NATs (common on mobile
+ *   data) still fail until a working TURN server is configured.
+ * - **A ringing call never times out on the server.** One left ringing by a
+ *   client that went away stayed `ringing` for 40+ minutes, and every call to
+ *   that person answered **486 busy** meanwhile. Our clients always end or
+ *   reject their own calls (45s ring timeout); the backend should expire
+ *   ringing calls itself.
+ * - **The receiver's other devices are told** when one of them answers
+ *   (2026-10-15): an `accepted` signal *from yourself* with
+ *   `data.accepted_by_other_device: true` — see `onOtherDevice` in the engine.
+ * - Incoming-call **pushes are data-only** since 2026-10-15 (verified on
+ *   Android): `{type: "call_incoming", call_id, caller_id, caller_name,
+ *   caller_avatar, call_type, conversation_id, channel_name}`, then
+ *   `{type: "call_cancelled", call_id}` when it stops ringing — no title or
+ *   body, `priority: high`, `ttl: 45`, `channelId: "calls"`. Data-only means
+ *   the system shows **nothing** for them on its own.
  */
 
 export type CallType = 'audio' | 'video';

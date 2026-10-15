@@ -44,12 +44,22 @@ import { useAuthStore } from '../stores/authStore';
  * `shouldShowAlert` in SDK 53+.
  */
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    // Call pushes are never drawn — the call screen is the ringing, and a
+    // data-only push would otherwise show as a blank notification. One that
+    // lands in the foreground is handed to the engine instead: normally the
+    // socket rang already and this is a no-op, but just after launch the
+    // socket may not be listening yet and this push is the only word of it.
+    const data = notification.request.content.data as { type?: unknown; call_id?: unknown } | null;
+    if (data?.type === 'call_incoming' || data?.type === 'call_cancelled') {
+      const signedIn = useAuthStore.getState().status === 'signedIn';
+      if (data.type === 'call_incoming' && typeof data.call_id === 'string' && signedIn) {
+        void resumeIncomingCall(data.call_id);
+      }
+      return { shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false };
+    }
+    return { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true };
+  },
 });
 
 /**

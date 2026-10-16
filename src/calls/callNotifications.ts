@@ -49,8 +49,13 @@ export const INCOMING_CHANNEL = 'payhankey-incoming-calls-v1';
 const ONGOING_CHANNEL = 'payhankey-ongoing-calls-v1';
 const MISSED_CHANNEL = 'payhankey-missed-calls-v1';
 
-/** How long an incoming call rings before the notification takes itself down. */
-export const RING_NOTIFICATION_MS = 45_000;
+/**
+ * How long an incoming call rings before the notification takes itself down.
+ * A little past the backend's own 60s expiry of a ringing call (since
+ * 2026-10-16), so it's normally the server's `call_cancelled` that takes it
+ * down — and leaves a missed-call notice.
+ */
+export const RING_NOTIFICATION_MS = 65_000;
 
 const ONGOING_ID = 'payhankey-ongoing-call';
 export const incomingNotificationId = (callId: string) => `call-${callId}`;

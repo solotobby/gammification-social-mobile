@@ -18,6 +18,7 @@ import { useBlockedStore } from '../stores/blockedStore';
 import { useEngagementStore } from '../stores/engagementStore';
 import { useFollowStore } from '../stores/followStore';
 import { useHiddenStore } from '../stores/hiddenStore';
+import { useNewPostsStore } from '../stores/newPostsStore';
 import { useOutboxStore } from '../stores/outboxStore';
 import { useViewedStore } from '../stores/viewedStore';
 
@@ -128,6 +129,7 @@ export function useLogout() {
     useFollowStore.getState().reset();
     useHiddenStore.getState().reset();
     useViewedStore.getState().reset();
+    useNewPostsStore.getState().reset();
     // Unsent messages and remembered blocks belong to the account that made
     // them — the next person to sign in must not send the previous one's queue.
     useOutboxStore.getState().reset();

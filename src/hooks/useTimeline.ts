@@ -235,6 +235,26 @@ export function useToggleBookmark() {
   });
 }
 
+/**
+ * Put posts at the top of the feed's first page (newest first), dropping any
+ * copy already further down — the "New posts" pill's posts, fetched in full.
+ */
+export function prependToFeed(queryClient: QueryClient, posts: TimelinePost[]) {
+  if (!posts.length) return;
+  const ids = new Set(posts.map((post) => post.id));
+  queryClient.setQueryData<InfiniteData<Paginated<TimelinePost>>>(['feed'], (data) =>
+    data?.pages.length
+      ? {
+          ...data,
+          pages: data.pages.map((page, index) => {
+            const rest = page.data.filter((post) => !ids.has(post.id));
+            return { ...page, data: index === 0 ? [...posts, ...rest] : rest };
+          }),
+        }
+      : data,
+  );
+}
+
 /** Apply `patch` to a post everywhere it's cached (feed pages + detail). */
 export function patchCachedPost(
   queryClient: QueryClient,

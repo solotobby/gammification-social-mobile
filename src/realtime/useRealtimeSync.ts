@@ -7,6 +7,7 @@ import { CONVERSATIONS_KEY, MESSAGES_UNREAD_KEY, receiveRealtimeMessage } from '
 import { patchCachedPost } from '../hooks/useTimeline';
 import { useAuthStore } from '../stores/authStore';
 import { useFeedbackStore } from '../stores/feedbackStore';
+import { useNewPostsStore } from '../stores/newPostsStore';
 import { usePresenceStore } from '../stores/presenceStore';
 import type { PresenceMember } from './PusherSocket';
 import { useChannel, useRealtimeConnection, useRealtimeStore } from './socket';
@@ -21,9 +22,15 @@ import { useChannel, useRealtimeConnection, useRealtimeStore } from './socket';
  *
  * - `timeline` → `post.liked {post_id, likes_count, user_id, liked}`,
  *   `comment.created {post_id, comments_count, comment:{id, parent_id,
- *   message, created_at, user}}`, `post.deleted {post_id}`.
- *   **`post.created` never fired** for a new public post, so there's no
- *   "new posts" pill yet.
+ *   message, created_at, user}}`, `post.deleted {post_id}`, and since
+ *   2026-10-16 `post.created`, which feeds Home's "New posts" pill
+ *   (src/stores/newPostsStore.ts). It comes in **two shapes** (both seen
+ *   that day): `{post:{id, content, has_images, has_video, media_status,
+ *   likes, comments, views, created_at, user:{id, name, username, avatar}}}`
+ *   for a post made through this API, and a flat `{postId, userId,
+ *   authorName, authorUsername, createdAt}` — no avatar — for a real user's
+ *   post, most likely published on the web. Neither carries `media` or
+ *   anything viewer-specific.
  * - `presence-messaging.online` → members `{id, name, username, avatar}`.
  * - `private-user.{id}` → `call.signal` (see src/api/calls.ts). The other
  *   events are wired to the guide's shapes, read defensively, since nothing on
@@ -135,8 +142,26 @@ export function useRealtimeSync() {
       void queryClient.invalidateQueries({ queryKey: ['post', data.post_id], refetchType: 'active' });
     },
 
+    'post.created': (data) => {
+      const id: string | undefined = data?.post?.id ?? data?.postId;
+      const author = data?.post?.user;
+      const authorId: string | undefined = author?.id ?? data?.userId;
+      // Your own post is already in the feed — the composer put it there.
+      if (!id || !authorId || authorId === me) return;
+      const feed = queryClient.getQueryData<InfiniteData<Paginated<TimelinePost>>>(['feed']);
+      if (feed?.pages.some((page) => page.data.some((p) => p.id === id))) return;
+      useNewPostsStore.getState().add({
+        id,
+        authorId,
+        authorName:
+          (author?.name ?? data?.authorName)?.trim() || author?.username || data?.authorUsername || '',
+        authorAvatar: author?.avatar ?? null,
+      });
+    },
+
     'post.deleted': (data) => {
       if (!data?.post_id) return;
+      useNewPostsStore.getState().remove([data.post_id]);
       queryClient.setQueryData<InfiniteData<Paginated<TimelinePost>>>(['feed'], (feed) =>
         feed
           ? {

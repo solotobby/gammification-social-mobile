@@ -39,7 +39,10 @@ export type CallOutcome = {
  *
  * Statuses seen live (2026-10-14): `completed` (with `duration` in seconds and
  * `end_reason`), `rejected` (`user_declined`), `cancelled` (`caller_hung_up` /
- * `no_answer`), `busy`. `missed`, `ringing` and `ongoing` are documented.
+ * `no_answer`), `busy`. `ringing` and `ongoing` are documented. Since
+ * 2026-10-16 the server also ends an unanswered call itself after 60s as
+ * `missed` (`timeout`), and logs one that was answered but never connected as
+ * `failed` (`connection_failed`) rather than `completed`.
  */
 export function callOutcome(call: ApiCall, me: string | undefined): CallOutcome {
   const incoming = call.receiver_id === me;
@@ -49,6 +52,8 @@ export function callOutcome(call: ApiCall, me: string | undefined): CallOutcome 
         return { incoming, missed: false, label: 'Couldn’t connect' };
       }
       return { incoming, missed: false, label: duration(call.duration ?? 0) };
+    case 'failed':
+      return { incoming, missed: false, label: 'Couldn’t connect' };
     case 'rejected':
       return { incoming, missed: false, label: 'Declined' };
     case 'busy':

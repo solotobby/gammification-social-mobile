@@ -148,8 +148,8 @@ export function parseCallLog(body: string | null | undefined, mine: boolean): Ca
   const type = raw.call_type;
   switch (raw.status) {
     case 'completed':
-      // Answered but media never connected — the backend still logs it as
-      // completed, timing from the pickup (seen 2026-10-15: "completed, 31s").
+      // Answered but media never connected — logged as completed with
+      // reason `connection_failed` until 2026-10-16, `failed` since.
       if (raw.reason === 'connection_failed') return { type, missed: false, label: 'Couldn’t connect' };
       return {
         type,
@@ -158,6 +158,10 @@ export function parseCallLog(body: string | null | undefined, mine: boolean): Ca
           raw.formatted_duration ||
           (typeof raw.duration === 'number' ? formatCallDuration(raw.duration) : ''),
       };
+    case 'failed':
+      return { type, missed: false, label: 'Couldn’t connect' };
+    // The log says `declined` where the call record says `rejected`.
+    case 'declined':
     case 'rejected':
       return { type, missed: false, label: 'Declined' };
     case 'busy':

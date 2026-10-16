@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toPost, uniqueById } from '../../src/api/timeline';
 import { FEED_GUTTER, PostCard } from '../../src/components/feed/PostCard';
 import { HomeGreetingRow, HomeHeader } from '../../src/components/home/HomeHeader';
+import { NewPostsPill } from '../../src/components/home/NewPostsPill';
 import { type FeedTab } from '../../src/components/home/FeedTabs';
 import { TAB_BAR_CLEARANCE } from '../../src/components/navigation/TabBar';
 import {
@@ -145,6 +146,21 @@ export default function HomeScreen() {
 
   const header = useScrolledPastTop();
 
+  // The "New posts" pill floats just inside the top of the list, and tapping
+  // it scrolls to where the first post starts — past the list's top padding
+  // and its header (pulse, stories, composer, tabs) — rather than back to the
+  // greeting.
+  const [listTop, setListTop] = useState(0);
+  const feedPostIds = useMemo(() => new Set(allPosts.map((post) => post.id)), [allPosts]);
+  const listHeaderHeight = useRef(0);
+  const listTopPadding = spacing.xl - spacing.md;
+  const scrollToFirstPost = useCallback(() => {
+    listRef.current?.scrollToOffset({
+      offset: listTopPadding + listHeaderHeight.current,
+      animated: true,
+    });
+  }, [listRef, listTopPadding]);
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenBackground />
@@ -154,6 +170,7 @@ export default function HomeScreen() {
       </TabScreenHeader>
       <FlatList
         style={styles.list}
+        onLayout={(event) => setListTop(event.nativeEvent.layout.y)}
         data={posts}
         keyExtractor={(post) => post.id}
         renderItem={({ item }) => (
@@ -187,7 +204,7 @@ export default function HomeScreen() {
           />
         }
         ListHeaderComponent={
-          <>
+          <View onLayout={(event) => (listHeaderHeight.current = event.nativeEvent.layout.height)}>
             {/* RN's RefreshControl spinner doesn't render at all on iOS 26, so
                 iOS uses this indicator instead (native one is tinted
                 transparent above). Android shows only its native spinner. */}
@@ -202,7 +219,7 @@ export default function HomeScreen() {
             <View style={styles.headerWrap}>
               <HomeHeader feedTab={feedTab} onChangeFeedTab={setFeedTab} />
             </View>
-          </>
+          </View>
         }
         ListEmptyComponent={
           feed.isLoading ? (
@@ -254,9 +271,15 @@ export default function HomeScreen() {
         contentContainerStyle={{
           // The fixed header above owns the safe area; this only restores the
           // gap the greeting row used to leave before the pulse card.
-          paddingTop: spacing.xl - spacing.md,
+          paddingTop: listTopPadding,
           paddingBottom: insets.bottom + TAB_BAR_CLEARANCE,
         }}
+      />
+      <NewPostsPill
+        top={listTop}
+        feedTab={feedTab}
+        feedPostIds={feedPostIds}
+        onShown={scrollToFirstPost}
       />
     </View>
   );

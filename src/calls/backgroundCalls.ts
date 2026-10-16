@@ -1,8 +1,7 @@
 import * as Notifications from 'expo-notifications';
-import * as TaskManager from 'expo-task-manager';
 import { AppState, Platform } from 'react-native';
 
-import { fetchCall } from '../api/calls';
+import { fetchCall, type ApiCall, type CallStatus } from '../api/calls';
 import { useAuthStore } from '../stores/authStore';
 import { ensureSession, handleCallNotificationEvent, handOffCallToApp } from './callNotificationEvents';
 import {
@@ -80,23 +79,37 @@ async function onCallPush(push: CallPush): Promise<void> {
   if (push.type === 'call_cancelled') {
     const ringing = await findIncomingCallNotification(callId);
     await cancelIncomingCallNotification(callId);
-    if (!ringing || AppState.currentState === 'active') return;
-    // "Stopped ringing" covers answered-elsewhere as well as missed: ask.
-    let missed = true;
+    if (AppState.currentState === 'active') return;
+    // "Stopped ringing" covers declined and answered-elsewhere as well as
+    // missed, so ask. The notification may be gone already (it times out), so
+    // the server is also where the caller's name comes from.
+    let call: ApiCall | null = null;
     try {
-      const call = await fetchCall(callId);
-      missed = call.status !== 'ongoing' && call.status !== 'completed';
+      call = await fetchCall(callId);
     } catch {
-      // Unknown — a missed-call notice is the safer guess.
+      // Unknown — if it was ringing here, a missed-call notice is the safer guess.
     }
-    if (missed) {
-      await showMissedCallNotification(callId, ringing.callerName, ringing.callType);
-    }
+    const missed = call ? MISSED_STATUSES.has(call.status) : !!ringing;
+    if (!missed) return;
+    await showMissedCallNotification(
+      callId,
+      ringing?.callerName || call?.caller?.name?.trim() || call?.caller?.username || '',
+      ringing?.callType ?? (call?.call_type === 'video' ? 'video' : 'audio'),
+    );
   }
 }
 
+/** How a call that rang here and was never answered ends up on the server. */
+const MISSED_STATUSES = new Set<CallStatus>(['missed', 'cancelled', 'busy']);
+
 if (Platform.OS === 'android') {
   try {
+    // Required here, not imported: expo-task-manager throws on load wherever
+    // its native half is missing (a binary built before it was added — the
+    // iOS dev client did exactly that), and this module runs first thing on
+    // every platform.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const TaskManager: typeof import('expo-task-manager') = require('expo-task-manager');
     TaskManager.defineTask(CALL_PUSH_TASK, async ({ data, error }) => {
       if (error) return;
       const push = readCallPush(data);

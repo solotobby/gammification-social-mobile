@@ -56,7 +56,8 @@ export type CallStatus =
   | 'missed'
   | 'rejected'
   | 'cancelled'
-  | 'busy';
+  | 'busy'
+  | 'failed';
 
 export type SignalType =
   | 'incoming_call'
